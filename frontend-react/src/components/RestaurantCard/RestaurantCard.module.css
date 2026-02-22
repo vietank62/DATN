@@ -1,0 +1,130 @@
+.card {
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.imageWrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  transition: transform 0.4s;
+}
+
+.card:hover .image {
+  transform: scale(1.05);
+}
+
+.featuredBadge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: linear-gradient(135deg, #e65100, #ff9800);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cuisineBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+.content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #1a1a2e;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.address {
+  font-size: 0.85rem;
+  color: #777;
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.rating {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ff9800;
+}
+
+.reviews {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.priceRange {
+  font-size: 0.85rem;
+  color: #4caf50;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.bookingButton {
+  width: 100%;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #e65100, #ff6d00);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+  margin-top: auto;
+}
+
+.bookingButton:hover {
+  background: linear-gradient(135deg, #bf360c, #e65100);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(230, 81, 0, 0.3);
+}

@@ -1,73 +1,80 @@
-# React + TypeScript + Vite
+# Restaurant Booking Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a React application for a restaurant booking system. It allows users to search for restaurants, filter by various criteria, and make reservations.
 
-Currently, two official plugins are available:
+## Project Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+frontend-react
+├── src
+│   ├── main.tsx                # Entry point of the application
+│   ├── App.tsx                 # Main application component with routing
+│   ├── assets
+│   │   └── styles
+│   │       └── global.css      # Global styles including Tailwind CSS
+│   ├── components
+│   │   ├── Navbar               # Navbar component with logo and links
+│   │   ├── HeroSection          # Main banner and search form
+│   │   ├── FilterBar            # Component for filtering restaurants
+│   │   ├── RestaurantCard       # Displays restaurant details
+│   │   ├── RestaurantList       # Grid of RestaurantCard components
+│   │   ├── BookingModal         # Form for booking a table
+│   │   └── Footer               # Footer with contact info and links
+│   ├── hooks
+│   │   └── useBooking.ts        # Custom hook for managing booking state
+│   ├── pages
+│   │   ├── HomePage.tsx        # Main landing page
+│   │   └── RestaurantDetailPage.tsx # Detailed view of a restaurant
+│   ├── services
+│   │   └── api.ts              # API calls for restaurant data
+│   ├── types
+│   │   └── index.ts            # TypeScript types and interfaces
+│   └── utils
+│       └── helpers.ts          # Utility functions
+├── public
+│   └── index.html              # Main HTML template
+├── package.json                # npm configuration file
+├── tsconfig.json               # TypeScript configuration
+├── tsconfig.app.json           # TypeScript configuration for the app
+├── vite.config.ts              # Vite configuration
+└── README.md                   # Project documentation
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Features
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **Search and Filter**: Users can search for restaurants and filter results by cuisine type, price, area, and rating.
+- **Restaurant Details**: Each restaurant card displays essential information, including an image, name, address, price range, and rating.
+- **Booking System**: Users can book tables through a modal that collects date, time, guest count, and contact information.
+- **Responsive Design**: The application is designed to be responsive and user-friendly across devices.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Getting Started
+
+1. Clone the repository:
+   ```
+   git clone <repository-url>
+   ```
+
+2. Navigate to the project directory:
+   ```
+   cd frontend-react
+   ```
+
+3. Install dependencies:
+   ```
+   npm install
+   ```
+
+4. Start the development server:
+   ```
+   npm run dev
+   ```
+
+5. Open your browser and go to `http://localhost:3000` to view the application.
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
+
+## License
+
+This project is licensed under the MIT License.

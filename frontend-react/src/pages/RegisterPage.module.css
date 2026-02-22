@@ -1,0 +1,216 @@
+/* filepath: RegisterPage.module.css */
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  max-width: 1000px;
+  min-height: 650px;
+  background: #fff;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  margin: 20px;
+}
+
+/* ===== Image Section ===== */
+.imageSection {
+  background: linear-gradient(135deg, rgba(191, 54, 12, 0.9), rgba(230, 81, 0, 0.9)),
+    url('https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&fit=crop');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+  padding: 48px;
+}
+
+.imageOverlay h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.imageOverlay p {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+/* ===== Form Section ===== */
+.formSection {
+  padding: 40px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.formWrapper {
+  width: 100%;
+  max-width: 400px;
+}
+
+.backLink {
+  display: inline-block;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 20px;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #e65100;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  font-size: 1.3rem;
+  color: #e65100;
+  margin-bottom: 6px;
+}
+
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.header p {
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+}
+
+.errorMsg {
+  background: #ffebee;
+  color: #c62828;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+/* ===== Form ===== */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fieldGroup label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.input {
+  padding: 11px 14px;
+  border: 2px solid #e8e8e8;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.input:focus {
+  border-color: #e65100;
+}
+
+.terms {
+  font-size: 13px;
+  color: #888;
+}
+
+.terms label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.terms a {
+  color: #e65100;
+  font-weight: 500;
+}
+
+.submitBtn {
+  padding: 13px;
+  background: linear-gradient(135deg, #e65100, #ff6d00);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.submitBtn:hover {
+  background: linear-gradient(135deg, #bf360c, #e65100);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(230, 81, 0, 0.3);
+}
+
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loginLink {
+  text-align: center;
+  font-size: 14px;
+  color: #888;
+  margin-top: 18px;
+}
+
+.loginLink a {
+  color: #e65100;
+  font-weight: 600;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .container {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+  }
+
+  .imageSection {
+    display: none;
+  }
+
+  .formSection {
+    padding: 32px 24px;
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

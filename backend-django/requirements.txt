@@ -1,0 +1,30 @@
+# Django core
+Django==5.1.4
+djangorestframework==3.15.2
+
+# Authentication
+djangorestframework-simplejwt==5.4.0
+
+# CORS
+django-cors-headers==4.6.0
+
+# Filtering
+django-filter==24.3
+
+# Database
+psycopg2-binary==2.9.10
+
+# Environment variables
+python-decouple==3.8
+
+# Image handling
+Pillow==11.1.0
+
+# Production server
+gunicorn==23.0.0
+
+# Static files in production
+whitenoise==6.8.2
+
+# Auto camelCase ↔ snake_case (optional, recommended)
+djangorestframework-camel-case==1.4.2

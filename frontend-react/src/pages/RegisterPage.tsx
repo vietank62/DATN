@@ -1,0 +1,149 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import styles from './RegisterPage.module.css';
+
+const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const updateField = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (error) setError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!form.name.trim() || !form.email.trim() || !form.phone.trim() || !form.password.trim()) {
+      setError('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setError('Email không hợp lệ');
+      return;
+    }
+    if (!/^0\d{9}$/.test(form.phone)) {
+      setError('Số điện thoại không hợp lệ');
+      return;
+    }
+    if (form.password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 800));
+    setLoading(false);
+    navigate('/login');
+  };
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.container}>
+        <div className={styles.imageSection}>
+          <div className={styles.imageOverlay}>
+            <h2>Tham gia<br />TableNow</h2>
+            <p>Đăng ký ngay để đặt bàn tại hàng nghìn nhà hàng chất lượng</p>
+          </div>
+        </div>
+
+        <div className={styles.formSection}>
+          <div className={styles.formWrapper}>
+            <Link to="/" className={styles.backLink}>← Về trang chủ</Link>
+            <div className={styles.header}>
+              <h1>🍽️ TableNow</h1>
+              <h2>Tạo tài khoản</h2>
+              <p>Đăng ký miễn phí và bắt đầu khám phá ẩm thực.</p>
+            </div>
+
+            {error && <div className={styles.errorMsg}>{error}</div>}
+
+            <form onSubmit={handleSubmit} className={styles.form}>
+              <div className={styles.fieldGroup}>
+                <label>Họ và tên</label>
+                <input
+                  type="text"
+                  placeholder="Nguyễn Văn A"
+                  value={form.name}
+                  onChange={(e) => updateField('name', e.target.value)}
+                  className={styles.input}
+                />
+              </div>
+              <div className={styles.row}>
+                <div className={styles.fieldGroup}>
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    placeholder="name@example.com"
+                    value={form.email}
+                    onChange={(e) => updateField('email', e.target.value)}
+                    className={styles.input}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label>Số điện thoại</label>
+                  <input
+                    type="tel"
+                    placeholder="0901234567"
+                    value={form.phone}
+                    onChange={(e) => updateField('phone', e.target.value)}
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+              <div className={styles.fieldGroup}>
+                <label>Mật khẩu</label>
+                <input
+                  type="password"
+                  placeholder="Ít nhất 6 ký tự"
+                  value={form.password}
+                  onChange={(e) => updateField('password', e.target.value)}
+                  className={styles.input}
+                />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label>Xác nhận mật khẩu</label>
+                <input
+                  type="password"
+                  placeholder="Nhập lại mật khẩu"
+                  value={form.confirmPassword}
+                  onChange={(e) => updateField('confirmPassword', e.target.value)}
+                  className={styles.input}
+                />
+              </div>
+              <div className={styles.terms}>
+                <label>
+                  <input type="checkbox" /> Tôi đồng ý với{' '}
+                  <a href="#terms">Điều khoản sử dụng</a> và{' '}
+                  <a href="#privacy">Chính sách bảo mật</a>
+                </label>
+              </div>
+              <button type="submit" className={styles.submitBtn} disabled={loading}>
+                {loading ? 'Đang tạo tài khoản...' : 'Đăng ký'}
+              </button>
+            </form>
+
+            <p className={styles.loginLink}>
+              Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterPage;
