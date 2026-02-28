@@ -1,0 +1,5 @@
+sqlmodel
+psycopg2
+pyjwt
+pwdlib
+alembic
