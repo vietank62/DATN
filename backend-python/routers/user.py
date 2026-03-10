@@ -1,11 +1,28 @@
+from datetime import datetime
+
 from fastapi import APIRouter
+from passlib.context import CryptContext
 from database import SessionDep
 from models import User
+from schemas import UserRegister, UserUpdate
 
 router = APIRouter()
 
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+
 @router.post("/api/create-user/", tags=["User"])
-def create_user(user: User, session: SessionDep):
+def create_user(user_data: UserRegister, session: SessionDep):
+    user = User(
+        name=user_data.name,
+        email=user_data.email,
+        phone=user_data.phone,
+        password=get_password_hash(user_data.password),
+        createdAt=datetime.now().isoformat(timespec="seconds"),
+    )
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -31,15 +48,17 @@ def delete_user_by_email(email: str, session: SessionDep):
     return {"message": "User not found"}
 
 @router.put("/api/update-user/{email}", tags=["User"])
-def update_user_by_email(email: str, updated_user: User, session: SessionDep):
+def update_user_by_email(email: str, user_data: UserUpdate, session: SessionDep):
     user = session.query(User).filter(User.email == email).first()
     if user:
-        user.name = updated_user.name
-        user.password = updated_user.password
+        update_data = user_data.model_dump(exclude_unset=True)
+        if "password" in update_data:
+            update_data["password"] = get_password_hash(update_data["password"])
+        for field, value in update_data.items():
+            setattr(user, field, value)
         session.commit()
         session.refresh(user)
         return user
     return {"message": "User not found"}
-
 
 

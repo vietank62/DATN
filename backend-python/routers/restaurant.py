@@ -1,11 +1,13 @@
 from fastapi import APIRouter
 from database import SessionDep
 from models import Restaurant
+from schemas import RestaurantCreate, RestaurantUpdate
+
 
 router = APIRouter()
 
 @router.post("/api/create-restaurant/", tags=["Restaurant"])
-def create_restaurant(restaurant: Restaurant, session: SessionDep):
+def create_restaurant(restaurant: RestaurantCreate, session: SessionDep):
     session.add(restaurant)
     session.commit()
     session.refresh(restaurant)
@@ -32,21 +34,12 @@ def delete_restaurant_by_id(restaurant_id: int, session: SessionDep):
     return {"message": "Restaurant not found"}
 
 @router.put("/api/update-restaurant/{restaurant_id}", tags=["Restaurant"])
-def update_restaurant_by_id(restaurant_id: int, updated_restaurant: Restaurant, session: SessionDep):
+def update_restaurant_by_id(restaurant_id: int, updated_restaurant:RestaurantUpdate, session: SessionDep):
     restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == restaurant_id).first()
     if restaurant:
-        restaurant.name = updated_restaurant.name
-        restaurant.address = updated_restaurant.address
-        restaurant.district = updated_restaurant.district
-        restaurant.cuisine = updated_restaurant.cuisine
-        restaurant.priceRange = updated_restaurant.priceRange
-        restaurant.rating = updated_restaurant.rating
-        restaurant.reviewCount = updated_restaurant.reviewCount
-        restaurant.imageUrl = updated_restaurant.imageUrl
-        restaurant.openTime = updated_restaurant.openTime
-        restaurant.closeTime = updated_restaurant.closeTime
-        restaurant.phone = updated_restaurant.phone
-        restaurant.featured = updated_restaurant.featured
+        update_data = updated_restaurant.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(restaurant, field, value)
         session.commit()
         session.refresh(restaurant)
         return restaurant

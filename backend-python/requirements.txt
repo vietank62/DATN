@@ -3,3 +3,4 @@ psycopg2
 pyjwt
 pwdlib
 alembic
+passlib[argon2]

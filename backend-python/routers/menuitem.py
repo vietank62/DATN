@@ -1,12 +1,13 @@
 from fastapi import APIRouter
 from database import SessionDep
 from models import MenuItem
-from schemas import MenuItemUpdate
+from schemas import MenuItemUpdate, MenuItemCreate
+
 
 router = APIRouter()
 
 @router.post("/api/create-menuitem/", tags=["MenuItem"])
-def create_menu_item(menu_item: MenuItem, session: SessionDep):
+def create_menu_item(menu_item: MenuItemCreate, session: SessionDep):
     session.add(menu_item)
     session.commit()
     session.refresh(menu_item)
