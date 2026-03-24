@@ -419,6 +419,46 @@
   color: #e65100;
 }
 
+/* ===== Seat Display ===== */
+.seatCell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.seatRequested {
+  color: #888;
+  font-weight: 500;
+}
+
+.seatAssigned {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.seatStatusSection {
+  margin-top: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.seatOverviewCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.seatOverviewCard h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 16px;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
   .statsGrid {

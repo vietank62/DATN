@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './AdminDashboard.module.css';
-import { fetchRestaurants, fetchBookings } from '../services/api';
-import { mockAdminStats, mockUsers } from '../data/restaurants';
+import { fetchRestaurants, fetchBookings, fetchAllUsers, fetchAdminStats } from '../services/api';
 import type { Restaurant, Booking, User, AdminStats, UserRole } from '../types';
 
 const emptyRestaurant: Omit<Restaurant, 'id'> = {
   name: '', address: '', district: '', cuisine: '', priceRange: '',
   rating: 0, reviewCount: 0, imageUrl: '', description: '',
   openTime: '10:00', closeTime: '22:00', phone: '', featured: false, menu: [],
+  totalSeats: 0, availableSeats: 0,
 };
 
 const emptyUser: Omit<User, 'id'> = {
@@ -18,11 +18,10 @@ const emptyUser: Omit<User, 'id'> = {
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user: authUser, logout } = useAuth();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const { user: authUser, logout } = useAuth();  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [stats] = useState<AdminStats>(mockAdminStats);
+  const [users, setUsers] = useState<User[]>([]);
+  const [stats, setStats] = useState<AdminStats>({ totalRestaurants: 0, totalUsers: 0, totalBookings: 0, totalRevenue: 0, activeRestaurants: 0, newUsersThisMonth: 0 });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'restaurants' | 'users' | 'bookings'>('overview');
 
@@ -36,13 +35,19 @@ const AdminDashboard: React.FC = () => {
   const [userForm, setUserForm] = useState(emptyUser);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'restaurant' | 'user'; id: string } | null>(null);
-
   useEffect(() => {
     const load = async () => {
       try {
-        const [rData, bData] = await Promise.all([fetchRestaurants(), fetchBookings()]);
+        const [rData, bData, uData, sData] = await Promise.all([
+          fetchRestaurants(),
+          fetchBookings(),
+          fetchAllUsers(),
+          fetchAdminStats(),
+        ]);
         setRestaurants(rData);
         setBookings(bData);
+        setUsers(uData);
+        setStats(sData);
       } catch (err) {
         console.error(err);
       } finally {

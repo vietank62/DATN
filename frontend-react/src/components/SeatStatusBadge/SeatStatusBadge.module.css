@@ -1,0 +1,147 @@
+/* SeatStatusBadge.module.css */
+
+/* ===== Customer Badge ===== */
+.badgeAvailable {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.badgeFull {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+.badgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotGreen {
+  background: #43a047;
+  box-shadow: 0 0 4px rgba(67, 160, 71, 0.5);
+}
+
+.dotRed {
+  background: #e53935;
+  box-shadow: 0 0 4px rgba(229, 57, 53, 0.5);
+}
+
+/* ===== Size variants ===== */
+.sizeSm .badgeAvailable,
+.sizeSm .badgeFull,
+.sizeSm {
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+.sizeLg {
+  font-size: 14px;
+  padding: 6px 16px;
+}
+
+/* ===== Manager View ===== */
+.managerContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.managerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.managerLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.managerCount {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.countGood {
+  color: #2e7d32;
+}
+
+.countWarning {
+  color: #e65100;
+}
+
+.countDanger {
+  color: #c62828;
+}
+
+/* ===== Progress Bar ===== */
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.progressGood {
+  background: linear-gradient(90deg, #43a047, #66bb6a);
+}
+
+.progressWarning {
+  background: linear-gradient(90deg, #e65100, #ff9800);
+}
+
+.progressDanger {
+  background: linear-gradient(90deg, #c62828, #e53935);
+}
+
+/* ===== Compact Manager (for table cells) ===== */
+.managerCompact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.managerCompact .managerCount {
+  font-size: 13px;
+}
+
+.miniProgress {
+  width: 60px;
+  height: 5px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.miniProgress .progressFill {
+  height: 100%;
+  border-radius: 3px;
+}

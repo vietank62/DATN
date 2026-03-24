@@ -174,6 +174,17 @@
   color: #e53935;
 }
 
+.seatWarning {
+  padding: 10px 14px;
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e65100;
+  margin-bottom: 18px;
+}
+
 /* ===== Buttons ===== */
 .primaryBtn {
   width: 100%;

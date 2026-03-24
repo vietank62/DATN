@@ -1,0 +1,184 @@
+/* ManagerBookingAction.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ===== Pending Panel ===== */
+.pendingPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: #fffde7;
+  border: 1px solid #fff9c4;
+  border-radius: 12px;
+}
+
+.seatSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seatLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+
+.seatControls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.seatBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f5f5f5;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.seatBtn:hover:not(:disabled) {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.seatBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.seatValue {
+  width: 42px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  background: #fff;
+  border: none;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  height: 32px;
+  outline: none;
+}
+
+/* ===== Warning ===== */
+.warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #e65100;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.warningIcon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.dangerWarning {
+  background: #ffebee;
+  border-color: #ffcdd2;
+  color: #c62828;
+}
+
+/* ===== Action Buttons ===== */
+.actionRow {
+  display: flex;
+  gap: 6px;
+}
+
+.confirmActionBtn {
+  flex: 1;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.confirmActionBtn:hover {
+  background: #c8e6c9;
+}
+
+.confirmActionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelActionBtn {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #ffebee;
+  color: #c62828;
+}
+
+.cancelActionBtn:hover {
+  background: #ffcdd2;
+}
+
+.completeActionBtn {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.completeActionBtn:hover {
+  background: #bbdefb;
+}
+
+/* ===== Info row ===== */
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+}
+
+.requestedInfo {
+  font-weight: 500;
+  color: #666;
+}
+
+.assignedInfo {
+  font-weight: 600;
+  color: #2e7d32;
+}

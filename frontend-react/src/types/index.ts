@@ -23,6 +23,9 @@ export interface Restaurant {
   phone: string;
   featured: boolean;
   menu?: MenuItem[];
+  totalSeats: number;
+  availableSeats: number;
+  managerID?: number;
 }
 
 export interface Booking {
@@ -32,6 +35,8 @@ export interface Booking {
   date: string;
   time: string;
   guestCount: number;
+  requestedSeats: number;
+  assignedSeats?: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   contactInfo: {
     name: string;

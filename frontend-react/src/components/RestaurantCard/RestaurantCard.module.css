@@ -128,3 +128,22 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(230, 81, 0, 0.3);
 }
+
+.seatBadge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+}
+
+.bookBtnDisabled {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.bookBtnDisabled:hover {
+  background: #ccc !important;
+  transform: none !important;
+  box-shadow: none !important;
+}

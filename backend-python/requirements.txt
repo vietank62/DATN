@@ -1,6 +1,8 @@
+fastapi[standard]
 sqlmodel
 psycopg2
 pyjwt
 pwdlib
 alembic
 passlib[argon2]
+python-dotenv

@@ -5,7 +5,7 @@ import styles from './LoginPage.module.css';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, loginAsRole } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -34,12 +34,27 @@ const LoginPage: React.FC = () => {
       setLoading(false);
     }
   };
-
-  const handleDemoLogin = (role: 'customer' | 'manager' | 'admin') => {
-    loginAsRole(role);
-    if (role === 'admin') navigate('/admin');
-    else if (role === 'manager') navigate('/manager');
-    else navigate('/');
+  const handleDemoLogin = async (role: 'customer' | 'manager' | 'admin') => {
+    const demoAccounts: Record<string, { email: string; password: string }> = {
+      customer: { email: 'customer@tablenow.vn', password: 'customer123' },
+      manager: { email: 'manager@tablenow.vn', password: 'manager123' },
+      admin: { email: 'admin@tablenow.vn', password: 'admin123' },
+    };
+    const account = demoAccounts[role];
+    setError('');
+    setLoading(true);
+    try {
+      const result = await login(account.email, account.password);
+      if (result.success) {
+        if (result.role === 'admin') navigate('/admin');
+        else if (result.role === 'manager') navigate('/manager');
+        else navigate('/');
+      }
+    } catch {
+      setError(`Đăng nhập demo thất bại. Tài khoản ${role} chưa được tạo.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -102,11 +117,9 @@ const LoginPage: React.FC = () => {
               <button className={styles.demoBtn} onClick={() => handleDemoLogin('admin')}>
                 🛡️ Admin
               </button>
-            </div>
-
-            <div className={styles.demoInfo}>
+            </div>            <div className={styles.demoInfo}>
               <p><strong>Tài khoản demo:</strong></p>
-              <small>Khách hàng: a@gmail.com / customer123</small>
+              <small>Khách hàng: customer@tablenow.vn / customer123</small>
               <small>Quản lý: manager@tablenow.vn / manager123</small>
               <small>Admin: admin@tablenow.vn / admin123</small>
             </div>

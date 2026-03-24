@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { registerUser } from '../services/api';
 import styles from './RegisterPage.module.css';
 
 const RegisterPage: React.FC = () => {
@@ -42,12 +43,20 @@ const RegisterPage: React.FC = () => {
     if (form.password !== form.confirmPassword) {
       setError('Mật khẩu xác nhận không khớp');
       return;
+    }    setLoading(true);
+    try {
+      await registerUser({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      });
+      navigate('/login');
+    } catch (err: any) {
+      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    navigate('/login');
   };
 
   return (

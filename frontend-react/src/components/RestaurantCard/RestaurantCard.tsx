@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './RestaurantCard.module.css';
 import { cuisineTypes } from '../../data/restaurants';
+import SeatStatusBadge from '../SeatStatusBadge/SeatStatusBadge';
 
 interface RestaurantCardProps {
   id: string;
@@ -13,6 +14,8 @@ interface RestaurantCardProps {
   rating: number;
   reviewCount?: number;
   featured?: boolean;
+  totalSeats: number;
+  availableSeats: number;
   onBooking: () => void;
   onClick?: () => void;
 }
@@ -26,10 +29,13 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   rating,
   reviewCount,
   featured,
+  totalSeats,
+  availableSeats,
   onBooking,
   onClick,
 }) => {
-  const cuisineLabel = cuisineTypes.find((c) => c.id === cuisine);
+  const cuisineLabel = cuisineTypes.find((c) => c.id === cuisine || c.label === cuisine);
+  const isFull = availableSeats <= 0;
 
   return (
     <div className={styles.card} onClick={onClick}>
@@ -41,6 +47,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             {cuisineLabel.icon} {cuisineLabel.label}
           </span>
         )}
+        <span className={styles.seatBadge}>
+          <SeatStatusBadge
+            availableSeats={availableSeats}
+            totalSeats={totalSeats}
+            userRole="customer"
+            size="sm"
+          />
+        </span>
       </div>
       <div className={styles.content}>
         <h3 className={styles.name}>{name}</h3>
@@ -53,13 +67,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           <span className={styles.priceRange}>💰 {priceRange}</span>
         </div>
         <button
-          className={styles.bookingButton}
+          className={`${styles.bookingButton} ${isFull ? styles.bookBtnDisabled : ''}`}
+          disabled={isFull}
           onClick={(e) => {
             e.stopPropagation();
-            onBooking();
+            if (!isFull) onBooking();
           }}
         >
-          Đặt bàn ngay
+          {isFull ? 'Hết chỗ' : 'Đặt bàn ngay'}
         </button>
       </div>
     </div>

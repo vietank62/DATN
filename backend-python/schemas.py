@@ -21,6 +21,7 @@ class UserUpdate(BaseModel):
     email: Optional[str] = None
     password: Optional[str] = None
     avatar: Optional[str] = None
+    role: Optional[str] = None
     
 class UserOut(BaseModel):
     userId: int
@@ -32,20 +33,22 @@ class UserOut(BaseModel):
     createdAt: Optional[str] = None
     
 class RestaurantCreate(BaseModel):
-    restaurantId: Optional[int] = Field(default=None, primary_key=True)
     name: str
     address: str
     district: str
     cuisine: str
     priceRange: str
+    rating: float = 0.0
+    reviewCount: int = 0
     imageUrl: Optional[str] = None
     description: Optional[str] = None
     openTime: str  
     closeTime: str
-    featured: bool
+    featured: bool = False
     phone: str
     totalSeats: int
     availableSeats: int
+    managerID: int
 
 class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
@@ -53,6 +56,8 @@ class RestaurantUpdate(BaseModel):
     district: Optional[str] = None
     cuisine: Optional[str] = None
     priceRange: Optional[str] = None
+    rating: Optional[float] = None
+    reviewCount: Optional[int] = None
     imageUrl: Optional[str] = None
     description: Optional[str] = None
     openTime: Optional[str] = None  
@@ -61,6 +66,7 @@ class RestaurantUpdate(BaseModel):
     phone: Optional[str] = None
     totalSeats: Optional[int] = None
     availableSeats: Optional[int] = None
+    managerID: Optional[int] = None
     
 class MenuItemCreate(BaseModel):
     restaurantId: int
@@ -86,6 +92,7 @@ class BookingCreate(BaseModel):
     time : str
     guestCount: int
     requestSeats: int
+    assignedSeats: int = 0
     contactName: str
     contactEmail: str
     contactPhone: str

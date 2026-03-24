@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ManagerDashboard from './pages/ManagerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import MyBookingsPage from './pages/MyBookingsPage';
 import './assets/styles/global.css';
 
 const App: React.FC = () => {
@@ -22,6 +23,7 @@ const App: React.FC = () => {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/my-bookings" element={<MyBookingsPage />} />
       </Routes>
       <Footer />
     </Router>

@@ -2,30 +2,38 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './ManagerDashboard.module.css';
-import { fetchBookings } from '../services/api';
-import { mockManagerStats, mockRestaurants } from '../data/restaurants';
+import { fetchBookings, fetchRestaurants, fetchManagerStats, updateBookingStatus, updateRestaurant as apiUpdateRestaurant, fetchMenuItems, createMenuItem as apiCreateMenuItem, updateMenuItem as apiUpdateMenuItem, deleteMenuItem as apiDeleteMenuItem } from '../services/api';
 import type { Booking, ManagerStats, Restaurant, MenuItem } from '../types';
+import SeatStatusBadge from '../components/SeatStatusBadge/SeatStatusBadge';
+import ManagerBookingAction from '../components/ManagerBookingAction/ManagerBookingAction';
 
 const emptyMenuItem: Omit<MenuItem, 'id'> = {
   name: '', description: '', price: 0, imageUrl: '', category: '',
+};
+
+const defaultRestaurant: Restaurant = {
+  id: '', name: '', address: '', district: '', cuisine: '', priceRange: '',
+  rating: 0, reviewCount: 0, imageUrl: '', description: '',
+  openTime: '', closeTime: '', phone: '', featured: false,
+  totalSeats: 0, availableSeats: 0,
 };
 
 const ManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user: authUser, logout } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [stats] = useState<ManagerStats>(mockManagerStats);
+  const [stats, setStats] = useState<ManagerStats>({ totalBookings: 0, todayBookings: 0, totalRevenue: 0, avgRating: 0, pendingBookings: 0, confirmedBookings: 0 });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'bookings' | 'restaurant' | 'menu' | 'stats'>('bookings');
 
-  // Restaurant state (editable)
-  const [restaurant, setRestaurant] = useState<Restaurant>({ ...mockRestaurants[0] });
+  // Restaurant state (editable) — non-null, starts with default
+  const [restaurant, setRestaurant] = useState<Restaurant>(defaultRestaurant);
   const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState<Restaurant>({ ...mockRestaurants[0] });
+  const [editForm, setEditForm] = useState<Restaurant>(defaultRestaurant);
   const [saveMsg, setSaveMsg] = useState('');
 
   // Menu state
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(mockRestaurants[0].menu || []);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
   const [menuForm, setMenuForm] = useState(emptyMenuItem);
@@ -33,27 +41,79 @@ const ManagerDashboard: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const data = await fetchBookings(restaurant.id);
-        setBookings(data);
+      try {        const allRestaurants = await fetchRestaurants();
+        // Find the restaurant managed by the current user
+        const managerId = authUser ? Number(authUser.id) : undefined;
+        const myRestaurant = managerId
+          ? allRestaurants.find((r) => r.managerID === managerId) || allRestaurants[0]
+          : allRestaurants[0];
+        if (myRestaurant) {
+          setRestaurant(myRestaurant);
+          setEditForm(myRestaurant);
+          const [bData, sData, mData] = await Promise.all([
+            fetchBookings(myRestaurant.id),
+            fetchManagerStats(myRestaurant.id),
+            fetchMenuItems(myRestaurant.id),
+          ]);
+          setBookings(bData);
+          setStats(sData);
+          setMenuItems(mData);
+        }
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
-      }
-    };
+      }    };
     load();
-  }, [restaurant.id]);
+  }, [authUser]);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
-
   const handleStatusChange = (bookingId: string, newStatus: Booking['status']) => {
     setBookings((prev) =>
       prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
     );
+  };
+  const handleConfirmBooking = (bookingId: string, assignedSeats: number) => {
+    updateBookingStatus(bookingId, 'confirmed').then(() => {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, status: 'confirmed' as const, assignedSeats } : b
+        )
+      );
+      setRestaurant((prev) => ({
+        ...prev,
+        availableSeats: Math.max(0, prev.availableSeats - assignedSeats),
+      }));
+    });
+  };
+
+  const handleCancelBooking = (bookingId: string) => {
+    const booking = bookings.find((b) => b.id === bookingId);
+    updateBookingStatus(bookingId, 'cancelled').then(() => {
+      handleStatusChange(bookingId, 'cancelled');
+      if (booking?.status === 'confirmed' && booking.assignedSeats) {
+        setRestaurant((prev) => ({
+          ...prev,
+          availableSeats: Math.min(prev.totalSeats, prev.availableSeats + booking.assignedSeats!),
+        }));
+      }
+    });
+  };
+
+  const handleCompleteBooking = (bookingId: string) => {
+    const booking = bookings.find((b) => b.id === bookingId);
+    updateBookingStatus(bookingId, 'completed').then(() => {
+      handleStatusChange(bookingId, 'completed');
+      if (booking?.assignedSeats) {
+        setRestaurant((prev) => ({
+          ...prev,
+          availableSeats: Math.min(prev.totalSeats, prev.availableSeats + booking.assignedSeats!),
+        }));
+      }
+    });
   };
 
   const getStatusLabel = (status: Booking['status']) => {
@@ -80,12 +140,17 @@ const ManagerDashboard: React.FC = () => {
     setEditMode(false);
     setSaveMsg('');
   };
-
-  const saveEdit = () => {
-    setRestaurant({ ...editForm });
-    setEditMode(false);
-    setSaveMsg('Đã lưu thay đổi thành công!');
-    setTimeout(() => setSaveMsg(''), 3000);
+  const saveEdit = async () => {
+    try {
+      const updated = await apiUpdateRestaurant(restaurant.id, editForm);
+      setRestaurant(updated);
+      setEditMode(false);
+      setSaveMsg('Đã lưu thay đổi thành công!');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } catch (err) {
+      console.error('Save error:', err);
+      setSaveMsg('Lỗi khi lưu thay đổi!');
+    }
   };
 
   // Menu CRUD
@@ -100,21 +165,30 @@ const ManagerDashboard: React.FC = () => {
     setMenuForm({ name: item.name, description: item.description, price: item.price, imageUrl: item.imageUrl, category: item.category });
     setShowMenuModal(true);
   };
-
-  const saveMenuItem = () => {
+  const saveMenuItem = async () => {
     if (!menuForm.name.trim()) return;
-    if (editingMenuItem) {
-      setMenuItems((prev) => prev.map((m) => m.id === editingMenuItem.id ? { ...editingMenuItem, ...menuForm } : m));
-    } else {
-      const newItem: MenuItem = { ...menuForm, id: `MI${Date.now()}` };
-      setMenuItems((prev) => [...prev, newItem]);
+    try {
+      if (editingMenuItem) {
+        const updated = await apiUpdateMenuItem(editingMenuItem.id, menuForm);
+        setMenuItems((prev) => prev.map((m) => m.id === editingMenuItem.id ? updated : m));
+      } else {
+        const created = await apiCreateMenuItem({ ...menuForm, restaurantId: restaurant.id });
+        setMenuItems((prev) => [...prev, created]);
+      }
+      setShowMenuModal(false);
+    } catch (err) {
+      console.error('Menu save error:', err);
     }
-    setShowMenuModal(false);
   };
 
-  const deleteMenuItem = (id: string) => {
-    setMenuItems((prev) => prev.filter((m) => m.id !== id));
-    setDeleteMenuConfirm(null);
+  const deleteMenuItem = async (id: string) => {
+    try {
+      await apiDeleteMenuItem(id);
+      setMenuItems((prev) => prev.filter((m) => m.id !== id));
+      setDeleteMenuConfirm(null);
+    } catch (err) {
+      console.error('Menu delete error:', err);
+    }
   };
 
   // Group menu by category
@@ -164,9 +238,7 @@ const ManagerDashboard: React.FC = () => {
           <div className={styles.userInfo}>
             <span>{authUser?.name || 'Manager'}</span>
           </div>
-        </header>
-
-        {/* Stats Cards */}
+        </header>        {/* Stats Cards */}
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
             <span className={styles.statIcon}>📋</span>
@@ -190,10 +262,10 @@ const ManagerDashboard: React.FC = () => {
             </div>
           </div>
           <div className={styles.statCard}>
-            <span className={styles.statIcon}>⭐</span>
+            <span className={styles.statIcon}>🪑</span>
             <div>
-              <span className={styles.statValue}>{stats.avgRating}</span>
-              <span className={styles.statLabel}>Đánh giá TB</span>
+              <span className={styles.statValue}>{restaurant.availableSeats}/{restaurant.totalSeats}</span>
+              <span className={styles.statLabel}>Chỗ trống</span>
             </div>
           </div>
         </div>
@@ -213,8 +285,7 @@ const ManagerDashboard: React.FC = () => {
               <div className={styles.loadingState}>Đang tải...</div>
             ) : bookings.length === 0 ? (
               <div className={styles.emptyState}>Chưa có đặt bàn nào</div>
-            ) : (
-              <table className={styles.table}>
+            ) : (              <table className={styles.table}>
                 <thead>
                   <tr>
                     <th>Mã</th>
@@ -222,6 +293,7 @@ const ManagerDashboard: React.FC = () => {
                     <th>Ngày</th>
                     <th>Giờ</th>
                     <th>Số khách</th>
+                    <th>Chỗ ngồi</th>
                     <th>Trạng thái</th>
                     <th>Hành động</th>
                   </tr>
@@ -242,28 +314,29 @@ const ManagerDashboard: React.FC = () => {
                         <td>{booking.time}</td>
                         <td>{booking.guestCount} khách</td>
                         <td>
+                          <div className={styles.seatCell}>
+                            <span className={styles.seatRequested}>Yêu cầu: {booking.requestedSeats}</span>
+                            {booking.assignedSeats && (
+                              <span className={styles.seatAssigned}>Gán: {booking.assignedSeats}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
                           <span className={`${styles.statusBadge} ${statusInfo.className}`}>
                             {statusInfo.label}
                           </span>
                         </td>
                         <td>
-                          <div className={styles.actions}>
-                            {booking.status === 'pending' && (
-                              <>
-                                <button className={styles.confirmBtn} onClick={() => handleStatusChange(booking.id, 'confirmed')}>
-                                  Xác nhận
-                                </button>
-                                <button className={styles.cancelBtn} onClick={() => handleStatusChange(booking.id, 'cancelled')}>
-                                  Huỷ
-                                </button>
-                              </>
-                            )}
-                            {booking.status === 'confirmed' && (
-                              <button className={styles.completeBtn} onClick={() => handleStatusChange(booking.id, 'completed')}>
-                                Hoàn thành
-                              </button>
-                            )}
-                          </div>
+                          <ManagerBookingAction
+                            bookingId={booking.id}
+                            requestedSeats={booking.requestedSeats}
+                            availableSeats={restaurant.availableSeats}
+                            currentStatus={booking.status}
+                            assignedSeats={booking.assignedSeats}
+                            onConfirm={handleConfirmBooking}
+                            onCancel={handleCancelBooking}
+                            onComplete={handleCompleteBooking}
+                          />
                         </td>
                       </tr>
                     );
@@ -322,10 +395,17 @@ const ManagerDashboard: React.FC = () => {
                       <div className={styles.editFormGroup}>
                         <label>Giờ mở cửa</label>
                         <input type="time" value={editForm.openTime} onChange={(e) => setEditForm({ ...editForm, openTime: e.target.value })} />
-                      </div>
-                      <div className={styles.editFormGroup}>
+                      </div>                      <div className={styles.editFormGroup}>
                         <label>Giờ đóng cửa</label>
                         <input type="time" value={editForm.closeTime} onChange={(e) => setEditForm({ ...editForm, closeTime: e.target.value })} />
+                      </div>
+                      <div className={styles.editFormGroup}>
+                        <label>Tổng số chỗ</label>
+                        <input type="number" value={editForm.totalSeats} onChange={(e) => setEditForm({ ...editForm, totalSeats: Number(e.target.value) })} />
+                      </div>
+                      <div className={styles.editFormGroup}>
+                        <label>Chỗ trống hiện tại</label>
+                        <input type="number" value={editForm.availableSeats} onChange={(e) => setEditForm({ ...editForm, availableSeats: Number(e.target.value) })} />
                       </div>
                       <div className={`${styles.editFormGroup} ${styles.editFormGroupFull}`}>
                         <label>Mô tả</label>
@@ -346,14 +426,20 @@ const ManagerDashboard: React.FC = () => {
                       <h3>{restaurant.name}</h3>
                       <button className={styles.editInfoBtn} onClick={startEdit}>Chỉnh sửa</button>
                     </div>
-                    <p>{restaurant.description}</p>
-                    <div className={styles.detailGrid}>
+                    <p>{restaurant.description}</p>                    <div className={styles.detailGrid}>
                       <div><strong>Địa chỉ:</strong> {restaurant.address}</div>
                       <div><strong>Điện thoại:</strong> {restaurant.phone}</div>
                       <div><strong>Giờ mở cửa:</strong> {restaurant.openTime} - {restaurant.closeTime}</div>
                       <div><strong>Khoảng giá:</strong> {restaurant.priceRange}</div>
                       <div><strong>Đánh giá:</strong> {restaurant.rating} ({restaurant.reviewCount} đánh giá)</div>
                       <div><strong>Loại:</strong> {restaurant.cuisine}</div>
+                    </div>
+                    <div className={styles.seatStatusSection}>
+                      <SeatStatusBadge
+                        availableSeats={restaurant.availableSeats}
+                        totalSeats={restaurant.totalSeats}
+                        userRole="manager"
+                      />
                     </div>
                   </div>
                 </>
@@ -401,11 +487,17 @@ const ManagerDashboard: React.FC = () => {
               ))
             )}
           </div>
-        )}
-
-        {/* ===== Stats Tab ===== */}
+        )}        {/* ===== Stats Tab ===== */}
         {activeTab === 'stats' && (
           <div className={styles.statsContent}>
+            <div className={styles.seatOverviewCard}>
+              <h4>Tình trạng chỗ ngồi</h4>
+              <SeatStatusBadge
+                availableSeats={restaurant.availableSeats}
+                totalSeats={restaurant.totalSeats}
+                userRole="manager"
+              />
+            </div>
             <div className={styles.statsDetailGrid}>
               <div className={styles.statsDetailCard}>
                 <h4>Đặt bàn chờ xác nhận</h4>

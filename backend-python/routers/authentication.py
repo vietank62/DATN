@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from fastapi import Response, Request
+import os
 
 import jwt
 from fastapi import Depends, HTTPException, status, APIRouter, Security
@@ -14,9 +15,8 @@ from sqlmodel import Session, select
 from schemas import UserOut, Token, TokenData
 
 router = APIRouter()
-# to get a string like this run:
-# openssl rand -hex 32
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+# SECRET_KEY loaded from .env – generate with: openssl rand -hex 32
+SECRET_KEY = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 3
@@ -135,6 +135,8 @@ def refresh_access_token(request: Request, session: SessionDep) -> Token:
     scopes = []
     if user.role == "admin":
         scopes.append("admin")
+    if user.role == "manager":
+        scopes.append("manager")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"email": user.email, "scopes": scopes}, expires_delta=access_token_expires

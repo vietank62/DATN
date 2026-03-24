@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchRestaurantById } from '../services/api';
+import { fetchRestaurantById, createBooking } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { Restaurant } from '../types';
 import BookingModal from '../components/BookingModal/BookingModal';
 import type { BookingFormData } from '../components/BookingModal/BookingModal';
+import SeatStatusBadge from '../components/SeatStatusBadge/SeatStatusBadge';
 import { cuisineTypes } from '../data/restaurants';
 import styles from './RestaurantDetailPage.module.css';
 
 const RestaurantDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user: authUser, isAuthenticated } = useAuth();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [localAvailableSeats, setLocalAvailableSeats] = useState(0);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -20,7 +25,10 @@ const RestaurantDetailPage: React.FC = () => {
         if (id) {
           setLoading(true);
           const data = await fetchRestaurantById(id);
-          if (data) setRestaurant(data);
+          if (data) {
+            setRestaurant(data);
+            setLocalAvailableSeats(data.availableSeats);
+          }
         }
       } catch (error) {
         console.error('Error fetching restaurant details:', error);
@@ -31,8 +39,39 @@ const RestaurantDetailPage: React.FC = () => {
     load();
   }, [id]);
 
-  const handleBookingSubmit = (bookingData: BookingFormData) => {
-    console.log('Booking submitted:', bookingData);
+  const handleBookingSubmit = async (bookingData: BookingFormData) => {
+    if (!restaurant || !id) return;
+    setBookingError(null);
+    try {
+      await createBooking({
+        restaurantId: id,
+        restaurantName: restaurant.name,
+        date: bookingData.date,
+        time: bookingData.time,
+        guestCount: bookingData.guests,
+        requestedSeats: bookingData.guests,
+        status: 'pending',
+        contactInfo: {
+          name: bookingData.name,
+          email: bookingData.email,
+          phone: bookingData.phone,
+        },
+        note: bookingData.note,
+      });
+      // Update available seats optimistically
+      setLocalAvailableSeats((prev) => Math.max(0, prev - bookingData.guests));
+    } catch (err: any) {
+      setBookingError(err.message || 'Đặt bàn thất bại');
+      console.error('Booking error:', err);
+    }
+  };
+
+  const handleOpenBooking = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    setModalOpen(true);
   };
 
   if (loading) {
@@ -57,7 +96,10 @@ const RestaurantDetailPage: React.FC = () => {
     );
   }
 
-  const cuisineLabel = cuisineTypes.find((c) => c.id === restaurant.cuisine);
+  const cuisineLabel = cuisineTypes.find(
+    (c) => c.id === restaurant.cuisine || c.label === restaurant.cuisine
+  );
+  const isFull = localAvailableSeats <= 0;
 
   return (
     <div className={styles.page}>
@@ -77,6 +119,11 @@ const RestaurantDetailPage: React.FC = () => {
             {cuisineLabel && (
               <span className={styles.cuisineBadge}>{cuisineLabel.icon} {cuisineLabel.label}</span>
             )}
+            <SeatStatusBadge
+              availableSeats={localAvailableSeats}
+              totalSeats={restaurant.totalSeats}
+              userRole="customer"
+            />
           </div>
 
           <h1 className={styles.name}>{restaurant.name}</h1>
@@ -164,10 +211,31 @@ const RestaurantDetailPage: React.FC = () => {
           <div className={styles.bookingCard}>
             <h3>Đặt bàn ngay</h3>
             <p>Đảm bảo chỗ ngồi tại {restaurant.name}</p>
-            <button className={styles.bookBtn} onClick={() => setModalOpen(true)}>
-              🍽️ Đặt bàn
-            </button>
-            <p className={styles.bookNote}>Miễn phí · Xác nhận tức thì</p>
+
+            <div className={styles.seatStatusCard}>
+              <SeatStatusBadge
+                availableSeats={localAvailableSeats}
+                totalSeats={restaurant.totalSeats}
+                userRole="customer"
+                size="lg"
+              />
+            </div>
+
+            {isFull ? (
+              <>
+                <button className={`${styles.bookBtn} ${styles.bookBtnDisabled}`} disabled>
+                  🍽️ Hết chỗ
+                </button>
+                <p className={styles.fullNotice}>Nhà hàng hiện đã hết chỗ. Vui lòng quay lại sau.</p>
+              </>
+            ) : (
+              <>
+                <button className={styles.bookBtn} onClick={handleOpenBooking}>
+                  🍽️ Đặt bàn
+                </button>
+                <p className={styles.bookNote}>Miễn phí · Xác nhận tức thì</p>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -176,6 +244,7 @@ const RestaurantDetailPage: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
         restaurantName={restaurant.name}
+        availableSeats={localAvailableSeats}
         onSubmit={handleBookingSubmit}
       />
     </div>

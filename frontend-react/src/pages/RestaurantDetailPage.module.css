@@ -292,6 +292,31 @@
   margin: 12px 0 0;
 }
 
+/* ===== Seat Status in Sidebar ===== */
+.seatStatusCard {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.bookBtnDisabled {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+}
+
+.bookBtnDisabled:hover {
+  background: #ccc !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.fullNotice {
+  font-size: 13px;
+  color: #c62828;
+  margin: 12px 0 0;
+  font-weight: 500;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
   .heroImage {

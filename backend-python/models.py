@@ -48,7 +48,7 @@ class Booking(SQLModel, table=True):
     time : str
     guestCount: int
     requestSeats: int
-    assignedSeats: int
+    assignedSeats: int = Field(default=0)
     status: str = Field(default="pending")
     contactName: str
     contactEmail: str

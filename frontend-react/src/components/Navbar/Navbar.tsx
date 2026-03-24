@@ -82,6 +82,11 @@ const Navbar: React.FC = () => {
                 <span className={styles.roleBadge}>{getRoleLabel(user.role)}</span>
               </div>
               <div className={styles.dropdownDivider} />
+              {user.role === 'customer' && (
+                <button className={styles.dropdownItem} onClick={() => { setUserMenuOpen(false); navigate('/my-bookings'); }}>
+                  Đơn đặt bàn của tôi
+                </button>
+              )}
               {(user.role === 'admin' || user.role === 'manager') && (
                 <button className={styles.dropdownItem} onClick={handleDashboard}>
                   {user.role === 'admin' ? 'Trang quản trị' : 'Quản lý nhà hàng'}
@@ -120,6 +125,11 @@ const Navbar: React.FC = () => {
                 <strong>{user.name}</strong>
                 <small>{getRoleLabel(user.role)}</small>
               </div>
+              {user.role === 'customer' && (
+                <Link to="/my-bookings" onClick={() => setMobileMenuOpen(false)}>
+                  Đơn đặt bàn của tôi
+                </Link>
+              )}
               {(user.role === 'admin' || user.role === 'manager') && (
                 <Link
                   to={user.role === 'admin' ? '/admin' : '/manager'}

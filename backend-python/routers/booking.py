@@ -1,39 +1,60 @@
-from fastapi import APIRouter, HTTPException
+from datetime import datetime
+from typing import Annotated
+from fastapi import APIRouter, HTTPException, Depends, Security
 from database import SessionDep
-from models import Booking, Restaurant
+from models import Booking, Restaurant, User
 from schemas import BookingCreate, BookingUpdate
+from routers.authentication import get_current_user
 
 router = APIRouter()
 
+def _enrich_bookings(bookings: list[Booking], session) -> list[dict]:
+    """Add restaurantName to each booking via a single query."""
+    if not bookings:
+        return []
+    restaurant_ids = list({b.restaurantId for b in bookings})
+    restaurants = session.query(Restaurant).filter(Restaurant.restaurantId.in_(restaurant_ids)).all()
+    name_map = {r.restaurantId: r.name for r in restaurants}
+    results = []
+    for b in bookings:
+        d = b.model_dump() if hasattr(b, 'model_dump') else b.__dict__.copy()
+        d["restaurantName"] = name_map.get(b.restaurantId, "")
+        results.append(d)
+    return results
+
 @router.post("/api/create-booking/", tags=["Booking"])
-def create_booking(booking: BookingCreate, session: SessionDep):
+def create_booking(booking_data: BookingCreate, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    booking = Booking(
+        **booking_data.model_dump(),
+        createdAt=datetime.now().isoformat(timespec="seconds"),
+    )
     session.add(booking)
     session.commit()
     session.refresh(booking)
     return booking
 
 @router.get("/api/get-all-booking/", tags=["Booking"])
-def get_all_bookings(session: SessionDep):
+def get_all_bookings(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     bookings = session.query(Booking).all()
-    return bookings
+    return _enrich_bookings(bookings, session)
 
 @router.get("/api/get-bookings-by-user/{user_id}", tags=["Booking"])
-def get_bookings_by_user_id(user_id: int, session: SessionDep):
+def get_bookings_by_user_id(user_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     bookings = session.query(Booking).filter(Booking.userId == user_id).all()
-    return bookings
+    return _enrich_bookings(bookings, session)
 
 @router.get("/api/get-bookings-by-restaurant/{restaurant_id}", tags=["Booking"])
-def get_bookings_by_restaurant_id(restaurant_id: int, session: SessionDep):
+def get_bookings_by_restaurant_id(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     bookings = session.query(Booking).filter(Booking.restaurantId == restaurant_id).all()
-    return bookings
+    return _enrich_bookings(bookings, session)
 
 @router.get("/api/get-booking/{booking_id}", tags=["Booking"])
-def get_booking_by_id(booking_id: int, session: SessionDep):
+def get_booking_by_id(booking_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     booking = session.query(Booking).filter(Booking.bookingId == booking_id).first()
     return booking
 
 @router.delete("/api/delete-booking/{booking_id}", tags=["Booking"])
-def delete_booking_by_id(booking_id: int, session: SessionDep):
+def delete_booking_by_id(booking_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
     booking = session.query(Booking).filter(Booking.bookingId == booking_id).first()
     if booking:
         session.delete(booking)
@@ -42,7 +63,7 @@ def delete_booking_by_id(booking_id: int, session: SessionDep):
     return {"message": "Booking not found"}
 
 @router.put("/api/update-booking/{booking_id}", tags=["Booking"])
-def update_booking_by_id(booking_id: int, updated_booking: BookingUpdate, session: SessionDep):
+def update_booking_by_id(booking_id: int, updated_booking: BookingUpdate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
     booking = session.query(Booking).filter(Booking.bookingId == booking_id).first()
     if booking:
         update_data = updated_booking.model_dump(exclude_unset=True)
@@ -54,7 +75,7 @@ def update_booking_by_id(booking_id: int, updated_booking: BookingUpdate, sessio
     return {"message": "Booking not found"}
 
 @router.put("/api/bookings/{id}/confirm", tags=["Booking"])
-def confirm_booking(id: int, session: SessionDep):
+def confirm_booking(id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
     booking = session.query(Booking).filter(Booking.bookingId == id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -93,7 +114,7 @@ def confirm_booking(id: int, session: SessionDep):
     }
 
 @router.put("/api/bookings/{id}/cancel", tags=["Booking"])
-def cancel_booking(id: int, session: SessionDep):
+def cancel_booking(id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     booking = session.query(Booking).filter(Booking.bookingId == id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -122,21 +143,29 @@ def cancel_booking(id: int, session: SessionDep):
     }
 
 @router.put("/api/bookings/{id}/complete", tags=["Booking"])
-def complete_booking(id: int, session: SessionDep):
+def complete_booking(id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
     booking = session.query(Booking).filter(Booking.bookingId == id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
 
     if booking.status == "completed":
         raise HTTPException(status_code=400, detail="Booking already completed")
-    
     if booking.status == "cancelled":
         raise HTTPException(status_code=400, detail="Cannot complete cancelled booking")
     
     if booking.status == "pending":
         raise HTTPException(status_code=400, detail="Cannot complete pending booking. Please confirm first")
     
-    # Hoàn thành booking
+    # Hoàn thành booking — trả lại ghế cho nhà hàng
+    if booking.assignedSeats and booking.assignedSeats > 0:
+        restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == booking.restaurantId).first()
+        if restaurant:
+            restaurant.availableSeats = min(
+                restaurant.totalSeats,
+                restaurant.availableSeats + booking.assignedSeats,
+            )
+            session.add(restaurant)
+
     booking.status = "completed"
     session.commit()
     session.refresh(booking)
@@ -145,4 +174,4 @@ def complete_booking(id: int, session: SessionDep):
         "message": "Booking completed successfully",
         "booking": booking
     }
-    
+

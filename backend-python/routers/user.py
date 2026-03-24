@@ -1,10 +1,12 @@
 from datetime import datetime
+from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Security
 from passlib.context import CryptContext
 from database import SessionDep
 from models import User
 from schemas import UserRegister, UserUpdate
+from routers.authentication import get_current_user
 
 router = APIRouter()
 
@@ -29,17 +31,17 @@ def create_user(user_data: UserRegister, session: SessionDep):
     return user
 
 @router.get("/api/get-user/{email}", tags=["User"])
-def get_user_by_email(email: str, session: SessionDep):
+def get_user_by_email(email: str, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     user = session.query(User).filter(User.email == email).first()
     return user
 
 @router.get("/api/get-all-user/", tags=["User"])
-def get_all_users(session: SessionDep):
+def get_all_users(session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
     users = session.query(User).all()
     return users
 
 @router.delete("/api/delete-user/{email}", tags=["User"])
-def delete_user_by_email(email: str, session: SessionDep):
+def delete_user_by_email(email: str, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
     user = session.query(User).filter(User.email == email).first()
     if user:
         session.delete(user)
@@ -48,7 +50,7 @@ def delete_user_by_email(email: str, session: SessionDep):
     return {"message": "User not found"}
 
 @router.put("/api/update-user/{email}", tags=["User"])
-def update_user_by_email(email: str, user_data: UserUpdate, session: SessionDep):
+def update_user_by_email(email: str, user_data: UserUpdate, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     user = session.query(User).filter(User.email == email).first()
     if user:
         update_data = user_data.model_dump(exclude_unset=True)

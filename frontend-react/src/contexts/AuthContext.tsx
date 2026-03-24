@@ -1,40 +1,16 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { User, UserRole } from '../types';
-import { mockUsers } from '../data/restaurants';
+import { loginUser, logoutUser, getActiveUser } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; role: UserRole }>;
-  loginAsRole: (role: UserRole) => void;
   logout: () => void;
   updateUser: (updatedUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const DEMO_ACCOUNTS: Record<string, { password: string; user: User }> = {
-  'a@gmail.com': {
-    password: 'customer123',
-    user: mockUsers.find((u) => u.email === 'a@gmail.com')!,
-  },
-  'b@gmail.com': {
-    password: 'customer123',
-    user: mockUsers.find((u) => u.email === 'b@gmail.com')!,
-  },
-  'c@gmail.com': {
-    password: 'manager123',
-    user: mockUsers.find((u) => u.email === 'c@gmail.com')!,
-  },
-  'manager@tablenow.vn': {
-    password: 'manager123',
-    user: { id: 'U3', name: 'Lê Văn C', email: 'manager@tablenow.vn', phone: '0923456789', role: 'manager' as UserRole, avatar: '' },
-  },
-  'admin@tablenow.vn': {
-    password: 'admin123',
-    user: mockUsers.find((u) => u.email === 'admin@tablenow.vn')!,
-  },
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -42,48 +18,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : null;
   });
 
-  const login = useCallback(async (email: string, _password: string): Promise<{ success: boolean; role: UserRole }> => {
-    await new Promise((r) => setTimeout(r, 600));
-
-    const account = DEMO_ACCOUNTS[email];
-    if (account) {
-      setUser(account.user);
-      localStorage.setItem('tablenow_user', JSON.stringify(account.user));
-      return { success: true, role: account.user.role };
+  // On mount, if we have a token try to fetch the active user
+  useEffect(() => {
+    const token = localStorage.getItem('tablenow_token');
+    if (token && !user) {
+      getActiveUser()
+        .then((u) => {
+          setUser(u);
+          localStorage.setItem('tablenow_user', JSON.stringify(u));
+          localStorage.setItem('tablenow_user_id', u.id);
+        })
+        .catch(() => {
+          // Token expired / invalid
+          localStorage.removeItem('tablenow_token');
+          localStorage.removeItem('tablenow_user');
+        });
     }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Fallback: detect role from email
-    let role: UserRole = 'customer';
-    if (email.includes('admin')) role = 'admin';
-    else if (email.includes('manager')) role = 'manager';
-
-    const fallbackUser: User = {
-      id: 'U_' + Date.now(),
-      name: email.split('@')[0],
-      email,
-      phone: '',
-      role,
-      avatar: '',
-    };
-    setUser(fallbackUser);
-    localStorage.setItem('tablenow_user', JSON.stringify(fallbackUser));
-    return { success: true, role };
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; role: UserRole }> => {
+    try {
+      const { user: loggedInUser } = await loginUser(email, password);
+      setUser(loggedInUser);
+      localStorage.setItem('tablenow_user', JSON.stringify(loggedInUser));
+      localStorage.setItem('tablenow_user_id', loggedInUser.id);
+      return { success: true, role: loggedInUser.role };
+    } catch (err: any) {
+      throw new Error(err.message || 'Đăng nhập thất bại');
+    }
   }, []);
-
-  const loginAsRole = useCallback((role: UserRole) => {
-    const roleUsers: Record<UserRole, User> = {
-      customer: DEMO_ACCOUNTS['a@gmail.com'].user,
-      manager: DEMO_ACCOUNTS['manager@tablenow.vn'].user,
-      admin: DEMO_ACCOUNTS['admin@tablenow.vn'].user,
-    };
-    const u = roleUsers[role];
-    setUser(u);
-    localStorage.setItem('tablenow_user', JSON.stringify(u));
-  }, []);
-
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await logoutUser();
     setUser(null);
     localStorage.removeItem('tablenow_user');
+    localStorage.removeItem('tablenow_user_id');
+    localStorage.removeItem('tablenow_token');
   }, []);
 
   const updateUser = useCallback((updatedUser: User) => {
@@ -92,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, loginAsRole, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

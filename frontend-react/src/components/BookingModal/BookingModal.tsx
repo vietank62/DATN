@@ -6,6 +6,7 @@ interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   restaurantName?: string;
+  availableSeats?: number;
   onSubmit: (bookingData: BookingFormData) => void;
 }
 
@@ -19,7 +20,7 @@ export interface BookingFormData {
   note: string;
 }
 
-const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurantName, onSubmit }) => {
+const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurantName, availableSeats, onSubmit }) => {
   const today = new Date().toISOString().split('T')[0];
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
@@ -48,6 +49,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurant
     if (!form.date) newErrors.date = 'Vui lòng chọn ngày';
     if (!form.time) newErrors.time = 'Vui lòng chọn giờ';
     if (form.guests < 1) newErrors.guests = 'Số khách không hợp lệ';
+    else if (availableSeats !== undefined && form.guests > availableSeats) {
+      newErrors.guests = `Chỉ còn ${availableSeats} chỗ trống. Vui lòng giảm số khách.`;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -172,6 +176,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurant
                     </select>
                     {errors.guests && <span className={styles.errorText}>{errors.guests}</span>}
                   </div>
+
+                  {availableSeats !== undefined && availableSeats > 0 && form.guests > availableSeats && (
+                    <div className={styles.seatWarning}>
+                      ⚠️ Số khách vượt quá chỗ trống hiện tại ({availableSeats} chỗ)
+                    </div>
+                  )}
 
                   <button type="button" className={styles.primaryBtn} onClick={handleNext}>
                     Tiếp tục →
