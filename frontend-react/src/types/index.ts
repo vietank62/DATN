@@ -12,7 +12,8 @@ export interface Restaurant {
   name: string;
   address: string;
   district: string;
-  cuisine: string;
+  cuisine?: string;  // Keep for backward compatibility
+  cuisines?: string[];  // New: array of cuisines
   priceRange: string;
   rating: number;
   reviewCount: number;

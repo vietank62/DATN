@@ -25,9 +25,22 @@ def get_all_restaurants(
     minRating: Optional[float] = Query(None),
     featured: Optional[bool] = Query(None),
 ):
+    from sqlalchemy import or_, cast, String
+    import json
+    
     query = session.query(Restaurant)
+    
+    # Handle cuisine filter - check both old 'cuisine' and new 'cuisines' fields
     if cuisine and cuisine != "all":
-        query = query.filter(Restaurant.cuisine == cuisine)
+        # Match either the old single cuisine field or cuisines array containing the value
+        query = query.filter(
+            or_(
+                Restaurant.cuisine == cuisine,
+                # For JSON array, we use a simple LIKE check as fallback
+                cast(Restaurant.cuisines, String).like(f'%{cuisine}%')
+            )
+        )
+    
     if district and district != "Tất cả":
         query = query.filter(Restaurant.district == district)
     if priceRange and priceRange != "all":

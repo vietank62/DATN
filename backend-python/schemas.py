@@ -36,7 +36,8 @@ class RestaurantCreate(BaseModel):
     name: str
     address: str
     district: str
-    cuisine: str
+    cuisine: Optional[str] = None  # Keep for backward compatibility
+    cuisines: Optional[list[str]] = None  # New: array of cuisines
     priceRange: str
     rating: float = 0.0
     reviewCount: int = 0
@@ -55,6 +56,7 @@ class RestaurantUpdate(BaseModel):
     address: Optional[str] = None
     district: Optional[str] = None
     cuisine: Optional[str] = None
+    cuisines: Optional[list[str]] = None  # New: array of cuisines
     priceRange: Optional[str] = None
     rating: Optional[float] = None
     reviewCount: Optional[int] = None
