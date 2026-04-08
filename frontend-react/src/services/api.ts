@@ -437,6 +437,33 @@ export const fetchAdminStats = async (): Promise<AdminStats> => {
   return request<AdminStats>('/api/stats/admin');
 };
 
+// ─── Image Upload ─────────────────────────────────────────
+
+export const uploadImage = async (file: File): Promise<{ url: string; filename: string }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const res = await fetch(`${API_BASE}/api/upload-image/`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `HTTP ${res.status}`);
+  }
+  
+  const data = await res.json();
+  return {
+    url: data.url,
+    filename: data.filename,
+  };
+};
+
 // ─── Default export (backward-compatible) ─────────────────
 
 const api = {
@@ -466,6 +493,7 @@ const api = {
   deleteUser,
   fetchManagerStats,
   fetchAdminStats,
+  uploadImage,
 };
 
 export default api;

@@ -4,11 +4,11 @@ import { createRestaurant } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './NewRestaurantPage.module.css';
 import { cuisineTypes } from '../data/restaurants';
+import ImageUpload from '../components/ImageUpload/ImageUpload';
 
 const NewRestaurantPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [formData, setFormData] = useState({
+  const { user } = useAuth();  const [formData, setFormData] = useState({
     name: '',
     address: '',
     district: '',
@@ -19,6 +19,7 @@ const NewRestaurantPage: React.FC = () => {
     closeTime: '22:00',
     totalSeats: 50,
     description: '',
+    imageUrl: '',  // New: image URL
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -156,9 +157,7 @@ const NewRestaurantPage: React.FC = () => {
                 required
               />
             </div>
-          </div>
-
-          <div className={styles.fieldGroup}>
+          </div>          <div className={styles.fieldGroup}>
             <label>Loại ẩm thực *</label>
             <div className={styles.cuisineGrid}>
               {cuisineTypes.map((cuisine) => (
@@ -172,6 +171,15 @@ const NewRestaurantPage: React.FC = () => {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label>Hình ảnh nhà hàng</label>
+            <ImageUpload
+              onImageUpload={(url) => updateField('imageUrl', url)}
+              currentImageUrl={formData.imageUrl}
+              label="Tải lên hình ảnh"
+            />
           </div>
 
           <div className={styles.row}>
