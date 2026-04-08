@@ -11,6 +11,7 @@ const RegisterPage: React.FC = () => {
     phone: '',
     password: '',
     confirmPassword: '',
+    role: 'customer', // New: role selection
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,13 +46,19 @@ const RegisterPage: React.FC = () => {
       return;
     }    setLoading(true);
     try {
-      await registerUser({
+      const response = await registerUser({
         name: form.name,
         email: form.email,
         phone: form.phone,
         password: form.password,
       });
-      navigate('/login');
+      
+      // If manager, redirect to restaurant onboarding
+      if (form.role === 'manager') {
+        navigate('/new-restaurant');
+      } else {
+        navigate('/login');
+      }
     } catch (err: any) {
       setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     } finally {
@@ -76,11 +83,34 @@ const RegisterPage: React.FC = () => {
               <h1>🍽️ TableNow</h1>
               <h2>Tạo tài khoản</h2>
               <p>Đăng ký miễn phí và bắt đầu khám phá ẩm thực.</p>
-            </div>
-
-            {error && <div className={styles.errorMsg}>{error}</div>}
+            </div>            {error && <div className={styles.errorMsg}>{error}</div>}
 
             <form onSubmit={handleSubmit} className={styles.form}>
+              <div className={styles.fieldGroup}>
+                <label>Loại tài khoản</label>
+                <div className={styles.roleSelector}>
+                  <label className={`${styles.roleOption} ${form.role === 'customer' ? styles.roleActive : ''}`}>
+                    <input
+                      type="radio"
+                      name="role"
+                      value="customer"
+                      checked={form.role === 'customer'}
+                      onChange={(e) => updateField('role', e.target.value)}
+                    />
+                    <span>👥 Khách hàng</span>
+                  </label>
+                  <label className={`${styles.roleOption} ${form.role === 'manager' ? styles.roleActive : ''}`}>
+                    <input
+                      type="radio"
+                      name="role"
+                      value="manager"
+                      checked={form.role === 'manager'}
+                      onChange={(e) => updateField('role', e.target.value)}
+                    />
+                    <span>🏪 Quản lý nhà hàng</span>
+                  </label>
+                </div>
+              </div>
               <div className={styles.fieldGroup}>
                 <label>Họ và tên</label>
                 <input

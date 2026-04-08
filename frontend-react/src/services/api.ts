@@ -40,6 +40,7 @@ function mapRestaurant(r: any): Restaurant {
     address: r.address,
     district: r.district,
     cuisine: r.cuisine,
+    cuisines: r.cuisines ? (typeof r.cuisines === 'string' ? JSON.parse(r.cuisines) : r.cuisines) : undefined,
     priceRange: r.priceRange,
     rating: r.rating,
     reviewCount: r.reviewCount,
@@ -227,6 +228,7 @@ export const createRestaurant = async (
       address: restaurant.address,
       district: restaurant.district,
       cuisine: restaurant.cuisine,
+      cuisines: restaurant.cuisines,  // New: support multiple cuisines
       priceRange: restaurant.priceRange,
       rating: restaurant.rating,
       reviewCount: restaurant.reviewCount,
