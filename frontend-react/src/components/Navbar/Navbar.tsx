@@ -53,7 +53,7 @@ const Navbar: React.FC = () => {
       </div>
 
       <div className={styles['search-bar']}>
-        <input type="text" placeholder="Tìm nhà hàng, món ăn..." className={styles['search-input']} />
+        <input type="text" placeholder="🔍 Tìm nhà hàng, ẩm thực..." className={styles['search-input']} />
       </div>
 
       <div className={styles['nav-links']}>

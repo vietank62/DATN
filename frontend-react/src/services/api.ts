@@ -437,6 +437,17 @@ export const fetchAdminStats = async (): Promise<AdminStats> => {
   return request<AdminStats>('/api/stats/admin');
 };
 
+// ─── Search ───────────────────────────────────────────────
+
+export const searchRestaurants = async (query: string): Promise<Restaurant[]> => {
+  if (!query || query.trim().length === 0) {
+    return [];
+  }
+  const params = new URLSearchParams({ q: query });
+  const data = await request<any[]>(`/api/search-restaurants/?${params.toString()}`);
+  return data.map(mapRestaurant);
+};
+
 // ─── Image Upload ─────────────────────────────────────────
 
 export const uploadImage = async (file: File): Promise<{ url: string; filename: string }> => {
@@ -488,12 +499,13 @@ const api = {
   fetchBookingsByUser,
   deleteBooking,
   fetchAllUsers,
-  fetchUserByEmail,
+    fetchUserByEmail,
   updateUser,
   deleteUser,
   fetchManagerStats,
   fetchAdminStats,
   uploadImage,
+  searchRestaurants,
 };
 
 export default api;
