@@ -437,6 +437,25 @@
   font-weight: 600;
 }
 
+/* ===== Note Display ===== */
+.noteCell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noteText {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.noNote {
+  color: #ccc;
+  font-size: 12px;
+}
+
 .seatStatusSection {
   margin-top: 20px;
   padding: 20px;

@@ -285,8 +285,7 @@ const ManagerDashboard: React.FC = () => {
               <div className={styles.loadingState}>Đang tải...</div>
             ) : bookings.length === 0 ? (
               <div className={styles.emptyState}>Chưa có đặt bàn nào</div>
-            ) : (              <table className={styles.table}>
-                <thead>
+            ) : (              <table className={styles.table}>                <thead>
                   <tr>
                     <th>Mã</th>
                     <th>Khách hàng</th>
@@ -294,6 +293,7 @@ const ManagerDashboard: React.FC = () => {
                     <th>Giờ</th>
                     <th>Số khách</th>
                     <th>Chỗ ngồi</th>
+                    <th>Ghi chú</th>
                     <th>Trạng thái</th>
                     <th>Hành động</th>
                   </tr>
@@ -312,14 +312,16 @@ const ManagerDashboard: React.FC = () => {
                         </td>
                         <td>{booking.date}</td>
                         <td>{booking.time}</td>
-                        <td>{booking.guestCount} khách</td>
-                        <td>
+                        <td>{booking.guestCount} khách</td>                        <td>
                           <div className={styles.seatCell}>
                             <span className={styles.seatRequested}>Yêu cầu: {booking.requestedSeats}</span>
                             {booking.assignedSeats && (
                               <span className={styles.seatAssigned}>Gán: {booking.assignedSeats}</span>
                             )}
                           </div>
+                        </td>
+                        <td className={styles.noteCell}>
+                          {booking.note ? <span className={styles.noteText}>{booking.note}</span> : <span className={styles.noNote}>—</span>}
                         </td>
                         <td>
                           <span className={`${styles.statusBadge} ${statusInfo.className}`}>

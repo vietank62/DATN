@@ -57,11 +57,8 @@ const Navbar: React.FC = () => {
       </div>
 
       <div className={styles['nav-links']}>
-        <Link to="/" className={`${styles['nav-link']} ${location.pathname === '/' ? styles.active : ''}`}>
+        <Link to="/" className={`${styles['nav-link']} ${location.pathname === '/' || location.pathname === '/restaurants' ? styles.active : ''}`}>
           Trang chủ
-        </Link>
-        <Link to="/restaurants" className={`${styles['nav-link']} ${location.pathname === '/restaurants' ? styles.active : ''}`}>
-          Nhà hàng
         </Link>
       </div>
 
@@ -118,7 +115,6 @@ const Navbar: React.FC = () => {
       {mobileMenuOpen && (
         <div className={styles.mobileMenu}>
           <Link to="/" onClick={() => setMobileMenuOpen(false)}>Trang chủ</Link>
-          <Link to="/restaurants" onClick={() => setMobileMenuOpen(false)}>Nhà hàng</Link>
           {isAuthenticated && user ? (
             <>
               <div className={styles.mobileUserInfo}>

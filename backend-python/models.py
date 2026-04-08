@@ -1,22 +1,17 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field
+from sqlalchemy import JSON
 
 class User(SQLModel, table = True):
-    userId: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    email: str = Field(unique = True)
-    phone: str = Field(unique = True)
-    password: str
-    role : str = Field(default = "customer")
-    avatar: Optional[str] = None
-    createdAt: Optional[str] = None
+    # ...existing code...
 
 class Restaurant(SQLModel, table=True):
     restaurantId: Optional[int] = Field(default=None, primary_key=True)
     name: str
     address: str
     district: str
-    cuisine: str
+    cuisine: str  # Keep for backward compatibility
+    cuisines: Optional[str] = Field(default=None, sa_column_kwargs={"type_": JSON})  # New: JSON array like '["Việt Nam", "Hải sản"]'
     priceRange: str
     rating: float
     reviewCount: int
