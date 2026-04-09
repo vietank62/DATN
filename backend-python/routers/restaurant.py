@@ -83,28 +83,3 @@ def update_restaurant_by_id(restaurant_id: int, updated_restaurant: RestaurantUp
         session.refresh(restaurant)
         return restaurant
     return {"message": "Restaurant not found"}
-
-@router.get("/api/search-restaurants/", tags=["Restaurant"])
-def search_restaurants(
-    session: SessionDep,
-    q: str = Query("", description="Search query (name, address, cuisine)"),
-):
-    """Search restaurants by name, address, or cuisine"""
-    from sqlalchemy import or_, cast, String
-    
-    if not q or len(q.strip()) == 0:
-        return []
-    
-    search_term = f"%{q.lower()}%"
-    
-    results = session.query(Restaurant).filter(
-        or_(
-            cast(Restaurant.name, String).ilike(search_term),
-            cast(Restaurant.address, String).ilike(search_term),
-            cast(Restaurant.cuisine, String).ilike(search_term),
-            cast(Restaurant.cuisines, String).ilike(search_term),
-            cast(Restaurant.description, String).ilike(search_term),
-        )
-    ).limit(20).all()
-    
-    return results

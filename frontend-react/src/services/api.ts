@@ -437,40 +437,26 @@ export const fetchAdminStats = async (): Promise<AdminStats> => {
   return request<AdminStats>('/api/stats/admin');
 };
 
-// ─── Search ───────────────────────────────────────────────
-
-export const searchRestaurants = async (query: string): Promise<Restaurant[]> => {
-  if (!query || query.trim().length === 0) {
-    return [];
-  }
-  const params = new URLSearchParams({ q: query });
-  const data = await request<any[]>(`/api/search-restaurants/?${params.toString()}`);
-  return data.map(mapRestaurant);
-};
-
-// ─── Image Upload ─────────────────────────────────────────
+// ─── Upload ───────────────────────────────────────────
 
 export const uploadImage = async (file: File): Promise<{ url: string; filename: string }> => {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   const res = await fetch(`${API_BASE}/api/upload-image/`, {
     method: 'POST',
-    credentials: 'include',
-    headers: {
-      ...authHeaders(),
-    },
     body: formData,
+    credentials: 'include',
   });
-  
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || `HTTP ${res.status}`);
   }
-  
+
   const data = await res.json();
   return {
-    url: data.url,
+    url: `${API_BASE}${data.url}`,
     filename: data.filename,
   };
 };
@@ -499,13 +485,11 @@ const api = {
   fetchBookingsByUser,
   deleteBooking,
   fetchAllUsers,
-    fetchUserByEmail,
+  fetchUserByEmail,
   updateUser,
   deleteUser,
   fetchManagerStats,
   fetchAdminStats,
-  uploadImage,
-  searchRestaurants,
 };
 
 export default api;

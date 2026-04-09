@@ -39,8 +39,7 @@ app.include_router(statistical.router)
 
 app.include_router(upload.router)
 
-# Serve static files (uploads)
+# Mount uploads directory for static file serving
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(exist_ok=True)
-if uploads_dir.exists():
-    app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

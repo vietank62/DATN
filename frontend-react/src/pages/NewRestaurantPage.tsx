@@ -19,7 +19,7 @@ const NewRestaurantPage: React.FC = () => {
     closeTime: '22:00',
     totalSeats: 50,
     description: '',
-    imageUrl: '',  // New: image URL
+    imageUrl: '',  // New: for restaurant image
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,6 @@ const NewRestaurantPage: React.FC = () => {
         ...formData,
         rating: 0,
         reviewCount: 0,
-        imageUrl: '',
         featured: false,
         availableSeats: formData.totalSeats,
         managerID: parseInt(user.id),
@@ -157,7 +156,9 @@ const NewRestaurantPage: React.FC = () => {
                 required
               />
             </div>
-          </div>          <div className={styles.fieldGroup}>
+          </div>
+
+          <div className={styles.fieldGroup}>
             <label>Loại ẩm thực *</label>
             <div className={styles.cuisineGrid}>
               {cuisineTypes.map((cuisine) => (
@@ -171,15 +172,6 @@ const NewRestaurantPage: React.FC = () => {
                 </label>
               ))}
             </div>
-          </div>
-
-          <div className={styles.fieldGroup}>
-            <label>Hình ảnh nhà hàng</label>
-            <ImageUpload
-              onImageUpload={(url) => updateField('imageUrl', url)}
-              currentImageUrl={formData.imageUrl}
-              label="Tải lên hình ảnh"
-            />
           </div>
 
           <div className={styles.row}>
@@ -231,8 +223,17 @@ const NewRestaurantPage: React.FC = () => {
                 value={formData.closeTime}
                 onChange={(e) => updateField('closeTime', e.target.value)}
                 className={styles.input}
-              />
-            </div>
+              />            </div>
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label>Hình ảnh nhà hàng</label>
+            <ImageUpload
+              onUpload={(url) => updateField('imageUrl', url)}
+              onError={(error) => setError(error)}
+              maxSize={5}
+              disabled={loading}
+            />
           </div>
 
           <div className={styles.fieldGroup}>
