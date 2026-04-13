@@ -2,8 +2,15 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 from sqlalchemy import JSON
 
-class User(SQLModel, table = True):
-    # ...existing code...
+class User(SQLModel, table=True):
+    userId: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str
+    phone: str
+    password: str
+    role: str = Field(default="customer")
+    avatar: Optional[str] = None
+    createdAt: Optional[str] = None
 
 class Restaurant(SQLModel, table=True):
     restaurantId: Optional[int] = Field(default=None, primary_key=True)
