@@ -108,3 +108,22 @@ def update_restaurant_by_id(restaurant_id: int, updated_restaurant: RestaurantUp
         session.refresh(restaurant)
         return restaurant
     return {"message": "Restaurant not found"}
+
+@router.get("/api/search-restaurants/", tags=["Restaurant"])
+def search_restaurants(
+    session: SessionDep,
+    q: str = Query(..., min_length=1),
+):
+    """Search restaurants by name or description"""
+    from sqlalchemy import or_
+    
+    search_term = f"%{q}%"
+    query = session.query(Restaurant).filter(
+        or_(
+            Restaurant.name.ilike(search_term),
+            Restaurant.description.ilike(search_term),
+            Restaurant.address.ilike(search_term),
+            Restaurant.district.ilike(search_term),
+        )
+    )
+    return query.all()

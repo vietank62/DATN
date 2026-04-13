@@ -218,6 +218,12 @@ export const fetchRestaurantById = async (id: string): Promise<Restaurant | unde
   }
 };
 
+export const searchRestaurants = async (query: string): Promise<Restaurant[]> => {
+  if (!query.trim()) return [];
+  const data = await request<any[]>(`/api/search-restaurants/?q=${encodeURIComponent(query)}`);
+  return data.map(mapRestaurant);
+};
+
 export const createRestaurant = async (
   restaurant: Omit<Restaurant, 'id' | 'menu'> & { managerID: number },
 ): Promise<Restaurant> => {
