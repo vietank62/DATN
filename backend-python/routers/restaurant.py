@@ -44,11 +44,36 @@ def get_all_restaurants(
     if district and district != "Tất cả":
         query = query.filter(Restaurant.district == district)
     if priceRange and priceRange != "all":
-        query = query.filter(Restaurant.priceRange == priceRange)
-    if minRating is not None and minRating > 0:
+        query = query.filter(Restaurant.priceRange == priceRange)    if minRating is not None and minRating > 0:
         query = query.filter(Restaurant.rating >= minRating)
     if featured is not None:
         query = query.filter(Restaurant.featured == featured)
+    return query.all()
+
+
+@router.get("/api/search-restaurants/", tags=["Restaurant"])
+def search_restaurants(
+    session: SessionDep,
+    q: str = Query("", description="Search query for restaurant name, address, or cuisine"),
+):
+    """Search restaurants by name, address, district, or cuisine"""
+    from sqlalchemy import or_, cast, String, ilike
+    
+    if not q or len(q.strip()) == 0:
+        return []
+    
+    search_term = f"%{q}%"
+    query = session.query(Restaurant).filter(
+        or_(
+            Restaurant.name.ilike(search_term),
+            Restaurant.address.ilike(search_term),
+            Restaurant.district.ilike(search_term),
+            Restaurant.cuisine.ilike(search_term),
+            cast(Restaurant.cuisines, String).ilike(search_term),
+            Restaurant.description.ilike(search_term),
+        )
+    )
+    
     return query.all()
 
 

@@ -437,7 +437,7 @@ export const fetchAdminStats = async (): Promise<AdminStats> => {
   return request<AdminStats>('/api/stats/admin');
 };
 
-// ─── Upload ───────────────────────────────────────────
+// ─── Upload ───────────────────────────────────────────────
 
 export const uploadImage = async (file: File): Promise<{ url: string; filename: string }> => {
   const formData = new FormData();
