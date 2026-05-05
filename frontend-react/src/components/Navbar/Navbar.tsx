@@ -10,6 +10,24 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (searchQuery.trim()) {
+        navigate(`/?q=${encodeURIComponent(searchQuery.trim())}`);
+      } else {
+        navigate('/');
+      }
+    }
+  };
+
+  // Sync searchQuery with URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    setSearchQuery(q || '');
+  }, [location.search]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -25,8 +43,8 @@ const Navbar: React.FC = () => {
     return null;
   }
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setUserMenuOpen(false);
     navigate('/');
   };
@@ -53,7 +71,15 @@ const Navbar: React.FC = () => {
       </div>
 
       <div className={styles['search-bar']}>
-        <input type="text" placeholder="Tìm nhà hàng, món ăn..." className={styles['search-input']} />
+        <span style={{ color: '#888', fontSize: '16px', marginRight: '4px' }}>🔍</span>
+        <input
+          type="text"
+          placeholder="Tìm nhà hàng, món ăn... (Nhấn Enter)"
+          className={styles['search-input']}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleSearch}
+        />
       </div>
 
       <div className={styles['nav-links']}>
@@ -79,6 +105,9 @@ const Navbar: React.FC = () => {
                 <span className={styles.roleBadge}>{getRoleLabel(user.role)}</span>
               </div>
               <div className={styles.dropdownDivider} />
+              <button className={styles.dropdownItem} onClick={() => { setUserMenuOpen(false); navigate('/profile'); }}>
+                Thông tin cá nhân
+              </button>
               {user.role === 'customer' && (
                 <button className={styles.dropdownItem} onClick={() => { setUserMenuOpen(false); navigate('/my-bookings'); }}>
                   Đơn đặt bàn của tôi
@@ -121,6 +150,9 @@ const Navbar: React.FC = () => {
                 <strong>{user.name}</strong>
                 <small>{getRoleLabel(user.role)}</small>
               </div>
+              <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
+                Thông tin cá nhân
+              </Link>
               {user.role === 'customer' && (
                 <Link to="/my-bookings" onClick={() => setMobileMenuOpen(false)}>
                   Đơn đặt bàn của tôi

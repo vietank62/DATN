@@ -13,6 +13,7 @@ URL_DATABASE = os.getenv(
 engine = create_engine(URL_DATABASE, echo=True)
 
 def create_db_and_tables():
+    import models
     SQLModel.metadata.create_all(engine)
     
 def get_session():

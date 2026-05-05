@@ -24,9 +24,9 @@ const Footer: React.FC = () => {
         </div>
         <div className={styles.links}>
           <h4>Chính sách</h4>
-          <a href="#terms">Điều khoản sử dụng</a>
-          <a href="#privacy">Chính sách bảo mật</a>
-          <a href="#cancel">Chính sách huỷ bàn</a>
+          <Link to="/terms">Điều khoản sử dụng</Link>
+          <Link to="/privacy">Chính sách bảo mật</Link>
+          <Link to="/cancellation">Chính sách huỷ bàn</Link>
         </div>
         <div className={styles.contact}>
           <h4>Liên hệ</h4>

@@ -1,4 +1,5 @@
-import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats } from '../types';
+import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review } from '../types';
+import { cuisineTypes } from '../data/restaurants';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -13,9 +14,14 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+let refreshPromise: Promise<string> | null = null;
+let isRedirecting = false;
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${url}`, {
-    credentials: 'include',          // for refresh-token cookie
+  if (isRedirecting) throw new Error('Session expired');
+
+  const executeRequest = () => fetch(`${API_BASE}${url}`, {
+    credentials: 'include',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -23,6 +29,37 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
+
+  let res = await executeRequest();
+
+  if (res.status === 401 && !url.includes('/api/authentication/')) {
+    // Only attempt refresh if the user HAD a token (was logged in)
+    const hadToken = !!getToken();
+    if (!hadToken) {
+      throw new Error('Unauthenticated');
+    }
+    try {
+      if (!refreshPromise) {
+        refreshPromise = refreshToken();
+      }
+      await refreshPromise;
+      res = await executeRequest();
+    } catch (err) {
+      if (!isRedirecting) {
+        isRedirecting = true;
+        localStorage.removeItem('tablenow_token');
+        localStorage.removeItem('tablenow_user');
+        alert('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+        window.location.href = '/login';
+      }
+      throw new Error('Session expired');
+    } finally {
+      if (!isRedirecting) {
+        refreshPromise = null;
+      }
+    }
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || `HTTP ${res.status}`);
@@ -39,12 +76,11 @@ function mapRestaurant(r: any): Restaurant {
     name: r.name,
     address: r.address,
     district: r.district,
-    cuisine: r.cuisine,
-    cuisines: r.cuisines ? (typeof r.cuisines === 'string' ? JSON.parse(r.cuisines) : r.cuisines) : undefined,
+    cuisine: r.cuisine ? (typeof r.cuisine === 'string' ? JSON.parse(r.cuisine) : r.cuisine) : [],
     priceRange: r.priceRange,
     rating: r.rating,
     reviewCount: r.reviewCount,
-    imageUrl: r.imageUrl ?? '',
+    imageUrl: r.imageUrl ? (typeof r.imageUrl === 'string' && r.imageUrl.startsWith('[') ? JSON.parse(r.imageUrl) : (typeof r.imageUrl === 'string' ? [r.imageUrl] : r.imageUrl)) : [],
     description: r.description ?? '',
     openTime: r.openTime,
     closeTime: r.closeTime,
@@ -65,6 +101,7 @@ function mapMenuItem(m: any): MenuItem {
     price: m.price,
     imageUrl: m.image ?? '',
     category: m.category ?? '',
+    available: m.available ?? true,
   };
 }
 
@@ -97,6 +134,21 @@ function mapUser(u: any): User {
     phone: u.phone,
     role: u.role as UserRole,
     avatar: u.avatar ?? '',
+    password: u.password,
+  };
+}
+
+function mapReview(r: any): Review {
+  return {
+    reviewId: r.reviewId,
+    userId: r.userId,
+    userName: r.userName,
+    userAvatar: r.userAvatar,
+    restaurantId: r.restaurantId,
+    restaurantName: r.restaurantName,
+    rating: r.rating,
+    comment: r.comment ?? '',
+    createdAt: r.createdAt ?? '',
   };
 }
 
@@ -106,6 +158,10 @@ export async function loginUser(
   email: string,
   password: string,
 ): Promise<{ token: string; user: User }> {
+  // Reset auth state flags on a fresh login
+  isRedirecting = false;
+  refreshPromise = null;
+
   // OAuth2 password flow expects form data
   const body = new URLSearchParams({ username: email, password });
   const res = await fetch(`${API_BASE}/api/authentication/login`, {
@@ -139,6 +195,9 @@ export async function refreshToken(): Promise<string> {
 }
 
 export async function logoutUser(): Promise<void> {
+  // Cancel any pending token refresh — prevents race conditions
+  refreshPromise = null;
+
   await fetch(`${API_BASE}/api/authentication/logout`, {
     method: 'POST',
     credentials: 'include',
@@ -148,7 +207,17 @@ export async function logoutUser(): Promise<void> {
 }
 
 export async function getActiveUser(): Promise<User> {
-  const data = await request<any>('/api/authentication/active-user');
+  // Use raw fetch (not request()) so that a 401 here does NOT
+  // trigger the session-expired redirect for unauthenticated visitors.
+  const token = getToken();
+  if (!token) throw new Error('No token');
+
+  const res = await fetch(`${API_BASE}/api/authentication/active-user`, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Unauthenticated');
+  const data = await res.json();
   return mapUser(data);
 }
 
@@ -168,45 +237,69 @@ export async function registerUser(info: {
 // ─── Restaurants ──────────────────────────────────────────
 
 export const fetchRestaurants = async (filters?: FilterOptions): Promise<Restaurant[]> => {
-  const params = new URLSearchParams();
+  const url = `/api/get-all-restaurant/`;
+  const rawData = await request<any[]>(url);
+  let data = rawData.map(mapRestaurant);
+
   if (filters) {
     if (filters.cuisineType && filters.cuisineType !== 'all') {
-      // Map frontend cuisine IDs to backend Vietnamese labels
-      const cuisineMap: Record<string, string> = {
-        seafood: 'Hải sản',
-        european: 'Đồ Âu',
-        buffet: 'Buffet',
-        japanese: 'Nhật Bản',
-        korean: 'Hàn Quốc',
-        vietnamese: 'Việt Nam',
-        hotpot: 'Lẩu',
-        bbq: 'Nướng',
-        italian: 'Ý',
-      };
-      params.set('cuisine', cuisineMap[filters.cuisineType] || filters.cuisineType);
+      const selectedCuisine = cuisineTypes.find(c => c.id === filters.cuisineType);
+      const expectedLabel = selectedCuisine ? selectedCuisine.label : filters.cuisineType;
+      
+      data = data.filter((r) => 
+        r.cuisine.includes(filters.cuisineType) ||
+        r.cuisine.includes(expectedLabel)
+      );
     }
     if (filters.area && filters.area !== 'Tất cả') {
-      params.set('district', filters.area);
+      data = data.filter((r) => r.district === filters.area || r.district?.includes(filters.area));
     }
     if (filters.rating > 0) {
-      params.set('minRating', String(filters.rating));
+      data = data.filter((r) => r.rating >= filters.rating);
     }
     if (filters.priceRange && filters.priceRange !== 'all') {
-      const priceMap: Record<string, string> = {
-        under200: 'Dưới 200K',
-        '200to500': '200K - 500K',
-        '500to1m': '500K - 1M',
-        above1m: 'Trên 1M',
-      };
-      if (priceMap[filters.priceRange]) {
-        params.set('priceRange', priceMap[filters.priceRange]);
-      }
+      data = data.filter((r) => {
+        if (!r.priceRange || r.priceRange === 'Chưa cập nhật') return false;
+        
+        const cleanStr = r.priceRange.replace(/[,.đ\s]/g, '');
+        const numMatches = cleanStr.match(/\d+/g);
+        if (!numMatches) return false;
+        
+        const minPrice = parseInt(numMatches[0], 10);
+        const maxPrice = numMatches.length > 1 ? parseInt(numMatches[1], 10) : minPrice;
+        const avgPrice = (minPrice + maxPrice) / 2;
+
+        if (filters.priceRange === 'under200') return avgPrice < 200000;
+        if (filters.priceRange === '200to500') return avgPrice >= 200000 && avgPrice <= 500000;
+        if (filters.priceRange === '500to1m') return avgPrice > 500000 && avgPrice <= 1000000;
+        if (filters.priceRange === 'above1m') return avgPrice > 1000000;
+        
+        return true;
+      });
+    }
+    if (filters.query) {
+      const q = filters.query.toLowerCase();
+      data = data.filter((r) => r.name.toLowerCase().includes(q));
+    }
+    if (filters.guests) {
+      data = data.filter((r) => r.totalSeats >= (filters.guests as number));
+    }
+    if (filters.time) {
+      data = data.filter((r) => {
+        if (!r.openTime || !r.closeTime) return true;
+        const open = r.openTime;
+        const close = r.closeTime;
+        const time = filters.time as string;
+        if (open <= close) {
+          return time >= open && time <= close;
+        } else {
+          // Open past midnight
+          return time >= open || time <= close;
+        }
+      });
     }
   }
-  const qs = params.toString();
-  const url = `/api/get-all-restaurant/${qs ? `?${qs}` : ''}`;
-  const data = await request<any[]>(url);
-  return data.map(mapRestaurant);
+  return data;
 };
 
 export const fetchRestaurantById = async (id: string): Promise<Restaurant | undefined> => {
@@ -234,10 +327,6 @@ export const createRestaurant = async (
       address: restaurant.address,
       district: restaurant.district,
       cuisine: restaurant.cuisine,
-      cuisines: restaurant.cuisines,  // New: support multiple cuisines
-      priceRange: restaurant.priceRange,
-      rating: restaurant.rating,
-      reviewCount: restaurant.reviewCount,
       imageUrl: restaurant.imageUrl,
       description: restaurant.description,
       openTime: restaurant.openTime,
@@ -262,9 +351,6 @@ export const updateRestaurant = async (
   if (updates.address !== undefined) payload.address = updates.address;
   if (updates.district !== undefined) payload.district = updates.district;
   if (updates.cuisine !== undefined) payload.cuisine = updates.cuisine;
-  if (updates.priceRange !== undefined) payload.priceRange = updates.priceRange;
-  if (updates.rating !== undefined) payload.rating = updates.rating;
-  if (updates.reviewCount !== undefined) payload.reviewCount = updates.reviewCount;
   if (updates.imageUrl !== undefined) payload.imageUrl = updates.imageUrl;
   if (updates.description !== undefined) payload.description = updates.description;
   if (updates.openTime !== undefined) payload.openTime = updates.openTime;
@@ -443,6 +529,34 @@ export const fetchAdminStats = async (): Promise<AdminStats> => {
   return request<AdminStats>('/api/stats/admin');
 };
 
+// ─── Reviews ──────────────────────────────────────────────
+
+export const fetchReviews = async (restaurantId: string): Promise<Review[]> => {
+  const data = await request<any[]>(`/api/get-restaurant-reviews/${restaurantId}`);
+  return data.map(mapReview);
+};
+
+export const fetchUserReviews = async (userId: string): Promise<Review[]> => {
+  const data = await request<any[]>(`/api/get-user-reviews/${userId}`);
+  return data.map(mapReview);
+};
+
+export const createReview = async (
+  reviewData: Omit<Review, 'reviewId' | 'createdAt'>,
+): Promise<Review> => {
+  const payload = {
+    userId: reviewData.userId,
+    restaurantId: reviewData.restaurantId,
+    rating: reviewData.rating,
+    comment: reviewData.comment,
+  };
+  const data = await request<any>('/api/create-review/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return mapReview(data);
+};
+
 // ─── Upload ───────────────────────────────────────────────
 
 export const uploadImage = async (file: File): Promise<{ url: string; filename: string }> => {
@@ -462,7 +576,7 @@ export const uploadImage = async (file: File): Promise<{ url: string; filename: 
 
   const data = await res.json();
   return {
-    url: `${API_BASE}${data.url}`,
+    url: data.url.startsWith('http') ? data.url : `${API_BASE}${data.url}`,
     filename: data.filename,
   };
 };
@@ -496,6 +610,8 @@ const api = {
   deleteUser,
   fetchManagerStats,
   fetchAdminStats,
+  fetchReviews,
+  createReview,
 };
 
 export default api;

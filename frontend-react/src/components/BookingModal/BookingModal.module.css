@@ -301,3 +301,66 @@
     padding: 32px 20px;
   }
 }
+
+/* ===== Branch Selection ===== */
+.branchList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.branchOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 2px solid #e8e8e8;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+
+.branchOption:hover {
+  border-color: #e65100;
+  background: #fff8f5;
+}
+
+.branchSelected {
+  border-color: #e65100;
+  background: #fff8f5;
+  box-shadow: 0 0 0 3px rgba(230, 81, 0, 0.1);
+}
+
+.branchOption input[type="radio"] {
+  margin-top: 3px;
+  accent-color: #e65100;
+  flex-shrink: 0;
+}
+
+.branchInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.branchInfo strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.branchInfo span {
+  font-size: 12px;
+  color: #666;
+}
+
+.seatsAvail {
+  color: #2e7d32 !important;
+  font-weight: 600 !important;
+}
+
+.seatsFull {
+  color: #c62828 !important;
+  font-weight: 600 !important;
+}

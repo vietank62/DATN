@@ -2,35 +2,33 @@ import React, { useState, useRef } from 'react';
 import styles from './ImageUpload.module.css';
 
 interface ImageUploadProps {
-  onUpload: (imageUrl: string) => void;
+  images?: string[];
+  onImagesChange?: (imageUrls: string[]) => void;
+  onUpload?: (imageUrl: string) => void; // for backward compatibility if any
   onError?: (error: string) => void;
   maxSize?: number; // in MB
   disabled?: boolean;
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({ 
+  images = [],
+  onImagesChange,
   onUpload, 
   onError, 
   maxSize = 5, 
   disabled = false 
 }) => {
-  const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setError('');
-
+  const processFile = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       const msg = 'Vui lòng chọn tệp hình ảnh';
       setError(msg);
       onError?.(msg);
-      return;
+      throw new Error(msg);
     }
 
     // Validate file size
@@ -39,40 +37,55 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       const msg = `Kích thước tệp không được vượt quá ${maxSize}MB`;
       setError(msg);
       onError?.(msg);
-      return;
+      throw new Error(msg);
     }
 
-    // Show preview
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setPreview(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-    // Upload file
+    const response = await fetch('http://localhost:8000/api/upload-image/', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+
+    const data = await response.json();
+    // Use the URL returned from backend (could be local or cloudinary)
+    const url = data.url.startsWith('http') ? data.url : `http://localhost:8000${data.url}`;
+    return url;
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setError('');
     setLoading(true);
+
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('http://localhost:8000/api/upload-image/', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
+      const uploadPromises = Array.from(files).map(file => processFile(file));
+      const newUrls = await Promise.all(uploadPromises);
+      
+      if (onImagesChange) {
+        onImagesChange([...images, ...newUrls]);
       }
-
-      const data = await response.json();
-      onUpload(`http://localhost:8000${data.url}`);
+      if (onUpload && newUrls.length > 0) {
+        // Backward compatibility for single upload
+        onUpload(newUrls[0]);
+      }
     } catch (err: any) {
       const msg = err.message || 'Tải lên thất bại';
       setError(msg);
       onError?.(msg);
-      setPreview(null);
     } finally {
       setLoading(false);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -95,7 +108,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      fileInputRef.current!.files = files;
+      if (fileInputRef.current) {
+        fileInputRef.current.files = files;
+      }
       const event = {
         target: { files },
       } as React.ChangeEvent<HTMLInputElement>;
@@ -103,35 +118,56 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   };
 
+  const removeImage = (indexToRemove: number) => {
+    if (disabled) return;
+    const newImages = images.filter((_, index) => index !== indexToRemove);
+    if (onImagesChange) {
+      onImagesChange(newImages);
+    }
+  };
+
   return (
     <div className={styles.container}>
+      {images.length > 0 && (
+        <div className={styles.imageGrid}>
+          {images.map((imgUrl, index) => (
+            <div key={index} className={styles.imageItem}>
+              <img src={imgUrl} alt={`Preview ${index}`} className={styles.previewImage} />
+              <button 
+                type="button" 
+                className={styles.removeButton} 
+                onClick={(e) => { e.stopPropagation(); removeImage(index); }}
+                disabled={disabled}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div
         className={`${styles.uploadBox} ${disabled ? styles.disabled : ''}`}
         onClick={handleClick}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
-        {preview ? (
-          <div className={styles.preview}>
-            <img src={preview} alt="Preview" className={styles.previewImage} />
-            {loading && <div className={styles.loadingOverlay}>Đang tải...</div>}
-          </div>
-        ) : (
-          <div className={styles.uploadContent}>
-            <div className={styles.uploadIcon}>📷</div>
-            <p className={styles.uploadText}>
-              Kéo & thả hình ảnh hoặc <span>chọn tệp</span>
-            </p>
-            <p className={styles.uploadHint}>
-              Hỗ trợ: JPG, PNG, GIF, WebP (Tối đa {maxSize}MB)
-            </p>
-          </div>
-        )}
+        <div className={styles.uploadContent}>
+          <div className={styles.uploadIcon}>📷</div>
+          <p className={styles.uploadText}>
+            Kéo & thả hình ảnh hoặc <span>chọn tệp</span>
+          </p>
+          <p className={styles.uploadHint}>
+            Hỗ trợ: JPG, PNG, GIF, WebP (Tối đa {maxSize}MB)
+          </p>
+          {loading && <div className={styles.loadingOverlay}>Đang tải...</div>}
+        </div>
 
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           onChange={handleFileSelect}
           disabled={disabled || loading}
           className={styles.input}

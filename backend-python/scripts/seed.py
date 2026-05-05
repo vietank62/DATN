@@ -1,408 +1,398 @@
-"""
-Seed script for TableNow database.
-Creates test users, restaurants, menu items, and bookings.
-Run: python seed.py
-"""
-import json
-import urllib.request
-import urllib.parse
+import sys
+import os
+from datetime import datetime
 
-BASE = "http://127.0.0.1:8000"
+# Thêm thư mục gốc vào sys.path để có thể import các module từ thư mục cha
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from sqlmodel import Session, select, text
+from database import engine
+from models import User, Restaurant, MenuItem, Booking
+from routers.user import get_password_hash
 
-def post(path: str, data: dict):
-    """POST JSON to API and return parsed response."""
-    body = json.dumps(data).encode()
-    req = urllib.request.Request(
-        f"{BASE}{path}",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req) as res:
-            return json.loads(res.read().decode())
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode()
-        print(f"  ERROR {e.code} on POST {path}: {err_body}")
-        return None
+def seed_database():
+    with Session(engine) as session:
+        print("=== 🧹 Đang dọn dẹp dữ liệu cũ (Xoá toàn bộ dữ liệu) ===")
+        try:
+            # Tự động thêm cột cuisines nếu DB chưa update
+            session.exec(text('ALTER TABLE restaurant ADD COLUMN IF NOT EXISTS cuisines JSON;'))
+            session.exec(text('TRUNCATE TABLE "booking", "menuitem", "restaurant", "user" RESTART IDENTITY CASCADE;'))
+            session.commit()
+            print("  Đã dọn dẹp xong!")
+        except Exception as e:
+            print(f"  Lỗi khi dọn dẹp: {e}")
+            session.rollback()
 
+        print("\n=== 👥 Đang tạo Users ===")
+        users_data = [
+            {"name": "Admin User", "email": "admin@tablenow.vn", "phone": "0900000001", "password": "admin123", "role": "admin"},
+            {"name": "Nguyễn Văn An", "email": "manager@tablenow.vn", "phone": "0900000002", "password": "manager123", "role": "manager"},
+            {"name": "Trần Thị Bình", "email": "manager2@tablenow.vn", "phone": "0900000003", "password": "manager123", "role": "manager"},
+            {"name": "Lê Minh Châu", "email": "customer@tablenow.vn", "phone": "0900000004", "password": "customer123", "role": "customer"},
+            {"name": "Phạm Đức Dũng", "email": "customer2@tablenow.vn", "phone": "0900000005", "password": "customer123", "role": "customer"},
+        ]
 
-def get(path: str):
-    req = urllib.request.Request(f"{BASE}{path}", method="GET")
-    with urllib.request.urlopen(req) as res:
-        return json.loads(res.read().decode())
+        users = {}
+        for u_data in users_data:
+            user = User(
+                name=u_data["name"],
+                email=u_data["email"],
+                phone=u_data["phone"],
+                password=get_password_hash(u_data["password"]),
+                role=u_data["role"],
+                createdAt=datetime.now().isoformat(timespec="seconds")
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            users[u_data["email"]] = user
+            print(f"  Đã tạo User: {user.name}")
 
+        print("\n=== 🍽️ Đang tạo 34 Restaurants ===")
+        m1 = users["manager@tablenow.vn"]
+        m2 = users["manager2@tablenow.vn"]
 
-def put(path: str, data: dict = None):
-    body = json.dumps(data).encode() if data else None
-    req = urllib.request.Request(
-        f"{BASE}{path}",
-        data=body,
-        headers={"Content-Type": "application/json"} if body else {},
-        method="PUT",
-    )
-    try:
-        with urllib.request.urlopen(req) as res:
-            return json.loads(res.read().decode())
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode()
-        print(f"  ERROR {e.code} on PUT {path}: {err_body}")
-        return None
+        restaurants_data = [
+            # 4 Original Restaurants
+            {
+                "name": "Phở Thìn Bờ Hồ", "address": "13 Lò Đúc, Hai Bà Trưng", "district": "Quận 1", "cuisine": "Việt Nam",
+                "priceRange": "Dưới 200K", "rating": 4.7, "reviewCount": 328,
+                "imageUrl": "https://images.unsplash.com/photo-1503764654157-72d979d9af2f?w=800",
+                "description": "Phở Thìn nổi tiếng với nước dùng đậm đà, thịt bò tươi ngon.",
+                "openTime": "06:00", "closeTime": "22:00", "phone": "0901234567",
+                "featured": True, "totalSeats": 40, "availableSeats": 35, "managerID": m1.userId,
+            },
+            {
+                "name": "Nhà hàng Cục Gạch Quán", "address": "10 Đặng Tất, Tân Định", "district": "Quận 1", "cuisine": "Việt Nam",
+                "priceRange": "200K - 500K", "rating": 4.5, "reviewCount": 512,
+                "imageUrl": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800",
+                "description": "Cục Gạch Quán mang đến không gian ấm cúng với kiến trúc nhà cổ Sài Gòn.",
+                "openTime": "10:00", "closeTime": "23:00", "phone": "0287654321",
+                "featured": True, "totalSeats": 60, "availableSeats": 45, "managerID": m1.userId,
+            },
+            {
+                "name": "Pizza 4P's", "address": "8 Thủ Khoa Huân, Bến Thành", "district": "Quận 1", "cuisine": "Ý",
+                "priceRange": "200K - 500K", "rating": 4.6, "reviewCount": 876,
+                "imageUrl": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800",
+                "description": "Pizza 4P's nổi tiếng với pizza nướng lò củi và phô mai tự làm.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "0281234568",
+                "featured": True, "totalSeats": 80, "availableSeats": 60, "managerID": m2.userId,
+            },
+            {
+                "name": "Sushi Hokkaido Sachi", "address": "2A-4A Tôn Đức Thắng", "district": "Quận 1", "cuisine": "Nhật Bản",
+                "priceRange": "500K - 1M", "rating": 4.8, "reviewCount": 432,
+                "imageUrl": "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800",
+                "description": "Nhà hàng Nhật Bản cao cấp với nguyên liệu nhập khẩu trực tiếp từ Hokkaido.",
+                "openTime": "11:00", "closeTime": "22:00", "phone": "0283456789",
+                "featured": True, "totalSeats": 30, "availableSeats": 20, "managerID": m2.userId,
+            },
+            # 30 New Restaurants
+            {
+                "name": "Haidilao Hot Pot", "address": "Tầng 3, Bitexco Financial Tower", "district": "Quận 1", "cuisine": "Trung Quốc",
+                "priceRange": "500K - 1M", "rating": 4.9, "reviewCount": 1500,
+                "imageUrl": "https://images.unsplash.com/photo-1563379926898-05f45c514d68?w=800",
+                "description": "Thương hiệu lẩu nổi tiếng với dịch vụ chăm sóc khách hàng đỉnh cao và hương vị lẩu Tứ Xuyên đặc trưng.",
+                "openTime": "10:00", "closeTime": "02:00", "phone": "02811112222",
+                "featured": True, "totalSeats": 120, "availableSeats": 100, "managerID": m1.userId,
+            },
+            {
+                "name": "Manwah Taiwanese Hotpot", "address": "Tầng 5, Saigon Centre", "district": "Quận 1", "cuisine": "Đài Loan",
+                "priceRange": "200K - 500K", "rating": 4.6, "reviewCount": 850,
+                "imageUrl": "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800",
+                "description": "Lẩu Đài Loan truyền thống với nước lẩu thanh ngọt và thịt bò hảo hạng.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02833334444",
+                "featured": False, "totalSeats": 80, "availableSeats": 40, "managerID": m2.userId,
+            },
+            {
+                "name": "Gogi House", "address": "123 Nguyễn Thái Học", "district": "Quận 1", "cuisine": "Hàn Quốc",
+                "priceRange": "200K - 500K", "rating": 4.5, "reviewCount": 1200,
+                "imageUrl": "https://images.unsplash.com/photo-1544025162-831550fe1db9?w=800",
+                "description": "Thịt nướng Hàn Quốc chuẩn vị ngon số 1 với không gian trẻ trung.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02855556666",
+                "featured": True, "totalSeats": 100, "availableSeats": 50, "managerID": m1.userId,
+            },
+            {
+                "name": "El Gaucho Argentinian Steakhouse", "address": "74/1 Hai Bà Trưng", "district": "Quận 1", "cuisine": "Âu",
+                "priceRange": "Trên 1M", "rating": 4.8, "reviewCount": 650,
+                "imageUrl": "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=800",
+                "description": "Nhà hàng bít tết chuẩn vị Argentina cao cấp nhất Sài Gòn.",
+                "openTime": "11:00", "closeTime": "23:00", "phone": "02877778888",
+                "featured": True, "totalSeats": 60, "availableSeats": 20, "managerID": m2.userId,
+            },
+            {
+                "name": "San Fu Lou", "address": "Tầng trệt, AB Tower", "district": "Quận 1", "cuisine": "Trung Quốc",
+                "priceRange": "200K - 500K", "rating": 4.4, "reviewCount": 420,
+                "imageUrl": "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800",
+                "description": "Ẩm thực Quảng Đông đương đại với không gian bếp mở độc đáo.",
+                "openTime": "07:00", "closeTime": "03:00", "phone": "02899990000",
+                "featured": False, "totalSeats": 90, "availableSeats": 60, "managerID": m1.userId,
+            },
+            {
+                "name": "Som Tum Thai", "address": "Tầng 5, Estella Place", "district": "Quận 2", "cuisine": "Thái Lan",
+                "priceRange": "200K - 500K", "rating": 4.3, "reviewCount": 310,
+                "imageUrl": "https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800",
+                "description": "Hương vị ẩm thực Thái Lan cay nồng đúng chuẩn truyền thống.",
+                "openTime": "10:30", "closeTime": "22:00", "phone": "02812341234",
+                "featured": False, "totalSeats": 70, "availableSeats": 50, "managerID": m2.userId,
+            },
+            {
+                "name": "The Deck Saigon", "address": "38 Nguyễn Ư Dĩ, Thảo Điền", "district": "Quận 2", "cuisine": "Âu",
+                "priceRange": "500K - 1M", "rating": 4.7, "reviewCount": 980,
+                "imageUrl": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800",
+                "description": "Nhà hàng ven sông Sài Gòn mang lại không gian lãng mạn cho các cặp đôi.",
+                "openTime": "08:00", "closeTime": "00:00", "phone": "02845674567",
+                "featured": True, "totalSeats": 120, "availableSeats": 80, "managerID": m1.userId,
+            },
+            {
+                "name": "Yen Sushi & Sake Pub", "address": "15 Lê Quý Đôn", "district": "Quận 3", "cuisine": "Nhật Bản",
+                "priceRange": "500K - 1M", "rating": 4.6, "reviewCount": 540,
+                "imageUrl": "https://images.unsplash.com/photo-1553621042-f6e147245754?w=800",
+                "description": "Trải nghiệm ẩm thực Nhật Bản hiện đại kết hợp với không gian Pub sôi động.",
+                "openTime": "10:30", "closeTime": "23:00", "phone": "02856785678",
+                "featured": False, "totalSeats": 80, "availableSeats": 40, "managerID": m2.userId,
+            },
+            {
+                "name": "Quán Ngon 138", "address": "138 Nam Kỳ Khởi Nghĩa", "district": "Quận 1", "cuisine": "Việt Nam",
+                "priceRange": "200K - 500K", "rating": 4.4, "reviewCount": 1100,
+                "imageUrl": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800",
+                "description": "Tập hợp các món ăn 3 miền Việt Nam trong không gian nhà rường cổ kính.",
+                "openTime": "06:30", "closeTime": "22:30", "phone": "02867896789",
+                "featured": True, "totalSeats": 150, "availableSeats": 100, "managerID": m1.userId,
+            },
+            {
+                "name": "Noir. Dining in the Dark", "address": "178-180D Hai Bà Trưng", "district": "Quận 1", "cuisine": "Á - Âu",
+                "priceRange": "500K - 1M", "rating": 4.8, "reviewCount": 720,
+                "imageUrl": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800",
+                "description": "Trải nghiệm thưởng thức món ăn trong bóng tối hoàn toàn độc nhất vô nhị.",
+                "openTime": "11:30", "closeTime": "23:00", "phone": "02878907890",
+                "featured": True, "totalSeats": 40, "availableSeats": 15, "managerID": m2.userId,
+            },
+            {
+                "name": "Chảo Cá", "address": "Tầng 5, Vincom Mega Mall Thảo Điền", "district": "Quận 2", "cuisine": "Việt Nam",
+                "priceRange": "Dưới 200K", "rating": 4.2, "reviewCount": 215,
+                "imageUrl": "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=800",
+                "description": "Các món cá chẽm, cá lăng tươi ngon chế biến trên chảo nóng hổi.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02811122233",
+                "featured": False, "totalSeats": 60, "availableSeats": 60, "managerID": m1.userId,
+            },
+            {
+                "name": "Shri Restaurant & Lounge", "address": "Tầng 23, Centec Tower", "district": "Quận 3", "cuisine": "Âu",
+                "priceRange": "Trên 1M", "rating": 4.7, "reviewCount": 890,
+                "imageUrl": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800",
+                "description": "Nhà hàng rooftop với tầm nhìn toàn cảnh thành phố rực rỡ về đêm.",
+                "openTime": "15:00", "closeTime": "00:00", "phone": "02822233344",
+                "featured": True, "totalSeats": 100, "availableSeats": 40, "managerID": m2.userId,
+            },
+            {
+                "name": "Baozi", "address": "165 Nguyễn Thái Học", "district": "Quận 1", "cuisine": "Đài Loan",
+                "priceRange": "Dưới 200K", "rating": 4.5, "reviewCount": 670,
+                "imageUrl": "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800",
+                "description": "Bánh bao kẹp thịt Đài Loan và các món ăn đường phố cách điệu.",
+                "openTime": "10:00", "closeTime": "00:00", "phone": "02833344455",
+                "featured": False, "totalSeats": 50, "availableSeats": 20, "managerID": m1.userId,
+            },
+            {
+                "name": "Dim Tu Tac", "address": "55 Đông Du", "district": "Quận 1", "cuisine": "Trung Quốc",
+                "priceRange": "200K - 500K", "rating": 4.6, "reviewCount": 450,
+                "imageUrl": "https://images.unsplash.com/photo-1563379926898-05f45c514d68?w=800",
+                "description": "Dimsum và các món vịt quay Bắc Kinh hảo hạng chuẩn vị.",
+                "openTime": "08:00", "closeTime": "22:00", "phone": "02844455566",
+                "featured": False, "totalSeats": 80, "availableSeats": 30, "managerID": m2.userId,
+            },
+            {
+                "name": "Moo Beef Steak", "address": "109 Lý Tự Trọng", "district": "Quận 1", "cuisine": "Âu",
+                "priceRange": "500K - 1M", "rating": 4.5, "reviewCount": 380,
+                "imageUrl": "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=800",
+                "description": "Không gian miền viễn Tây nước Mỹ với các món bít tết hảo hạng.",
+                "openTime": "10:30", "closeTime": "22:30", "phone": "02855566677",
+                "featured": False, "totalSeats": 70, "availableSeats": 50, "managerID": m1.userId,
+            },
+            {
+                "name": "Bếp Mẹ Ỉn", "address": "136/9 Lê Thánh Tôn", "district": "Quận 1", "cuisine": "Việt Nam",
+                "priceRange": "Dưới 200K", "rating": 4.8, "reviewCount": 1250,
+                "imageUrl": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800",
+                "description": "Quán ăn nép mình trong hẻm nhỏ với món bánh xèo nổi tiếng được Michelin giới thiệu.",
+                "openTime": "10:30", "closeTime": "22:30", "phone": "02866677788",
+                "featured": True, "totalSeats": 45, "availableSeats": 10, "managerID": m2.userId,
+            },
+            {
+                "name": "Secret Garden", "address": "158 Bis/40-41 Pasteur", "district": "Quận 1", "cuisine": "Việt Nam",
+                "priceRange": "Dưới 200K", "rating": 4.4, "reviewCount": 840,
+                "imageUrl": "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800",
+                "description": "Khu vườn bí mật trên sân thượng giữa lòng thành phố với mâm cơm nhà chuẩn vị.",
+                "openTime": "11:00", "closeTime": "22:00", "phone": "02877788899",
+                "featured": False, "totalSeats": 60, "availableSeats": 20, "managerID": m1.userId,
+            },
+            {
+                "name": "TukTuk Thai Bistro", "address": "17/11 Lê Thánh Tôn", "district": "Quận 1", "cuisine": "Thái Lan",
+                "priceRange": "200K - 500K", "rating": 4.5, "reviewCount": 560,
+                "imageUrl": "https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800",
+                "description": "Bistro mang phong cách đường phố Bangkok hiện đại và phá cách.",
+                "openTime": "10:00", "closeTime": "22:30", "phone": "02888899900",
+                "featured": False, "totalSeats": 50, "availableSeats": 30, "managerID": m2.userId,
+            },
+            {
+                "name": "Morico", "address": "30 Lê Lợi", "district": "Quận 1", "cuisine": "Nhật Bản",
+                "priceRange": "Dưới 200K", "rating": 4.6, "reviewCount": 610,
+                "imageUrl": "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800",
+                "description": "Thiên đường tráng miệng Matcha Nhật Bản và các món ăn nhẹ tinh tế.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02899900011",
+                "featured": False, "totalSeats": 40, "availableSeats": 15, "managerID": m1.userId,
+            },
+            {
+                "name": "The LOG", "address": "Tầng thượng, GEM Center", "district": "Quận 1", "cuisine": "Á - Âu",
+                "priceRange": "Trên 1M", "rating": 4.7, "reviewCount": 420,
+                "imageUrl": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800",
+                "description": "Ngôi nhà gỗ trên cây sang trọng phục vụ tiệc buffet hải sản cao cấp.",
+                "openTime": "18:00", "closeTime": "23:00", "phone": "02800011122",
+                "featured": True, "totalSeats": 150, "availableSeats": 50, "managerID": m2.userId,
+            },
+            {
+                "name": "Sushi Tei", "address": "200A Lý Tự Trọng", "district": "Quận 1", "cuisine": "Nhật Bản",
+                "priceRange": "200K - 500K", "rating": 4.5, "reviewCount": 850,
+                "imageUrl": "https://images.unsplash.com/photo-1553621042-f6e147245754?w=800",
+                "description": "Chuỗi nhà hàng sushi nổi tiếng Châu Á với menu đa dạng hơn 300 món.",
+                "openTime": "11:00", "closeTime": "22:30", "phone": "02812345670",
+                "featured": False, "totalSeats": 100, "availableSeats": 60, "managerID": m1.userId,
+            },
+            {
+                "name": "Crystal Jade", "address": "Tầng 5, Vạn Hạnh Mall", "district": "Quận 10", "cuisine": "Trung Quốc",
+                "priceRange": "200K - 500K", "rating": 4.3, "reviewCount": 340,
+                "imageUrl": "https://images.unsplash.com/photo-1563379926898-05f45c514d68?w=800",
+                "description": "Nhà hàng Quảng Đông được vinh danh Michelin với các món Dimsum truyền thống.",
+                "openTime": "10:30", "closeTime": "22:00", "phone": "02823456781",
+                "featured": False, "totalSeats": 120, "availableSeats": 70, "managerID": m2.userId,
+            },
+            {
+                "name": "Cơm Niêu Sài Gòn", "address": "59 Hồ Xuân Hương", "district": "Quận 3", "cuisine": "Việt Nam",
+                "priceRange": "200K - 500K", "rating": 4.2, "reviewCount": 290,
+                "imageUrl": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800",
+                "description": "Nổi tiếng với màn trình diễn tung cơm niêu đập lu và các món ăn đậm đà bản sắc.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02834567892",
+                "featured": False, "totalSeats": 80, "availableSeats": 40, "managerID": m1.userId,
+            },
+            {
+                "name": "Ngò Rí", "address": "16 Bùi Viện", "district": "Quận 1", "cuisine": "Thái Lan",
+                "priceRange": "Dưới 200K", "rating": 4.1, "reviewCount": 450,
+                "imageUrl": "https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800",
+                "description": "Quán ăn Thái lâu đời tại phố Tây Bùi Viện với hương vị bình dân, đậm đà.",
+                "openTime": "11:00", "closeTime": "23:00", "phone": "02845678903",
+                "featured": False, "totalSeats": 40, "availableSeats": 10, "managerID": m2.userId,
+            },
+            {
+                "name": "Hoàng Yến Buffet", "address": "Tầng 3, Nguyễn Kim", "district": "Quận 5", "cuisine": "Việt Nam",
+                "priceRange": "200K - 500K", "rating": 4.4, "reviewCount": 610,
+                "imageUrl": "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=800",
+                "description": "Buffet ẩm thực Việt Nam quy tụ các món ăn từ khắp 3 miền đất nước.",
+                "openTime": "11:00", "closeTime": "22:00", "phone": "02856789014",
+                "featured": False, "totalSeats": 150, "availableSeats": 50, "managerID": m1.userId,
+            },
+            {
+                "name": "Mặn Mòi", "address": "34 Võ Văn Tần", "district": "Quận 3", "cuisine": "Việt Nam",
+                "priceRange": "200K - 500K", "rating": 4.6, "reviewCount": 230,
+                "imageUrl": "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800",
+                "description": "Nhà hàng với phong cách Indochine hoài cổ, phục vụ các mâm cơm Việt tinh tế.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02867890125",
+                "featured": True, "totalSeats": 70, "availableSeats": 30, "managerID": m2.userId,
+            },
+            {
+                "name": "Dì Mai", "address": "136-138 Lê Thị Hồng Gấm", "district": "Quận 1", "cuisine": "Việt Nam",
+                "priceRange": "200K - 500K", "rating": 4.5, "reviewCount": 420,
+                "imageUrl": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800",
+                "description": "Không gian tái hiện Sài Gòn xưa với tà áo dài và chiếc xích lô mộc mạc.",
+                "openTime": "07:00", "closeTime": "22:30", "phone": "02878901236",
+                "featured": False, "totalSeats": 90, "availableSeats": 60, "managerID": m1.userId,
+            },
+            {
+                "name": "Kichi Kichi", "address": "Vincom Center", "district": "Quận 1", "cuisine": "Nhật Bản",
+                "priceRange": "200K - 500K", "rating": 4.3, "reviewCount": 1100,
+                "imageUrl": "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800",
+                "description": "Lẩu băng chuyền Kei-Ten đa dạng món nhúng ăn thỏa thích.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02889012347",
+                "featured": False, "totalSeats": 80, "availableSeats": 40, "managerID": m2.userId,
+            },
+            {
+                "name": "King BBQ", "address": "Sư Vạn Hạnh", "district": "Quận 10", "cuisine": "Hàn Quốc",
+                "priceRange": "200K - 500K", "rating": 4.4, "reviewCount": 890,
+                "imageUrl": "https://images.unsplash.com/photo-1544025162-831550fe1db9?w=800",
+                "description": "Vua thịt nướng Hàn Quốc với sốt ướp bí truyền từ đầu bếp Park Sung Min.",
+                "openTime": "10:00", "closeTime": "22:00", "phone": "02890123458",
+                "featured": False, "totalSeats": 110, "availableSeats": 60, "managerID": m1.userId,
+            },
+            {
+                "name": "Isushi", "address": "112 Cao Thắng", "district": "Quận 3", "cuisine": "Nhật Bản",
+                "priceRange": "500K - 1M", "rating": 4.5, "reviewCount": 450,
+                "imageUrl": "https://images.unsplash.com/photo-1553621042-f6e147245754?w=800",
+                "description": "Buffet Sashimi và các món nướng Teppanyaki Nhật Bản tươi ngon mỗi ngày.",
+                "openTime": "11:00", "closeTime": "22:00", "phone": "02801234569",
+                "featured": False, "totalSeats": 90, "availableSeats": 50, "managerID": m2.userId,
+            }
+        ]
 
+        restaurants = []
+        for r_data in restaurants_data:
+            restaurant = Restaurant(**r_data)
+            session.add(restaurant)
+            session.commit()
+            session.refresh(restaurant)
+            restaurants.append(restaurant)
+        print(f"  Đã tạo thành công {len(restaurants)} Restaurants!")
 
-# ─── 1. Users ──────────────────────────────────────────────
-print("=== Creating Users ===")
+        print("\n=== 🧾 Đang tạo Menu Items ===")
+        # Lấy 4 nhà hàng đầu tiên để tạo menu mẫu
+        r1, r2, r3, r4 = restaurants[:4]
 
-users_data = [
-    {"name": "Admin User",     "email": "admin@tablenow.vn",    "phone": "0900000001", "password": "admin123"},
-    {"name": "Nguyễn Văn An",  "email": "manager@tablenow.vn",  "phone": "0900000002", "password": "manager123"},
-    {"name": "Trần Thị Bình",  "email": "manager2@tablenow.vn", "phone": "0900000003", "password": "manager123"},
-    {"name": "Lê Minh Châu",   "email": "customer@tablenow.vn", "phone": "0900000004", "password": "customer123"},
-    {"name": "Phạm Đức Dũng",  "email": "customer2@tablenow.vn","phone": "0900000005", "password": "customer123"},
-]
+        menu_items_data = [
+            # Phở Thìn
+            {"restaurantId": r1.restaurantId, "name": "Phở bò tái", "description": "Phở bò tái truyền thống", "price": 65000, "category": "Phở", "image": "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=400"},
+            {"restaurantId": r1.restaurantId, "name": "Phở bò chín", "description": "Phở bò chín mềm", "price": 65000, "category": "Phở", "image": None},
+            {"restaurantId": r1.restaurantId, "name": "Trà đá", "description": "Trà đá miễn phí", "price": 0, "category": "Đồ uống", "image": None},
+            # Cục Gạch Quán
+            {"restaurantId": r2.restaurantId, "name": "Cơm tấm sườn", "description": "Cơm tấm sườn nướng than hoa", "price": 120000, "category": "Cơm", "image": "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400"},
+            {"restaurantId": r2.restaurantId, "name": "Bún chả Hà Nội", "description": "Bún chả với chả nướng thơm", "price": 95000, "category": "Bún", "image": None},
+            # Pizza 4P's
+            {"restaurantId": r3.restaurantId, "name": "Pizza Margherita", "description": "Pizza với phô mai mozzarella tự làm", "price": 189000, "category": "Pizza", "image": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400"},
+            {"restaurantId": r3.restaurantId, "name": "Tiramisu", "description": "Tiramisu Ý truyền thống", "price": 89000, "category": "Tráng miệng", "image": None},
+            # Sushi
+            {"restaurantId": r4.restaurantId, "name": "Sashimi tổng hợp", "description": "Combo sashimi 12 miếng", "price": 450000, "category": "Sashimi", "image": "https://images.unsplash.com/photo-1553621042-f6e147245754?w=400"},
+        ]
 
-created_users = []
-for u in users_data:
-    result = post("/api/create-user/", u)
-    if result:
-        print(f"  Created user: {result['name']} (id={result['userId']})")
-        created_users.append(result)
-    else:
-        print(f"  Skipped user: {u['email']} (may already exist)")
+        for item_data in menu_items_data:
+            item = MenuItem(**item_data)
+            session.add(item)
+            session.commit()
+            print(f"  Đã thêm món: {item.name}")
 
-# Assign roles via direct update
-if len(created_users) >= 5:
-    admin_id = created_users[0]["userId"]
-    manager1_id = created_users[1]["userId"]
-    manager2_id = created_users[2]["userId"]
-    customer1_id = created_users[3]["userId"]
-    customer2_id = created_users[4]["userId"]
+        print("\n=== 📅 Đang tạo Bookings ===")
+        c1 = users["customer@tablenow.vn"]
+        c2 = users["customer2@tablenow.vn"]
 
-    put(f"/api/update-user/{created_users[0]['email']}", {"name": "Admin User"})
-    put(f"/api/update-user/{created_users[1]['email']}", {"name": "Nguyễn Văn An"})
-else:
-    # Fetch existing users
-    all_users = get("/api/get-all-user/")
-    print(f"  Found {len(all_users)} existing users")
-    admin_id = all_users[0]["userId"] if len(all_users) > 0 else 1
-    manager1_id = all_users[1]["userId"] if len(all_users) > 1 else 2
-    manager2_id = all_users[2]["userId"] if len(all_users) > 2 else 3
-    customer1_id = all_users[3]["userId"] if len(all_users) > 3 else 4
-    customer2_id = all_users[4]["userId"] if len(all_users) > 4 else 5
+        bookings_data = [
+            {
+                "userId": c1.userId, "restaurantId": r1.restaurantId, "date": "2026-03-15", "time": "12:00",
+                "guestCount": 2, "requestSeats": 2, "contactName": "Lê Minh Châu", "contactEmail": "customer@tablenow.vn",
+                "contactPhone": "0900000004", "note": "Bàn gần cửa sổ nếu có", "status": "confirmed", "createdAt": datetime.now().isoformat()
+            },
+            {
+                "userId": c2.userId, "restaurantId": r3.restaurantId, "date": "2026-03-14", "time": "18:30",
+                "guestCount": 6, "requestSeats": 6, "contactName": "Phạm Đức Dũng", "contactEmail": "customer2@tablenow.vn",
+                "contactPhone": "0900000005", "note": "", "status": "pending", "createdAt": datetime.now().isoformat()
+            }
+        ]
 
-# Update roles — user.py update endpoint doesn't have role, so use SQL-level workaround
-# We'll need to set roles. The UserUpdate schema doesn't include role, so let's add it.
-# For now, let's update via a quick SQL workaround using the existing update endpoint.
-# Actually, let's check if the update schema allows role:
-# UserUpdate: name, phone, email, password, avatar — no role!
-# We need to fix this. For seed purposes, let's do it via psycopg2 directly.
+        for b_data in bookings_data:
+            booking = Booking(**b_data)
+            session.add(booking)
+            session.commit()
+            print(f"  Đã tạo Booking: User {booking.userId} đặt tại Restaurant {booking.restaurantId} (Status: {booking.status})")
 
-print("\n=== Setting User Roles (direct DB) ===")
-try:
-    import psycopg2
-    conn = psycopg2.connect("postgresql://postgres:dhbkhcm2022@localhost:5432/tablenow")
-    cur = conn.cursor()
-    
-    # Set admin role
-    cur.execute('UPDATE "user" SET role = %s WHERE email = %s', ("admin", "admin@tablenow.vn"))
-    cur.execute('UPDATE "user" SET role = %s WHERE email = %s', ("manager", "manager@tablenow.vn"))
-    cur.execute('UPDATE "user" SET role = %s WHERE email = %s', ("manager", "manager2@tablenow.vn"))
-    cur.execute('UPDATE "user" SET role = %s WHERE email = %s', ("customer", "customer@tablenow.vn"))
-    cur.execute('UPDATE "user" SET role = %s WHERE email = %s', ("customer", "customer2@tablenow.vn"))
-    conn.commit()
-    
-    # Get actual IDs
-    cur.execute('SELECT "userId", email, role FROM "user" ORDER BY "userId"')
-    rows = cur.fetchall()
-    user_map = {}
-    for row in rows:
-        user_map[row[1]] = row[0]
-        print(f"  User {row[0]}: {row[1]} → role={row[2]}")
-    
-    admin_id = user_map.get("admin@tablenow.vn", 1)
-    manager1_id = user_map.get("manager@tablenow.vn", 2)
-    manager2_id = user_map.get("manager2@tablenow.vn", 3)
-    customer1_id = user_map.get("customer@tablenow.vn", 4)
-    customer2_id = user_map.get("customer2@tablenow.vn", 5)
-    
-    cur.close()
-    conn.close()
-    print("  Roles updated successfully!")
-except ImportError:
-    print("  WARNING: psycopg2 not available, roles not set. Install with: pip install psycopg2-binary")
-except Exception as e:
-    print(f"  ERROR setting roles: {e}")
+        print("\n" + "=" * 50)
+        print("✅ SEED HOÀN TẤT THÀNH CÔNG!")
+        print("=" * 50)
+        print("\nTài khoản test:")
+        print("  Admin:    admin@tablenow.vn    / admin123")
+        print("  Manager:  manager@tablenow.vn  / manager123")
+        print("  Customer: customer@tablenow.vn / customer123")
 
-# ─── 2. Restaurants ────────────────────────────────────────
-print("\n=== Creating Restaurants ===")
-
-restaurants_data = [
-    {
-        "name": "Phở Thìn Bờ Hồ",
-        "address": "13 Lò Đúc, Hai Bà Trưng",
-        "district": "Quận 1",
-        "cuisine": "Việt Nam",
-        "priceRange": "Dưới 200K",
-        "rating": 4.7,
-        "reviewCount": 328,
-        "imageUrl": "https://images.unsplash.com/photo-1503764654157-72d979d9af2f?w=800",
-        "description": "Phở Thìn nổi tiếng với nước dùng đậm đà, thịt bò tươi ngon. Quán được thành lập từ năm 1979 và đã trở thành biểu tượng ẩm thực Hà Nội.",
-        "openTime": "06:00",
-        "closeTime": "22:00",
-        "phone": "0901234567",
-        "featured": True,
-        "totalSeats": 40,
-        "availableSeats": 35,
-        "managerID": manager1_id,
-    },
-    {
-        "name": "Nhà hàng Cục Gạch Quán",
-        "address": "10 Đặng Tất, Tân Định, Quận 1",
-        "district": "Quận 1",
-        "cuisine": "Việt Nam",
-        "priceRange": "200K - 500K",
-        "rating": 4.5,
-        "reviewCount": 512,
-        "imageUrl": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800",
-        "description": "Cục Gạch Quán mang đến không gian ấm cúng với kiến trúc nhà cổ Sài Gòn. Menu đa dạng các món Việt truyền thống.",
-        "openTime": "10:00",
-        "closeTime": "23:00",
-        "phone": "0287654321",
-        "featured": True,
-        "totalSeats": 60,
-        "availableSeats": 45,
-        "managerID": manager1_id,
-    },
-    {
-        "name": "Pizza 4P's",
-        "address": "8 Thủ Khoa Huân, Bến Thành, Quận 1",
-        "district": "Quận 1",
-        "cuisine": "Ý",
-        "priceRange": "200K - 500K",
-        "rating": 4.6,
-        "reviewCount": 876,
-        "imageUrl": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800",
-        "description": "Pizza 4P's nổi tiếng với pizza nướng lò củi và phô mai tự làm. Không gian hiện đại, phù hợp cho gia đình và bạn bè.",
-        "openTime": "10:00",
-        "closeTime": "22:00",
-        "phone": "0281234568",
-        "featured": True,
-        "totalSeats": 80,
-        "availableSeats": 60,
-        "managerID": manager2_id,
-    },
-    {
-        "name": "Quán Bụi Garden",
-        "address": "55A Nguyễn Bỉnh Khiêm, Đa Kao, Quận 1",
-        "district": "Quận 1",
-        "cuisine": "Việt Nam",
-        "priceRange": "200K - 500K",
-        "rating": 4.3,
-        "reviewCount": 245,
-        "imageUrl": "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800",
-        "description": "Quán Bụi Garden với không gian sân vườn xanh mát, phục vụ các món Việt hiện đại kết hợp truyền thống.",
-        "openTime": "10:00",
-        "closeTime": "22:30",
-        "phone": "0289876543",
-        "featured": False,
-        "totalSeats": 50,
-        "availableSeats": 50,
-        "managerID": manager1_id,
-    },
-    {
-        "name": "Sushi Hokkaido Sachi",
-        "address": "2A-4A Tôn Đức Thắng, Bến Nghé, Quận 1",
-        "district": "Quận 3",
-        "cuisine": "Nhật Bản",
-        "priceRange": "500K - 1M",
-        "rating": 4.8,
-        "reviewCount": 432,
-        "imageUrl": "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800",
-        "description": "Nhà hàng Nhật Bản cao cấp với nguyên liệu nhập khẩu trực tiếp từ Hokkaido. Sashimi và sushi tươi ngon hàng đầu.",
-        "openTime": "11:00",
-        "closeTime": "22:00",
-        "phone": "0283456789",
-        "featured": True,
-        "totalSeats": 30,
-        "availableSeats": 20,
-        "managerID": manager2_id,
-    },
-    {
-        "name": "Wrap & Roll",
-        "address": "62 Hai Bà Trưng, Bến Nghé, Quận 1",
-        "district": "Quận 1",
-        "cuisine": "Việt Nam",
-        "priceRange": "200K - 500K",
-        "rating": 4.2,
-        "reviewCount": 198,
-        "imageUrl": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800",
-        "description": "Wrap & Roll chuyên các món cuốn Việt Nam với hơn 30 loại nhân khác nhau. Không gian sang trọng và hiện đại.",
-        "openTime": "10:00",
-        "closeTime": "22:00",
-        "phone": "0282345678",
-        "featured": False,
-        "totalSeats": 45,
-        "availableSeats": 40,
-        "managerID": manager2_id,
-    },
-]
-
-created_restaurants = []
-for r in restaurants_data:
-    result = post("/api/create-restaurant/", r)
-    if result:
-        print(f"  Created restaurant: {result['name']} (id={result['restaurantId']})")
-        created_restaurants.append(result)
-
-# ─── 3. Menu Items ─────────────────────────────────────────
-print("\n=== Creating Menu Items ===")
-
-if created_restaurants:
-    r1_id = created_restaurants[0]["restaurantId"]
-    r2_id = created_restaurants[1]["restaurantId"]
-    r3_id = created_restaurants[2]["restaurantId"]
-    r4_id = created_restaurants[3]["restaurantId"] if len(created_restaurants) > 3 else r1_id
-    r5_id = created_restaurants[4]["restaurantId"] if len(created_restaurants) > 4 else r2_id
-
-    menu_items_data = [
-        # Phở Thìn
-        {"restaurantId": r1_id, "name": "Phở bò tái", "description": "Phở bò tái truyền thống", "price": 65000, "category": "Phở", "image": "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=400"},
-        {"restaurantId": r1_id, "name": "Phở bò chín", "description": "Phở bò chín mềm", "price": 65000, "category": "Phở", "image": None},
-        {"restaurantId": r1_id, "name": "Phở bò tái nạm", "description": "Phở bò tái nạm đặc biệt", "price": 75000, "category": "Phở", "image": None},
-        {"restaurantId": r1_id, "name": "Trà đá", "description": "Trà đá miễn phí", "price": 0, "category": "Đồ uống", "image": None},
-
-        # Cục Gạch Quán
-        {"restaurantId": r2_id, "name": "Cơm tấm sườn", "description": "Cơm tấm sườn nướng than hoa", "price": 120000, "category": "Cơm", "image": "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400"},
-        {"restaurantId": r2_id, "name": "Bún chả Hà Nội", "description": "Bún chả với chả nướng thơm", "price": 95000, "category": "Bún", "image": None},
-        {"restaurantId": r2_id, "name": "Gỏi cuốn tôm thịt", "description": "Gỏi cuốn tươi ngon", "price": 85000, "category": "Khai vị", "image": None},
-        {"restaurantId": r2_id, "name": "Chè khúc bạch", "description": "Chè khúc bạch mát lạnh", "price": 45000, "category": "Tráng miệng", "image": None},
-
-        # Pizza 4P's
-        {"restaurantId": r3_id, "name": "Pizza Margherita", "description": "Pizza với phô mai mozzarella tự làm", "price": 189000, "category": "Pizza", "image": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400"},
-        {"restaurantId": r3_id, "name": "Pizza Salmon", "description": "Pizza cá hồi hun khói", "price": 249000, "category": "Pizza", "image": None},
-        {"restaurantId": r3_id, "name": "Pasta Carbonara", "description": "Pasta kem trứng kiểu Ý", "price": 179000, "category": "Pasta", "image": None},
-        {"restaurantId": r3_id, "name": "Tiramisu", "description": "Tiramisu Ý truyền thống", "price": 89000, "category": "Tráng miệng", "image": None},
-
-        # Quán Bụi
-        {"restaurantId": r4_id, "name": "Bò lúc lắc", "description": "Bò Úc lúc lắc với khoai tây", "price": 195000, "category": "Món chính", "image": None},
-        {"restaurantId": r4_id, "name": "Canh chua cá lóc", "description": "Canh chua truyền thống miền Tây", "price": 125000, "category": "Canh", "image": None},
-
-        # Sushi Hokkaido
-        {"restaurantId": r5_id, "name": "Sashimi tổng hợp", "description": "Combo sashimi 12 miếng", "price": 450000, "category": "Sashimi", "image": "https://images.unsplash.com/photo-1553621042-f6e147245754?w=400"},
-        {"restaurantId": r5_id, "name": "Sushi set đặc biệt", "description": "Set 16 miếng sushi", "price": 380000, "category": "Sushi", "image": None},
-        {"restaurantId": r5_id, "name": "Ramen tonkotsu", "description": "Mì ramen nước dùng xương heo", "price": 189000, "category": "Ramen", "image": None},
-    ]
-
-    for item in menu_items_data:
-        result = post("/api/create-menuitem/", item)
-        if result:
-            print(f"  Created menu item: {result['name']} (restaurant {result['restaurantId']})")
-
-
-# ─── 4. Bookings ───────────────────────────────────────────
-print("\n=== Creating Bookings ===")
-
-if created_restaurants:
-    bookings_data = [
-        {
-            "userId": customer1_id,
-            "restaurantId": r1_id,
-            "date": "2026-03-15",
-            "time": "12:00",
-            "guestCount": 2,
-            "requestSeats": 2,
-            "contactName": "Lê Minh Châu",
-            "contactEmail": "customer@tablenow.vn",
-            "contactPhone": "0900000004",
-            "note": "Bàn gần cửa sổ nếu có",
-        },
-        {
-            "userId": customer1_id,
-            "restaurantId": r2_id,
-            "date": "2026-03-15",
-            "time": "19:00",
-            "guestCount": 4,
-            "requestSeats": 4,
-            "contactName": "Lê Minh Châu",
-            "contactEmail": "customer@tablenow.vn",
-            "contactPhone": "0900000004",
-            "note": "Sinh nhật bạn",
-        },
-        {
-            "userId": customer2_id,
-            "restaurantId": r3_id,
-            "date": "2026-03-14",
-            "time": "18:30",
-            "guestCount": 6,
-            "requestSeats": 6,
-            "contactName": "Phạm Đức Dũng",
-            "contactEmail": "customer2@tablenow.vn",
-            "contactPhone": "0900000005",
-            "note": "",
-        },
-        {
-            "userId": customer2_id,
-            "restaurantId": r1_id,
-            "date": "2026-03-16",
-            "time": "11:30",
-            "guestCount": 3,
-            "requestSeats": 3,
-            "contactName": "Phạm Đức Dũng",
-            "contactEmail": "customer2@tablenow.vn",
-            "contactPhone": "0900000005",
-            "note": "Ăn trưa công ty",
-        },
-        {
-            "userId": customer1_id,
-            "restaurantId": r5_id,
-            "date": "2026-03-17",
-            "time": "19:00",
-            "guestCount": 2,
-            "requestSeats": 2,
-            "contactName": "Lê Minh Châu",
-            "contactEmail": "customer@tablenow.vn",
-            "contactPhone": "0900000004",
-            "note": "Kỷ niệm",
-        },
-    ]
-
-    created_bookings = []
-    for b in bookings_data:
-        result = post("/api/create-booking/", b)
-        if result:
-            print(f"  Created booking #{result['bookingId']}: user {result['userId']} → restaurant {result['restaurantId']} ({result['status']})")
-            created_bookings.append(result)
-
-    # Confirm the first booking to test seat deduction
-    if len(created_bookings) >= 2:
-        print("\n=== Confirming first booking ===")
-        result = put(f"/api/bookings/{created_bookings[0]['bookingId']}/confirm")
-        if result:
-            print(f"  Confirmed booking #{created_bookings[0]['bookingId']}: {result.get('message', '')}")
-            print(f"  Restaurant available seats: {result.get('restaurant_available_seats', '?')}")
-
-
-# ─── Summary ───────────────────────────────────────────────
-print("\n" + "=" * 50)
-print("SEED COMPLETE!")
-print("=" * 50)
-print("\nTest accounts:")
-print("  Admin:    admin@tablenow.vn    / admin123")
-print("  Manager:  manager@tablenow.vn  / manager123")
-print("  Manager2: manager2@tablenow.vn / manager123")
-print("  Customer: customer@tablenow.vn / customer123")
-print("  Customer2:customer2@tablenow.vn/ customer123")
-print()
-
-# Verify final counts
-try:
-    users = get("/api/get-all-user/")
-    restaurants = get("/api/get-all-restaurant/")
-    bookings = get("/api/get-all-booking/")
-    print(f"Database totals:")
-    print(f"  Users:       {len(users)}")
-    print(f"  Restaurants: {len(restaurants)}")
-    print(f"  Bookings:    {len(bookings)}")
-except Exception as e:
-    print(f"  Could not verify: {e}")
+if __name__ == "__main__":
+    seed_database()

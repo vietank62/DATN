@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import styles from './AdminDashboard.module.css';
-import { fetchRestaurants, fetchBookings, fetchAllUsers, fetchAdminStats } from '../services/api';
+import { toast } from 'react-hot-toast';
+import { fetchRestaurants, fetchBookings, fetchAllUsers, fetchAdminStats, createRestaurant, updateRestaurant as apiUpdateRestaurant, deleteRestaurant as apiDeleteRestaurant, registerUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from '../services/api';
 import type { Restaurant, Booking, User, AdminStats, UserRole } from '../types';
+import ImageUpload from '../components/ImageUpload/ImageUpload';
+import styles from './AdminDashboard.module.css';
+import { cuisineTypes } from '../data/restaurants';
 
 const emptyRestaurant: Omit<Restaurant, 'id'> = {
-  name: '', address: '', district: '', cuisine: '', priceRange: '',
-  rating: 0, reviewCount: 0, imageUrl: '', description: '',
+  name: '', address: '', district: '', cuisine: [], priceRange: '',
+  rating: 0, reviewCount: 0, imageUrl: [], description: '',
   openTime: '10:00', closeTime: '22:00', phone: '', featured: false, menu: [],
-  totalSeats: 0, availableSeats: 0,
+  totalSeats: 0, availableSeats: 0, managerID: 0,
 };
 
 const emptyUser: Omit<User, 'id'> = {
-  name: '', email: '', phone: '', role: 'customer', avatar: '',
+  name: '', email: '', phone: '', role: 'customer', avatar: '', password: '',
 };
 
 const AdminDashboard: React.FC = () => {
@@ -57,8 +60,8 @@ const AdminDashboard: React.FC = () => {
     load();
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
@@ -98,23 +101,55 @@ const AdminDashboard: React.FC = () => {
     setShowRestaurantModal(true);
   };
 
-  const saveRestaurant = () => {
-    if (!restaurantForm.name.trim()) return;
-    if (editingRestaurant) {
-      setRestaurants((prev) => prev.map((r) => r.id === editingRestaurant.id ? { ...editingRestaurant, ...restaurantForm } : r));
-    } else {
-      const newR: Restaurant = { ...restaurantForm as Restaurant, id: `R${Date.now()}` };
-      setRestaurants((prev) => [...prev, newR]);
+  const saveRestaurant = async () => {
+    if (!restaurantForm.name.trim()) {
+      toast.error('Vui lòng nhập tên nhà hàng');
+      return;
     }
-    setShowRestaurantModal(false);
+    
+    const loadingToast = toast.loading(editingRestaurant ? 'Đang cập nhật...' : 'Đang thêm nhà hàng...');
+    try {
+      if (editingRestaurant) {
+        const updated = await apiUpdateRestaurant(editingRestaurant.id, restaurantForm);
+        setRestaurants((prev) => prev.map((r) => r.id === editingRestaurant.id ? updated : r));
+        toast.success('Cập nhật nhà hàng thành công!', { id: loadingToast });
+      } else {
+        // For new restaurant, we need to assign a manager. For now, use current admin or first manager.
+        const created = await createRestaurant({ 
+          ...restaurantForm as Restaurant, 
+          availableSeats: restaurantForm.totalSeats,
+          managerID: restaurantForm.managerID || (authUser ? Number(authUser.id) : 1) 
+        });
+        setRestaurants((prev) => [...prev, created]);
+        toast.success('Thêm nhà hàng mới thành công!', { id: loadingToast });
+      }
+      setShowRestaurantModal(false);
+    } catch (err: any) {
+      toast.error(`Lỗi: ${err.message || 'Thao tác thất bại'}`, { id: loadingToast });
+      console.error(err);
+    }
   };
 
-  const deleteRestaurant = (id: string) => {
-    setRestaurants((prev) => prev.filter((r) => r.id !== id));
-    setShowDeleteConfirm(null);
+  const deleteRestaurant = async (id: string) => {
+    const loadingToast = toast.loading('Đang xoá nhà hàng...');
+    try {
+      await apiDeleteRestaurant(id);
+      setRestaurants((prev) => prev.filter((r) => r.id !== id));
+      setShowDeleteConfirm(null);
+      toast.success('Xoá nhà hàng thành công!', { id: loadingToast });
+    } catch (err: any) {
+      toast.error(`Lỗi khi xoá: ${err.message || 'Thao tác thất bại'}`, { id: loadingToast });
+    }
   };
 
-  // ===== User CRUD =====
+  const toggleCuisine = (cuisineId: string) => {
+    setRestaurantForm((prev) => ({
+      ...prev,
+      cuisine: prev.cuisine?.includes(cuisineId)
+        ? prev.cuisine.filter((c) => c !== cuisineId)
+        : [...(prev.cuisine || []), cuisineId],
+    }));
+  };
   const openAddUser = () => {
     setEditingUser(null);
     setUserForm(emptyUser);
@@ -123,24 +158,50 @@ const AdminDashboard: React.FC = () => {
 
   const openEditUser = (u: User) => {
     setEditingUser(u);
-    setUserForm({ name: u.name, email: u.email, phone: u.phone, role: u.role, avatar: u.avatar });
+    setUserForm({ name: u.name, email: u.email, phone: u.phone, role: u.role, avatar: u.avatar, password: '' });
     setShowUserModal(true);
   };
 
-  const saveUser = () => {
-    if (!userForm.name.trim() || !userForm.email.trim()) return;
-    if (editingUser) {
-      setUsers((prev) => prev.map((u) => u.id === editingUser.id ? { ...editingUser, ...userForm } : u));
-    } else {
-      const newU: User = { ...userForm as User, id: `U${Date.now()}` };
-      setUsers((prev) => [...prev, newU]);
+  const saveUser = async () => {
+    if (!userForm.name.trim() || !userForm.email.trim()) {
+      toast.error('Vui lòng nhập tên và email');
+      return;
     }
-    setShowUserModal(false);
+
+    const loadingToast = toast.loading(editingUser ? 'Đang cập nhật...' : 'Đang thêm người dùng...');
+    try {
+      if (editingUser) {
+        const payload: any = { ...userForm };
+        if (!payload.password) {
+          delete payload.password;
+        }
+        const updated = await apiUpdateUser(editingUser.email, payload);
+        setUsers((prev) => prev.map((u) => u.id === editingUser.id ? updated : u));
+        toast.success('Cập nhật người dùng thành công!', { id: loadingToast });
+      } else {
+        const created = await registerUser({ ...userForm as any, password: userForm.password || 'User@123' });
+        setUsers((prev) => [...prev, created]);
+        toast.success('Thêm người dùng mới thành công!', { id: loadingToast, duration: 5000 });
+      }
+      setShowUserModal(false);
+    } catch (err: any) {
+      toast.error(`Lỗi: ${err.message || 'Thao tác thất bại'}`, { id: loadingToast });
+    }
   };
 
-  const deleteUser = (id: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    setShowDeleteConfirm(null);
+  const deleteUser = async (id: string) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    const loadingToast = toast.loading('Đang xoá người dùng...');
+    try {
+      await apiDeleteUser(user.email);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      setShowDeleteConfirm(null);
+      toast.success('Xoá người dùng thành công!', { id: loadingToast });
+    } catch (err: any) {
+      toast.error(`Lỗi khi xoá: ${err.message || 'Thao tác thất bại'}`, { id: loadingToast });
+    }
   };
 
   return (
@@ -165,9 +226,6 @@ const AdminDashboard: React.FC = () => {
             Đặt bàn
           </button>
         </nav>
-        <button className={styles.logoutBtn} onClick={handleLogout}>
-          Đăng xuất
-        </button>
       </aside>
 
       {/* Main Content */}
@@ -179,8 +237,12 @@ const AdminDashboard: React.FC = () => {
             {activeTab === 'users' && 'Quản lý người dùng'}
             {activeTab === 'bookings' && 'Quản lý đặt bàn'}
           </h1>
-          <div className={styles.userInfo}>
-            <span>{authUser?.name || 'Admin'}</span>
+          <div className={styles.topBarRight}>
+            <div className={styles.userInfo}>
+              <span className={styles.userAvatar}>{(authUser?.name || 'A')[0].toUpperCase()}</span>
+              <span>{authUser?.name || 'Admin'}</span>
+            </div>
+            <button className={styles.logoutBtnTop} onClick={handleLogout}>Đăng xuất</button>
           </div>
         </header>
 
@@ -284,7 +346,7 @@ const AdminDashboard: React.FC = () => {
                     {restaurants.map((r) => (
                       <tr key={r.id}>
                         <td>                          <div className={styles.restaurantCell}>
-                            <img src={r.imageUrl} alt={r.name} className={styles.tableThumbnail} />
+                            <img src={Array.isArray(r.imageUrl) && r.imageUrl.length > 0 ? r.imageUrl[0] : '/default-restaurant.jpg'} alt={r.name} className={styles.tableThumbnail} />
                             <div>
                               <strong>{r.name}</strong>
                               <small>{r.address}</small>
@@ -323,6 +385,7 @@ const AdminDashboard: React.FC = () => {
                       <th>Họ tên</th>
                       <th>Email</th>
                       <th>Điện thoại</th>
+                      <th>Mật khẩu</th>
                       <th>Vai trò</th>
                       <th>Hành động</th>
                     </tr>
@@ -336,6 +399,9 @@ const AdminDashboard: React.FC = () => {
                           <td><strong>{u.name}</strong></td>
                           <td>{u.email}</td>
                           <td>{u.phone}</td>
+                          <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {u.password?.startsWith('$argon') ? '*** Đã mã hóa ***' : u.password}
+                          </td>
                           <td>
                             <span className={`${styles.roleBadge} ${roleInfo.className}`}>{roleInfo.label}</span>
                           </td>
@@ -416,9 +482,20 @@ const AdminDashboard: React.FC = () => {
                   <label>Tên nhà hàng *</label>
                   <input type="text" value={restaurantForm.name} onChange={(e) => setRestaurantForm({ ...restaurantForm, name: e.target.value })} placeholder="Nhập tên nhà hàng" />
                 </div>
-                <div className={styles.formGroup}>
-                  <label>Loại ẩm thực</label>
-                  <input type="text" value={restaurantForm.cuisine} onChange={(e) => setRestaurantForm({ ...restaurantForm, cuisine: e.target.value })} placeholder="VD: vietnamese, japanese..." />
+                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                  <label>Loại ẩm thực (Chọn nhiều) *</label>
+                  <div className={styles.cuisineGrid}>
+                    {cuisineTypes.filter(c => c.id !== 'all').map((cuisine) => (
+                      <label key={cuisine.id} className={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={restaurantForm.cuisine?.includes(cuisine.id)}
+                          onChange={() => toggleCuisine(cuisine.id)}
+                        />
+                        <span>{cuisine.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Địa chỉ</label>
@@ -426,15 +503,43 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div className={styles.formGroup}>
                   <label>Quận / Khu vực</label>
-                  <input type="text" value={restaurantForm.district} onChange={(e) => setRestaurantForm({ ...restaurantForm, district: e.target.value })} placeholder="VD: Quận 1" />
+                  <select
+                    value={restaurantForm.district}
+                    onChange={(e) => setRestaurantForm({ ...restaurantForm, district: e.target.value })}
+                  >
+                    <option value="">-- Chọn quận/huyện --</option>
+                    {[
+                      'Quận 1','Quận 2','Quận 3','Quận 4','Quận 5','Quận 6','Quận 7',
+                      'Quận 8','Quận 9','Quận 10','Quận 11','Quận 12',
+                      'Bình Tân','Bình Thạnh','Gò Vấp','Phú Nhuận',
+                      'Tân Bình','Tân Phú','Thủ Đức'
+                    ].map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Quản lý nhà hàng *</label>
+                  <select
+                    value={restaurantForm.managerID || ''}
+                    onChange={(e) => setRestaurantForm({ ...restaurantForm, managerID: Number(e.target.value) })}
+                    required
+                  >
+                    <option value="">-- Chọn người quản lý --</option>
+                    {users.filter(u => u.role === 'manager' || u.role === 'admin').map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.email})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Điện thoại</label>
                   <input type="text" value={restaurantForm.phone} onChange={(e) => setRestaurantForm({ ...restaurantForm, phone: e.target.value })} placeholder="Số điện thoại" />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Khoảng giá</label>
-                  <input type="text" value={restaurantForm.priceRange} onChange={(e) => setRestaurantForm({ ...restaurantForm, priceRange: e.target.value })} placeholder="VD: 200.000đ - 500.000đ" />
+                  <label>Tổng số ghế *</label>
+                  <input type="number" value={restaurantForm.totalSeats} onChange={(e) => setRestaurantForm({ ...restaurantForm, totalSeats: Number(e.target.value) })} min="1" required />
                 </div>
                 <div className={styles.formGroup}>
                   <label>Giờ mở cửa</label>
@@ -445,11 +550,11 @@ const AdminDashboard: React.FC = () => {
                   <input type="time" value={restaurantForm.closeTime} onChange={(e) => setRestaurantForm({ ...restaurantForm, closeTime: e.target.value })} />
                 </div>
                 <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                  <label>URL hình ảnh</label>
-                  <input type="url" value={restaurantForm.imageUrl} onChange={(e) => setRestaurantForm({ ...restaurantForm, imageUrl: e.target.value })} placeholder="https://..." />
-                  {restaurantForm.imageUrl && (
-                    <img src={restaurantForm.imageUrl} alt="Preview" className={styles.imagePreview} />
-                  )}
+                  <label>Hình ảnh nhà hàng</label>
+                  <ImageUpload
+                    images={restaurantForm.imageUrl}
+                    onImagesChange={(urls) => setRestaurantForm({ ...restaurantForm, imageUrl: urls })}
+                  />
                 </div>
                 <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                   <label>Mô tả</label>
@@ -488,6 +593,10 @@ const AdminDashboard: React.FC = () => {
                 <div className={styles.formGroup}>
                   <label>Điện thoại</label>
                   <input type="text" value={userForm.phone} onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })} placeholder="Số điện thoại" />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Mật khẩu</label>
+                  <input type="text" value={userForm.password || ''} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} placeholder="Nhập mật khẩu (nếu đổi/thêm)" />
                 </div>
                 <div className={styles.formGroup}>
                   <label>Vai trò</label>

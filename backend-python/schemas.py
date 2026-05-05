@@ -14,6 +14,7 @@ class UserRegister(BaseModel):
     email: str
     phone: str
     password: str
+    role: Optional[str] = "customer"
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
@@ -31,17 +32,14 @@ class UserOut(BaseModel):
     role: str
     avatar: Optional[str] = None
     createdAt: Optional[str] = None
+    password: Optional[str] = None
     
 class RestaurantCreate(BaseModel):
     name: str
     address: str
     district: str
-    cuisine: Optional[str] = None  # Keep for backward compatibility
-    cuisines: Optional[list[str]] = None  # New: array of cuisines
-    priceRange: str
-    rating: float = 0.0
-    reviewCount: int = 0
-    imageUrl: Optional[str] = None
+    cuisine: list[str] = [] # Array of cuisines
+    imageUrl: Optional[list[str]] = None
     description: Optional[str] = None
     openTime: str  
     closeTime: str
@@ -55,12 +53,8 @@ class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
     address: Optional[str] = None
     district: Optional[str] = None
-    cuisine: Optional[str] = None
-    cuisines: Optional[list[str]] = None  # New: array of cuisines
-    priceRange: Optional[str] = None
-    rating: Optional[float] = None
-    reviewCount: Optional[int] = None
-    imageUrl: Optional[str] = None
+    cuisine: Optional[list[str]] = None
+    imageUrl: Optional[list[str]] = None
     description: Optional[str] = None
     openTime: Optional[str] = None  
     closeTime: Optional[str] = None
@@ -70,6 +64,8 @@ class RestaurantUpdate(BaseModel):
     availableSeats: Optional[int] = None
     managerID: Optional[int] = None
     
+
+
 class MenuItemCreate(BaseModel):
     restaurantId: int
     name: str 
@@ -126,3 +122,23 @@ class AdminStats(BaseModel):
     totalRevenue: float
     activeRestaurants: int
     newUsersThisMonth: int
+
+class ReviewCreate(BaseModel):
+    userId: int
+    restaurantId: int
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+class ReviewOut(BaseModel):
+    reviewId: int
+    userId: int
+    userName: Optional[str] = None
+    userAvatar: Optional[str] = None
+    restaurantId: int
+    restaurantName: Optional[str] = None
+    rating: int
+    comment: Optional[str] = None
+    createdAt: Optional[str] = None
+    
+    class Config:
+        from_attributes = True

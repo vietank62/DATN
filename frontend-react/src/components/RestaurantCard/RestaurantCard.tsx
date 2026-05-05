@@ -5,11 +5,10 @@ import SeatStatusBadge from '../SeatStatusBadge/SeatStatusBadge';
 
 interface RestaurantCardProps {
   id: string;
-  image: string;
+  images: string | string[];
   name: string;
   address: string;
-  cuisine?: string;
-  cuisines?: string[];  // New: array of cuisines
+  cuisine: string[];
   district?: string;
   priceRange: string;
   rating: number;
@@ -23,11 +22,10 @@ interface RestaurantCardProps {
 }
 
 const RestaurantCard: React.FC<RestaurantCardProps> = ({
-  image,
+  images,
   name,
   address,
   cuisine,
-  cuisines,
   priceRange,
   rating,
   reviewCount,
@@ -38,16 +36,36 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   onBooking,
   onClick,
 }) => {
-  // Use multiple cuisines if available, otherwise fall back to single cuisine
-  const displayCuisines = cuisines && cuisines.length > 0 ? cuisines : (cuisine ? [cuisine] : []);
-  const cuisineLabel = cuisine ? cuisineTypes.find((c) => c.id === cuisine || c.label === cuisine) : null;
+  // Use multiple cuisines
+  const displayCuisines = Array.isArray(cuisine) ? cuisine : [];
   const isFull = availableSeats <= 0;
+
+  const [isHovered, setIsHovered] = React.useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
+
+  const imageArray = Array.isArray(images) ? images : (images ? [images] : ['/default-restaurant.jpg']);
+
+  React.useEffect(() => {
+    let interval: number;
+    if (isHovered && imageArray.length > 1) {
+      interval = window.setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % imageArray.length);
+      }, 2000);
+    } else {
+      setCurrentImageIndex(0);
+    }
+    return () => clearInterval(interval);
+  }, [isHovered, imageArray.length]);
 
   return (
     <div className={styles.card} onClick={onClick}>
-      <div className={styles.imageWrapper}>
+      <div 
+        className={styles.imageWrapper}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <img
-          src={image}
+          src={imageArray[currentImageIndex]}
           alt={name}
           className={styles.image}
           style={{ cursor: 'pointer' }}

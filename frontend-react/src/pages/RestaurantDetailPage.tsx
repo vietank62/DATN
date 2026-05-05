@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchRestaurantById, createBooking } from '../services/api';
+import { fetchRestaurantById, createBooking, fetchReviews, createReview } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import type { Restaurant } from '../types';
+import type { Restaurant, Review } from '../types';
 import BookingModal from '../components/BookingModal/BookingModal';
 import type { BookingFormData } from '../components/BookingModal/BookingModal';
 import SeatStatusBadge from '../components/SeatStatusBadge/SeatStatusBadge';
@@ -18,17 +18,47 @@ const RestaurantDetailPage: React.FC = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [localAvailableSeats, setLocalAvailableSeats] = useState(0);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  
+  // Reviews state
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [sortReview, setSortReview] = useState<'newest' | 'highest' | 'lowest'>('newest');
+  const [filterStar, setFilterStar] = useState<'all' | number>('all');
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewComment, setNewReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Slideshow state
+  const [isHovered, setIsHovered] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const imageArray = restaurant ? (Array.isArray(restaurant.imageUrl) ? restaurant.imageUrl : (restaurant.imageUrl ? [restaurant.imageUrl] : ['/default-restaurant.jpg'])) : [];
+
+  useEffect(() => {
+    let interval: number;
+    if (isHovered && imageArray.length > 1) {
+      interval = window.setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % imageArray.length);
+      }, 2000);
+    } else {
+      setCurrentImageIndex(0);
+    }
+    return () => clearInterval(interval);
+  }, [isHovered, imageArray.length]);
 
   useEffect(() => {
     const load = async () => {
       try {
         if (id) {
+          window.scrollTo(0, 0);
           setLoading(true);
           const data = await fetchRestaurantById(id);
           if (data) {
             setRestaurant(data);
             setLocalAvailableSeats(data.availableSeats);
           }
+          
+          const reviewData = await fetchReviews(id);
+          setReviews(reviewData);
         }
       } catch (error) {
         console.error('Error fetching restaurant details:', error);
@@ -74,6 +104,52 @@ const RestaurantDetailPage: React.FC = () => {
     setModalOpen(true);
   };
 
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!id || !authUser) return;
+    try {
+      setSubmittingReview(true);
+      const newReview = await createReview({
+        userId: Number(authUser.id),
+        restaurantId: Number(id),
+        rating: newReviewRating,
+        comment: newReviewComment,
+      });
+      setReviews([...reviews, newReview]);
+      setNewReviewComment('');
+      setNewReviewRating(5);
+      
+      // Update restaurant rating optimistically
+      if (restaurant) {
+        const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0) + newReviewRating;
+        const newCount = reviews.length + 1;
+        setRestaurant({
+          ...restaurant,
+          rating: Number((totalRating / newCount).toFixed(1)),
+          reviewCount: newCount,
+        });
+      }
+    } catch (err) {
+      console.error('Error submitting review', err);
+      alert('Không thể gửi đánh giá. Vui lòng thử lại.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const filteredReviews = reviews
+    .filter((r) => filterStar === 'all' || r.rating === filterStar)
+    .sort((a, b) => {
+      if (sortReview === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortReview === 'highest') return b.rating - a.rating;
+      if (sortReview === 'lowest') return a.rating - b.rating;
+      return 0;
+    });
+
   if (loading) {
     return (
       <div className={styles.loadingState}>
@@ -96,15 +172,16 @@ const RestaurantDetailPage: React.FC = () => {
     );
   }
 
-  const cuisineLabel = cuisineTypes.find(
-    (c) => c.id === restaurant.cuisine || c.label === restaurant.cuisine
-  );
   const isFull = localAvailableSeats <= 0;
 
   return (
     <div className={styles.page}>
-      <div className={styles.heroImage}>
-        <img src={restaurant.imageUrl} alt={restaurant.name} />
+      <div 
+        className={styles.heroImage}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <img src={imageArray.length > 0 ? imageArray[currentImageIndex] : '/default-restaurant.jpg'} alt={restaurant.name} />
         <div className={styles.heroOverlay}>
           <button className={styles.backButton} onClick={() => navigate(-1)}>
             ← Quay lại
@@ -116,9 +193,12 @@ const RestaurantDetailPage: React.FC = () => {
         <div className={styles.mainInfo}>
           <div className={styles.badges}>
             {restaurant.featured && <span className={styles.featuredBadge}>⭐ Nổi bật</span>}
-            {cuisineLabel && (
-              <span className={styles.cuisineBadge}>{cuisineLabel.icon} {cuisineLabel.label}</span>
-            )}
+            {restaurant.cuisine && Array.isArray(restaurant.cuisine) && restaurant.cuisine.map((cId) => {
+              const cLabel = cuisineTypes.find(c => c.id === cId);
+              return cLabel ? (
+                <span key={cId} className={styles.cuisineBadge}>{cLabel.icon} {cLabel.label}</span>
+              ) : null;
+            })}
             <SeatStatusBadge
               availableSeats={localAvailableSeats}
               totalSeats={restaurant.totalSeats}
@@ -205,6 +285,95 @@ const RestaurantDetailPage: React.FC = () => {
               ))}
             </div>
           )}
+
+          {/* Reviews Section */}
+          <div className={styles.reviewsSection} id="reviews">
+            <h2 className={styles.reviewsTitle}>Đánh giá từ người dùng</h2>
+            
+            <div className={styles.reviewsFilter}>
+              <div className={styles.filterGroup}>
+                <label>Lọc theo sao:</label>
+                <select value={filterStar} onChange={(e) => setFilterStar(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                  <option value="all">Tất cả</option>
+                  <option value="5">5 Sao</option>
+                  <option value="4">4 Sao</option>
+                  <option value="3">3 Sao</option>
+                  <option value="2">2 Sao</option>
+                  <option value="1">1 Sao</option>
+                </select>
+              </div>
+              <div className={styles.filterGroup}>
+                <label>Sắp xếp:</label>
+                <select value={sortReview} onChange={(e) => setSortReview(e.target.value as any)}>
+                  <option value="newest">Mới nhất</option>
+                  <option value="highest">Đánh giá cao nhất</option>
+                  <option value="lowest">Đánh giá tiêu cực nhất</option>
+                </select>
+              </div>
+            </div>
+
+            {isAuthenticated ? (
+              <form onSubmit={handleSubmitReview} className={styles.reviewForm}>
+                <h4>Viết đánh giá của bạn</h4>
+                <div className={styles.ratingInput}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span 
+                      key={star} 
+                      className={star <= newReviewRating ? styles.starActive : styles.starInactive}
+                      onClick={() => setNewReviewRating(star)}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <textarea 
+                  value={newReviewComment}
+                  onChange={(e) => setNewReviewComment(e.target.value)}
+                  placeholder="Chia sẻ trải nghiệm của bạn..."
+                  required
+                />
+                <button type="submit" disabled={submittingReview}>
+                  {submittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
+                </button>
+              </form>
+            ) : (
+              <div className={styles.loginToReview}>
+                <p>Vui lòng <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>đăng nhập</a> để viết đánh giá.</p>
+              </div>
+            )}
+
+            <div className={styles.reviewsList}>
+              {filteredReviews.length === 0 ? (
+                <p className={styles.noReviews}>Chưa có đánh giá nào phù hợp.</p>
+              ) : (
+                filteredReviews.map((review) => (
+                  <div key={review.reviewId} className={styles.reviewCard}>
+                    <div className={styles.reviewHeader}>
+                      <div className={styles.reviewerInfo}>
+                        {review.userAvatar ? (
+                          <img src={review.userAvatar} alt="avatar" className={styles.reviewerAvatar} />
+                        ) : (
+                          <div className={styles.reviewerAvatarPlaceholder}>
+                            {review.userName ? review.userName[0].toUpperCase() : 'K'}
+                          </div>
+                        )}
+                        <span className={styles.reviewerName}>{review.userName || 'Khách'}</span>
+                      </div>
+                      <div className={styles.reviewMeta}>
+                        <div className={styles.reviewStars}>
+                          {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                        </div>
+                        <span className={styles.reviewDate}>
+                          {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                    </div>
+                    {review.comment && <p className={styles.reviewComment}>{review.comment}</p>}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         <div className={styles.sidebar}>

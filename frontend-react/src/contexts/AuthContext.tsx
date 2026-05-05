@@ -5,7 +5,7 @@ import { loginUser, logoutUser, getActiveUser } from '../services/api';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; role: UserRole }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; role: UserRole; name: string }>;
   logout: () => void;
   updateUser: (updatedUser: User) => void;
 }
@@ -36,13 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; role: UserRole }> => {
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; role: UserRole; name: string }> => {
     try {
       const { user: loggedInUser } = await loginUser(email, password);
       setUser(loggedInUser);
       localStorage.setItem('tablenow_user', JSON.stringify(loggedInUser));
       localStorage.setItem('tablenow_user_id', loggedInUser.id);
-      return { success: true, role: loggedInUser.role };
+      return { success: true, role: loggedInUser.role, name: loggedInUser.name };
     } catch (err: any) {
       throw new Error(err.message || 'Đăng nhập thất bại');
     }

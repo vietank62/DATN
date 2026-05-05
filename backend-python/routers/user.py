@@ -23,6 +23,7 @@ def create_user(user_data: UserRegister, session: SessionDep):
         email=user_data.email,
         phone=user_data.phone,
         password=get_password_hash(user_data.password),
+        role=user_data.role,
         createdAt=datetime.now().isoformat(timespec="seconds"),
     )
     session.add(user)
@@ -54,7 +55,7 @@ def update_user_by_email(email: str, user_data: UserUpdate, session: SessionDep,
     user = session.query(User).filter(User.email == email).first()
     if user:
         update_data = user_data.model_dump(exclude_unset=True)
-        if "password" in update_data:
+        if "password" in update_data and update_data["password"]:
             update_data["password"] = get_password_hash(update_data["password"])
         for field, value in update_data.items():
             setattr(user, field, value)

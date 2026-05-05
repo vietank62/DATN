@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import HeroSection from '../components/HeroSection/HeroSection';
 import FilterBar from '../components/FilterBar/FilterBar';
 import RestaurantList from '../components/RestaurantList/RestaurantList';
@@ -19,6 +19,13 @@ const HomePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterOptions>(defaultFilters);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  // Update filters if URL query changes
+  useEffect(() => {
+    const q = searchParams.get('q');
+    setFilters(prev => ({ ...prev, query: q || '' }));
+  }, [searchParams]);
 
   const loadRestaurants = useCallback(async (currentFilters: FilterOptions) => {
     try {
@@ -49,6 +56,8 @@ const HomePage: React.FC = () => {
     setFilters((prev) => ({
       ...prev,
       area: params.location,
+      time: params.time,
+      guests: params.guests,
     }));
   };
 

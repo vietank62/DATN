@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Security
 from sqlalchemy import func
 from datetime import date
 from database import SessionDep
-from models import Booking, Restaurant, User, MenuItem
+from models import Booking, Restaurant, User, MenuItem, Review
 from schemas import ManagerStats, AdminStats
 from routers.authentication import get_current_user
 
@@ -34,11 +34,14 @@ def get_manager_stats(restaurantId: int, session: SessionDep, current_user: Anno
         Booking.status == "confirmed"
     ).count()
 
+    avg_rating_result = session.query(func.avg(Review.rating)).filter(Review.restaurantId == restaurantId).scalar()
+    avg_rating = round(avg_rating_result, 1) if avg_rating_result else 0.0
+
     return ManagerStats(
         totalBookings=total_bookings,
         todayBookings=today_bookings,
         totalRevenue=0.0,
-        avgRating=restaurant.rating,
+        avgRating=avg_rating,
         pendingBookings=pending_bookings,
         confirmedBookings=confirmed_bookings
     )

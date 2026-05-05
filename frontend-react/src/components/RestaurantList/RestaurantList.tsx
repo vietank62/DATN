@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RestaurantCard from '../RestaurantCard/RestaurantCard';
 import styles from './RestaurantList.module.css';
@@ -24,6 +24,19 @@ const RestaurantList: React.FC<RestaurantListProps> = ({
   onRetry,
 }) => {
   const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  // Reset to page 1 when the list changes (e.g. filters applied)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [restaurants]);
+
+  const totalPages = Math.ceil(restaurants.length / itemsPerPage);
+  const currentRestaurants = restaurants.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   if (error) {
     return (
@@ -72,11 +85,11 @@ const RestaurantList: React.FC<RestaurantListProps> = ({
         <p className={styles.sectionSubtitle}>Khám phá những nhà hàng được yêu thích nhất</p>
       </div>
       <div className={styles.restaurantList}>
-        {restaurants.map((restaurant) => (
+        {currentRestaurants.map((restaurant) => (
           <RestaurantCard
             key={restaurant.id}
             id={restaurant.id}
-            image={restaurant.imageUrl}
+            images={restaurant.imageUrl}
             name={restaurant.name}
             address={restaurant.address}
             cuisine={restaurant.cuisine}
@@ -93,6 +106,61 @@ const RestaurantList: React.FC<RestaurantListProps> = ({
           />
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <button
+            className={styles.pageBtn}
+            disabled={currentPage === 1}
+            onClick={() => {
+              setCurrentPage(p => p - 1);
+              document.getElementById('restaurant-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
+            ← Trước
+          </button>
+          
+          <div className={styles.pageNumbers}>
+            {Array.from({ length: totalPages }).map((_, i) => {
+              const page = i + 1;
+              // Simple pagination logic to show max 5 buttons
+              if (
+                totalPages <= 5 || 
+                page === 1 || 
+                page === totalPages || 
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={page}
+                    className={`${styles.pageNum} ${currentPage === page ? styles.pageNumActive : ''}`}
+                    onClick={() => {
+                      setCurrentPage(page);
+                      document.getElementById('restaurant-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (page === currentPage - 2 || page === currentPage + 2) {
+                return <span key={`ellipsis-${page}`} className={styles.ellipsis}>...</span>;
+              }
+              return null;
+            })}
+          </div>
+
+          <button
+            className={styles.pageBtn}
+            disabled={currentPage === totalPages}
+            onClick={() => {
+              setCurrentPage(p => p + 1);
+              document.getElementById('restaurant-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
+            Sau →
+          </button>
+        </div>
+      )}
     </section>
   );
 };

@@ -5,19 +5,21 @@ export interface MenuItem {
   price: number;
   imageUrl: string;
   category: string;
+  available: boolean;
 }
+
+
 
 export interface Restaurant {
   id: string;
   name: string;
   address: string;
   district: string;
-  cuisine?: string;  // Keep for backward compatibility
-  cuisines?: string[];  // New: array of cuisines
+  cuisine: string[];  // Mảng các loại ẩm thực (VD: ["vietnamese", "seafood"])
   priceRange: string;
   rating: number;
   reviewCount: number;
-  imageUrl: string;
+  imageUrl: string[];
   description: string;
   openTime: string;
   closeTime: string;
@@ -53,6 +55,9 @@ export interface FilterOptions {
   priceRange: string;
   area: string;
   rating: number;
+  time?: string;
+  guests?: number;
+  query?: string;
 }
 
 export type UserRole = 'customer' | 'manager' | 'admin';
@@ -64,6 +69,7 @@ export interface User {
   phone: string;
   role: UserRole;
   avatar: string;
+  password?: string;
 }
 
 export interface ManagerStats {
@@ -82,4 +88,16 @@ export interface AdminStats {
   totalRevenue: number;
   activeRestaurants: number;
   newUsersThisMonth: number;
+}
+
+export interface Review {
+  reviewId: number;
+  userId: number;
+  userName?: string;
+  userAvatar?: string;
+  restaurantId: number;
+  restaurantName?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
 }

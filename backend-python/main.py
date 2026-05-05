@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from database import create_db_and_tables
-from routers import user, authentication, restaurant, menuitem, booking, statistical, upload
+from routers import user, authentication, restaurant, menuitem, booking, statistical, upload, review
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -38,6 +38,10 @@ app.include_router(booking.router)
 app.include_router(statistical.router)
 
 app.include_router(upload.router)
+
+app.include_router(review.router)
+
+
 
 # Mount uploads directory for static file serving
 uploads_dir = Path("uploads")

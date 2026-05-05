@@ -1,12 +1,47 @@
 from typing import Annotated, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends, Security
 from database import SessionDep
-from models import Restaurant, MenuItem, User
+from models import Restaurant, MenuItem, User, Review, Booking
 from schemas import RestaurantCreate, RestaurantUpdate
 from routers.authentication import get_current_user
 
 
+from sqlalchemy import func
+
 router = APIRouter()
+
+def get_restaurant_with_stats(restaurant: Restaurant, session: SessionDep) -> dict:
+    r_dict = restaurant.model_dump()
+    result = session.query(
+        func.count(Review.reviewId),
+        func.avg(Review.rating)
+    ).filter(Review.restaurantId == restaurant.restaurantId).first()
+    
+    review_count, avg_rating = result
+    r_dict['reviewCount'] = review_count or 0
+    r_dict['rating'] = round(avg_rating, 1) if avg_rating else 0.0
+    
+    price_result = session.query(
+        func.min(MenuItem.price),
+        func.max(MenuItem.price)
+    ).filter(MenuItem.restaurantId == restaurant.restaurantId).first()
+
+    min_price, max_price = price_result
+    if min_price is not None and max_price is not None:
+        if min_price == max_price:
+            r_dict['priceRange'] = f"{int(min_price):,}đ"
+        else:
+            r_dict['priceRange'] = f"{int(min_price):,}đ - {int(max_price):,}đ"
+    else:
+        r_dict['priceRange'] = "Chưa cập nhật"
+        
+    booked_seats = session.query(func.sum(Booking.requestSeats)).filter(
+        Booking.restaurantId == restaurant.restaurantId,
+        Booking.status.in_(['pending', 'confirmed'])
+    ).scalar() or 0
+    r_dict['availableSeats'] = max(0, restaurant.totalSeats - booked_seats)
+        
+    return r_dict
 
 @router.post("/api/create-restaurant/", tags=["Restaurant"])
 def create_restaurant(restaurant_data: RestaurantCreate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
@@ -14,66 +49,50 @@ def create_restaurant(restaurant_data: RestaurantCreate, session: SessionDep, cu
     session.add(restaurant)
     session.commit()
     session.refresh(restaurant)
-    return restaurant
+    return get_restaurant_with_stats(restaurant, session)
 
 @router.get("/api/get-all-restaurant/", tags=["Restaurant"])
-def get_all_restaurants(
-    session: SessionDep,
-    cuisine: Optional[str] = Query(None),
-    district: Optional[str] = Query(None),
-    priceRange: Optional[str] = Query(None),
-    minRating: Optional[float] = Query(None),
-    featured: Optional[bool] = Query(None),
-):
-    from sqlalchemy import or_, cast, String
-    
-    query = session.query(Restaurant)
-    
-    # Handle cuisine filter - check both old 'cuisine' and new 'cuisines' fields
-    if cuisine and cuisine != "all":
-        query = query.filter(
-            or_(
-                Restaurant.cuisine == cuisine,
-                cast(Restaurant.cuisines, String).like(f'%{cuisine}%')
-            )
-        )
-    
-    if district and district != "Tất cả":
-        query = query.filter(Restaurant.district == district)
-    if priceRange and priceRange != "all":
-        query = query.filter(Restaurant.priceRange == priceRange)
-    if minRating is not None and minRating > 0:
-        query = query.filter(Restaurant.rating >= minRating)
-    if featured is not None:
-        query = query.filter(Restaurant.featured == featured)
-    return query.all()
+def get_all_restaurants(session: SessionDep):
+    results = session.query(
+        Restaurant,
+        func.count(Review.reviewId).label("reviewCount"),
+        func.avg(Review.rating).label("avgRating")
+    ).outerjoin(Review, Restaurant.restaurantId == Review.restaurantId).group_by(Restaurant.restaurantId).all()
 
-
-@router.get("/api/search-restaurants/", tags=["Restaurant"])
-def search_restaurants(
-    session: SessionDep,
-    q: str = Query("", description="Search query for restaurant name, address, or cuisine"),
-):
-    """Search restaurants by name, address, district, or cuisine"""
-    from sqlalchemy import or_, cast, String, ilike
+    response = []
     
-    if not q or len(q.strip()) == 0:
-        return []
+    price_results = session.query(
+        MenuItem.restaurantId,
+        func.min(MenuItem.price),
+        func.max(MenuItem.price)
+    ).group_by(MenuItem.restaurantId).all()
+    price_map = {row[0]: (row[1], row[2]) for row in price_results}
     
-    search_term = f"%{q}%"
-    query = session.query(Restaurant).filter(
-        or_(
-            Restaurant.name.ilike(search_term),
-            Restaurant.address.ilike(search_term),
-            Restaurant.district.ilike(search_term),
-            Restaurant.cuisine.ilike(search_term),
-            cast(Restaurant.cuisines, String).ilike(search_term),
-            Restaurant.description.ilike(search_term),
-        )
-    )
+    booked_results = session.query(
+        Booking.restaurantId,
+        func.sum(Booking.requestSeats)
+    ).filter(Booking.status.in_(['pending', 'confirmed'])).group_by(Booking.restaurantId).all()
+    booked_map = {row[0]: row[1] or 0 for row in booked_results}
     
-    return query.all()
-
+    for restaurant, review_count, avg_rating in results:
+        r_dict = restaurant.model_dump()
+        r_dict['reviewCount'] = review_count or 0
+        r_dict['rating'] = round(avg_rating, 1) if avg_rating else 0.0
+        
+        min_price, max_price = price_map.get(restaurant.restaurantId, (None, None))
+        if min_price is not None and max_price is not None:
+            if min_price == max_price:
+                r_dict['priceRange'] = f"{int(min_price):,}đ"
+            else:
+                r_dict['priceRange'] = f"{int(min_price):,}đ - {int(max_price):,}đ"
+        else:
+            r_dict['priceRange'] = "Chưa cập nhật"
+            
+        booked_seats = booked_map.get(restaurant.restaurantId, 0)
+        r_dict['availableSeats'] = max(0, restaurant.totalSeats - booked_seats)
+            
+        response.append(r_dict)
+    return response
 
 @router.get("/api/get-restaurant/{restaurant_id}", tags=["Restaurant"])
 def get_restaurant_by_id(restaurant_id: int, session: SessionDep):
@@ -82,7 +101,7 @@ def get_restaurant_by_id(restaurant_id: int, session: SessionDep):
         raise HTTPException(status_code=404, detail="Restaurant not found")
     # Join menu items
     menu_items = session.query(MenuItem).filter(MenuItem.restaurantId == restaurant_id).all()
-    result = restaurant.model_dump()
+    result = get_restaurant_with_stats(restaurant, session)
     result["menu"] = [item.model_dump() for item in menu_items]
     return result
 
@@ -104,5 +123,5 @@ def update_restaurant_by_id(restaurant_id: int, updated_restaurant: RestaurantUp
             setattr(restaurant, field, value)
         session.commit()
         session.refresh(restaurant)
-        return restaurant
+        return get_restaurant_with_stats(restaurant, session)
     return {"message": "Restaurant not found"}

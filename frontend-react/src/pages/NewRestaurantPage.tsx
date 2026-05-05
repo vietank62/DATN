@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { createRestaurant } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './NewRestaurantPage.module.css';
@@ -12,14 +13,13 @@ const NewRestaurantPage: React.FC = () => {
     name: '',
     address: '',
     district: '',
-    cuisines: [] as string[],
-    priceRange: '',
+    cuisine: [] as string[],
     phone: '',
     openTime: '10:00',
     closeTime: '22:00',
     totalSeats: 50,
     description: '',
-    imageUrl: '',  // New: for restaurant image
+    imageUrl: [] as string[],  // Array of image URLs
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,12 +29,12 @@ const NewRestaurantPage: React.FC = () => {
     if (error) setError('');
   };
 
-  const toggleCuisine = (cuisine: string) => {
+  const toggleCuisine = (cuisineId: string) => {
     setFormData((prev) => ({
       ...prev,
-      cuisines: prev.cuisines.includes(cuisine)
-        ? prev.cuisines.filter((c) => c !== cuisine)
-        : [...prev.cuisines, cuisine],
+      cuisine: prev.cuisine.includes(cuisineId)
+        ? prev.cuisine.filter((c) => c !== cuisineId)
+        : [...prev.cuisine, cuisineId],
     }));
   };
 
@@ -54,12 +54,8 @@ const NewRestaurantPage: React.FC = () => {
       setError('Vui lòng chọn quận/huyện');
       return;
     }
-    if (formData.cuisines.length === 0) {
+    if (formData.cuisine.length === 0) {
       setError('Vui lòng chọn ít nhất một loại ẩm thực');
-      return;
-    }
-    if (!formData.priceRange) {
-      setError('Vui lòng chọn mức giá');
       return;
     }
     if (!/^0\d{9}$/.test(formData.phone)) {
@@ -69,7 +65,7 @@ const NewRestaurantPage: React.FC = () => {
 
     setLoading(true);
     try {
-      if (!user?.id) throw new Error('User not logged in');      await createRestaurant({
+      await createRestaurant({
         ...formData,
         rating: 0,
         reviewCount: 0,
@@ -78,9 +74,12 @@ const NewRestaurantPage: React.FC = () => {
         managerID: parseInt(user.id),
       });
 
+      toast.success('Tạo nhà hàng thành công! Đang chuyển đến trang quản lý...');
       navigate('/manager-dashboard');
     } catch (err: any) {
-      setError(err.message || 'Tạo nhà hàng thất bại. Vui lòng thử lại.');
+      const msg = err.message || 'Tạo nhà hàng thất bại. Vui lòng thử lại.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -161,11 +160,11 @@ const NewRestaurantPage: React.FC = () => {
           <div className={styles.fieldGroup}>
             <label>Loại ẩm thực *</label>
             <div className={styles.cuisineGrid}>
-              {cuisineTypes.map((cuisine) => (
+              {cuisineTypes.filter(c => c.id !== 'all').map((cuisine) => (
                 <label key={cuisine.id} className={styles.cuisineCheckbox}>
                   <input
                     type="checkbox"
-                    checked={formData.cuisines.includes(cuisine.id)}
+                    checked={formData.cuisine.includes(cuisine.id)}
                     onChange={() => toggleCuisine(cuisine.id)}
                   />
                   <span>{cuisine.icon} {cuisine.label}</span>
@@ -175,22 +174,6 @@ const NewRestaurantPage: React.FC = () => {
           </div>
 
           <div className={styles.row}>
-            <div className={styles.fieldGroup}>
-              <label>Mức giá *</label>
-              <select
-                value={formData.priceRange}
-                onChange={(e) => updateField('priceRange', e.target.value)}
-                className={styles.input}
-                required
-              >
-                <option value="">-- Chọn mức giá --</option>
-                <option value="$">$ - Bình dân</option>
-                <option value="$$">$$ - Trung bình</option>
-                <option value="$$$">$$$ - Cao cấp</option>
-                <option value="$$$$">$$$$ - Sang trọng</option>
-              </select>
-            </div>
-
             <div className={styles.fieldGroup}>
               <label>Số ghế *</label>
               <input
@@ -229,7 +212,8 @@ const NewRestaurantPage: React.FC = () => {
           <div className={styles.fieldGroup}>
             <label>Hình ảnh nhà hàng</label>
             <ImageUpload
-              onUpload={(url) => updateField('imageUrl', url)}
+              images={formData.imageUrl}
+              onImagesChange={(urls) => updateField('imageUrl', urls)}
               onError={(error) => setError(error)}
               maxSize={5}
               disabled={loading}

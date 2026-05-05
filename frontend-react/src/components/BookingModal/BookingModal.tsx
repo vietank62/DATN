@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './BookingModal.module.css';
-import { availableTimes, guestOptions } from '../../data/restaurants';
+import { guestOptions } from '../../data/restaurants';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -34,6 +35,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurant
     note: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (isOpen && user) {
+      setForm(prev => ({
+        ...prev,
+        name: user.name || '',
+        phone: user.phone || '',
+        email: user.email || '',
+      }));
+    }
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -47,7 +60,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurant
   const validateStep1 = () => {
     const newErrors: typeof errors = {};
     if (!form.date) newErrors.date = 'Vui lòng chọn ngày';
-    if (!form.time) newErrors.time = 'Vui lòng chọn giờ';
+    if (!form.time) newErrors.time = 'Vui lòng nhập giờ';
     if (form.guests < 1) newErrors.guests = 'Số khách không hợp lệ';
     else if (availableSeats !== undefined && form.guests > availableSeats) {
       newErrors.guests = `Chỉ còn ${availableSeats} chỗ trống. Vui lòng giảm số khách.`;
@@ -88,7 +101,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurant
   const handleClose = () => {
     setStep(1);
     setSubmitted(false);
-    setForm({ date: today, time: '19:00', guests: 2, name: '', phone: '', email: '', note: '' });
+    setForm({
+      date: today,
+      time: '19:00',
+      guests: 2,
+      name: user?.name || '',
+      phone: user?.phone || '',
+      email: user?.email || '',
+      note: '',
+    });
     setErrors({});
     onClose();
   };
@@ -150,16 +171,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, restaurant
                   </div>
 
                   <div className={styles.fieldGroup}>
-                    <label className={styles.label}>🕐 Giờ đến</label>
-                    <select
+                    <label className={styles.label}>🕐 Giờ đến (bất kỳ giờ)</label>
+                    <input
+                      type="time"
                       className={`${styles.input} ${errors.time ? styles.inputError : ''}`}
                       value={form.time}
                       onChange={(e) => updateField('time', e.target.value)}
-                    >
-                      {availableTimes.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    />
                     {errors.time && <span className={styles.errorText}>{errors.time}</span>}
                   </div>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styles from './FilterBar.module.css';
 import { cuisineTypes, priceRanges, districts } from '../../data/restaurants';
 import type { FilterOptions } from '../../types';
@@ -15,10 +15,10 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, resultCo
   };
 
   const hasActiveFilters = filters.cuisineType !== 'all' || filters.priceRange !== 'all' ||
-    filters.area !== 'Tất cả' || filters.rating > 0;
+    filters.area !== 'Tất cả' || filters.rating > 0 || !!filters.query;
 
   const clearFilters = () => {
-    onFilterChange({ cuisineType: 'all', priceRange: 'all', area: 'Tất cả', rating: 0 });
+    onFilterChange({ cuisineType: 'all', priceRange: 'all', area: 'Tất cả', rating: 0, query: '' });
   };
 
   return (

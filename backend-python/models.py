@@ -1,12 +1,12 @@
-from typing import Optional
+from typing import Optional, List
 from sqlmodel import SQLModel, Field
 from sqlalchemy import JSON
 
 class User(SQLModel, table=True):
     userId: Optional[int] = Field(default=None, primary_key=True)
     name: str
-    email: str
-    phone: str
+    email: str = Field(unique=True)
+    phone: str = Field(unique=True)
     password: str
     role: str = Field(default="customer")
     avatar: Optional[str] = None
@@ -17,12 +17,8 @@ class Restaurant(SQLModel, table=True):
     name: str
     address: str
     district: str
-    cuisine: str  # Keep for backward compatibility
-    cuisines: Optional[str] = Field(default=None, sa_column_kwargs={"type_": JSON})  # New: JSON array like '["Việt Nam", "Hải sản"]'
-    priceRange: str
-    rating: float
-    reviewCount: int
-    imageUrl: Optional[str] = None
+    cuisine: List[str] = Field(default=[], sa_type=JSON)  # Mảng các loại ẩm thực (VD: ["Việt Nam", "Hải sản"])
+    imageUrl: Optional[List[str]] = Field(default=None, sa_type=JSON)  # Mảng các đường dẫn ảnh
     description: Optional[str] = None
     openTime: str  
     closeTime: str
@@ -31,6 +27,8 @@ class Restaurant(SQLModel, table=True):
     totalSeats: int
     availableSeats: int
     managerID : int = Field(foreign_key="user.userId")
+
+
 
 class MenuItem(SQLModel, table=True):
     itemId: Optional[int] = Field(default=None, primary_key=True)
@@ -56,4 +54,12 @@ class Booking(SQLModel, table=True):
     contactEmail: str
     contactPhone: str
     note: Optional[str] = None
+    createdAt: Optional[str] = None
+
+class Review(SQLModel, table=True):
+    reviewId: Optional[int] = Field(default=None, primary_key=True)
+    userId: int = Field(foreign_key="user.userId")
+    restaurantId: int = Field(foreign_key="restaurant.restaurantId")
+    rating: int 
+    comment: Optional[str] = None
     createdAt: Optional[str] = None

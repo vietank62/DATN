@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { registerUser } from '../services/api';
 import styles from './RegisterPage.module.css';
 
@@ -15,6 +16,7 @@ const RegisterPage: React.FC = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -46,13 +48,15 @@ const RegisterPage: React.FC = () => {
       return;
     }    setLoading(true);
     try {
-      const response = await registerUser({
+      await registerUser({
         name: form.name,
         email: form.email,
         phone: form.phone,
         password: form.password,
+        role: form.role,
       });
       
+      toast.success('Đăng ký thành công! Hãy đăng nhập.');
       // If manager, redirect to restaurant onboarding
       if (form.role === 'manager') {
         navigate('/new-restaurant');
@@ -60,7 +64,9 @@ const RegisterPage: React.FC = () => {
         navigate('/login');
       }
     } catch (err: any) {
-      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+      const msg = err.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -145,23 +151,43 @@ const RegisterPage: React.FC = () => {
               </div>
               <div className={styles.fieldGroup}>
                 <label>Mật khẩu</label>
-                <input
-                  type="password"
-                  placeholder="Ít nhất 6 ký tự"
-                  value={form.password}
-                  onChange={(e) => updateField('password', e.target.value)}
-                  className={styles.input}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Ít nhất 6 ký tự"
+                    value={form.password}
+                    onChange={(e) => updateField('password', e.target.value)}
+                    className={styles.input}
+                    style={{ width: '100%', paddingRight: '40px', boxSizing: 'border-box' }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: 0 }}
+                  >
+                    {showPassword ? "👁️" : "👁️‍🗨️"}
+                  </button>
+                </div>
               </div>
               <div className={styles.fieldGroup}>
                 <label>Xác nhận mật khẩu</label>
-                <input
-                  type="password"
-                  placeholder="Nhập lại mật khẩu"
-                  value={form.confirmPassword}
-                  onChange={(e) => updateField('confirmPassword', e.target.value)}
-                  className={styles.input}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Nhập lại mật khẩu"
+                    value={form.confirmPassword}
+                    onChange={(e) => updateField('confirmPassword', e.target.value)}
+                    className={styles.input}
+                    style={{ width: '100%', paddingRight: '40px', boxSizing: 'border-box' }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: 0 }}
+                  >
+                    {showPassword ? "👁️" : "👁️‍🗨️"}
+                  </button>
+                </div>
               </div>
               <div className={styles.terms}>
                 <label>

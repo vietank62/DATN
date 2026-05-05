@@ -109,6 +109,76 @@
   background: #bf360c;
 }
 
+/* ===== Pagination ===== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 40px;
+}
+
+.pageBtn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: #f5f5f5;
+  color: #111;
+  border-color: #ccc;
+}
+
+.pageBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageNumbers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageNum {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pageNum:hover:not(.pageNumActive) {
+  background: #f0f0f0;
+}
+
+.pageNumActive {
+  background: #e65100;
+  color: #fff;
+  border-color: #e65100;
+}
+
+.ellipsis {
+  color: #999;
+  font-weight: 600;
+  padding: 0 4px;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
   .restaurantList {
