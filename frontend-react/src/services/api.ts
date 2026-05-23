@@ -1,5 +1,4 @@
-import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review, BookingChartResponse, MenuChartResponse, StatusChartResponse } from '../types';
-import { cuisineTypes } from '../data/restaurants';
+import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review, BookingChartResponse, MenuChartResponse, StatusChartResponse, CuisineType } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -226,6 +225,7 @@ export async function registerUser(info: {
   email: string;
   phone: string;
   password: string;
+  role?: UserRole;
 }): Promise<User> {
   const data = await request<any>('/api/create-user/', {
     method: 'POST',
@@ -236,14 +236,18 @@ export async function registerUser(info: {
 
 // ─── Restaurants ──────────────────────────────────────────
 
-export const fetchRestaurants = async (filters?: FilterOptions): Promise<Restaurant[]> => {
+export const fetchCuisines = async (): Promise<CuisineType[]> => {
+  return request<CuisineType[]>('/api/cuisines/');
+};
+
+export const fetchRestaurants = async (filters?: FilterOptions, cuisinesList: CuisineType[] = []): Promise<Restaurant[]> => {
   const url = `/api/get-all-restaurant/`;
   const rawData = await request<any[]>(url);
   let data = rawData.map(mapRestaurant);
 
   if (filters) {
     if (filters.cuisineType && filters.cuisineType !== 'all') {
-      const selectedCuisine = cuisineTypes.find(c => c.id === filters.cuisineType);
+      const selectedCuisine = cuisinesList.find((c) => c.id === filters.cuisineType);
       const expectedLabel = selectedCuisine ? selectedCuisine.label : filters.cuisineType;
       
       data = data.filter((r) => 

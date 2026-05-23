@@ -4,8 +4,10 @@ import { toast } from 'react-hot-toast';
 import { registerUser, createRestaurant } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './RegisterPage.module.css';
-import { cuisineTypes } from '../data/restaurants';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
+import type { UserRole } from '../types';
+
+
 
 const DISTRICTS = [
   'Quận 1', 'Quận 2', 'Quận 3', 'Quận 4', 'Quận 5', 'Quận 6', 'Quận 7',
@@ -15,7 +17,8 @@ const DISTRICTS = [
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login: contextLogin } = useAuth();
+  const { login: contextLogin, cuisines } = useAuth();
+
   const [step, setStep] = useState<1 | 2>(1);
   const [registeredUserId, setRegisteredUserId] = useState<number | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState('');
@@ -72,7 +75,7 @@ const RegisterPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const newUser = await registerUser({ name: form.name, email: form.email, phone: form.phone, password: form.password, role: form.role });
+      const newUser = await registerUser({ name: form.name, email: form.email, phone: form.phone, password: form.password, role: form.role as UserRole });
 
       if (form.role === 'manager') {
         // Auto-login using context (stores token + user)
@@ -108,6 +111,7 @@ const RegisterPage: React.FC = () => {
     try {
       await createRestaurant({
         ...restaurantForm,
+        priceRange: 'Chưa cập nhật',
         rating: 0,
         reviewCount: 0,
         featured: false,
@@ -240,7 +244,7 @@ const RegisterPage: React.FC = () => {
                   <div className={styles.fieldGroup}>
                     <label>Loại ẩm thực *</label>
                     <div className={styles.cuisineGrid}>
-                      {cuisineTypes.filter(c => c.id !== 'all').map(cuisine => (
+                      {cuisines.filter(c => c.id !== 'all').map(cuisine => (
                         <label key={cuisine.id} className={styles.cuisineCheckbox}>
                           <input type="checkbox" checked={restaurantForm.cuisine.includes(cuisine.id)} onChange={() => toggleCuisine(cuisine.id)} />
                           <span>{cuisine.icon} {cuisine.label}</span>

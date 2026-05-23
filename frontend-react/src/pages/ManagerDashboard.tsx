@@ -33,7 +33,7 @@ import type { Booking, ManagerStats, Restaurant, MenuItem, BookingChartResponse,
 import SeatStatusBadge from '../components/SeatStatusBadge/SeatStatusBadge';
 import ManagerBookingAction from '../components/ManagerBookingAction/ManagerBookingAction';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
-import { cuisineTypes } from '../data/restaurants';
+// Register ChartJS components
 
 // Register ChartJS components
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, Title);
@@ -51,7 +51,8 @@ const defaultRestaurant: Restaurant = {
 
 const ManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user: authUser, logout, updateUser: updateContextUser } = useAuth();
+  const { user: authUser, logout, updateUser: updateContextUser, cuisines } = useAuth();
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState<ManagerStats>({ 
     totalBookings: 0, todayBookings: 0, totalRevenue: 0, 
@@ -259,7 +260,7 @@ const ManagerDashboard: React.FC = () => {
         setMenuItems((prev) => prev.map((item) => item.id === editingMenuItem.id ? updated : item));
         toast.success('Cập nhật món ăn thành công', { id: loadingToast });
       } else {
-        const created = await apiCreateMenuItem({ ...menuForm, restaurantId: Number(restaurant.id) });
+        const created = await apiCreateMenuItem({ ...menuForm, restaurantId: restaurant.id });
         setMenuItems((prev) => [...prev, created]);
         toast.success('Thêm món ăn thành công', { id: loadingToast });
       }
@@ -459,9 +460,13 @@ const ManagerDashboard: React.FC = () => {
                   <div className={styles.restaurantHeroOverlay}>
                     <h2>{restaurant.name}</h2>
                     <div className={styles.restaurantBadges}>
-                      {restaurant.cuisine.map(c => <span key={c} className={styles.cuisineBadge}>{c}</span>)}
+                      {restaurant.cuisine.map(c => {
+                        const cuisine = cuisines.find(ct => ct.id === c || ct.label === c);
+                        return <span key={c} className={styles.cuisineBadge}>{cuisine ? `${cuisine.icon} ${cuisine.label}` : c}</span>;
+                      })}
                       {restaurant.featured && <span className={styles.featuredBadge}>⭐ Nổi bật</span>}
                     </div>
+
                   </div>
                 </div>
               )}
@@ -506,7 +511,7 @@ const ManagerDashboard: React.FC = () => {
                       <div className={`${styles.editFormGroup} ${styles.editFormGroupFull}`}>
                         <label>Loại ẩm thực (Chọn nhiều)</label>
                         <div className={styles.cuisineGrid}>
-                          {cuisineTypes.filter(c => c.id !== 'all').map(c => (
+                          {cuisines.filter(c => c.id !== 'all').map(c => (
                             <label key={c.id} className={styles.checkboxLabel}>
                               <input type="checkbox" checked={editForm.cuisine.includes(c.id)} onChange={() => toggleCuisine(c.id)} />
                               <span>{c.icon} {c.label}</span>

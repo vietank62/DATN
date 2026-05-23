@@ -4,12 +4,12 @@ import { toast } from 'react-hot-toast';
 import { createRestaurant } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './NewRestaurantPage.module.css';
-import { cuisineTypes } from '../data/restaurants';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
+
 
 const NewRestaurantPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();  const [formData, setFormData] = useState({
+  const { user, cuisines } = useAuth();  const [formData, setFormData] = useState({
     name: '',
     address: '',
     district: '',
@@ -42,6 +42,11 @@ const NewRestaurantPage: React.FC = () => {
     e.preventDefault();
     setError('');
 
+    if (!user) {
+      setError('Lỗi xác thực. Vui lòng đăng nhập lại.');
+      return;
+    }
+
     if (!formData.name.trim()) {
       setError('Vui lòng nhập tên nhà hàng');
       return;
@@ -67,6 +72,7 @@ const NewRestaurantPage: React.FC = () => {
     try {
       await createRestaurant({
         ...formData,
+        priceRange: 'Chưa cập nhật',
         rating: 0,
         reviewCount: 0,
         featured: false,
@@ -160,7 +166,7 @@ const NewRestaurantPage: React.FC = () => {
           <div className={styles.fieldGroup}>
             <label>Loại ẩm thực *</label>
             <div className={styles.cuisineGrid}>
-              {cuisineTypes.filter(c => c.id !== 'all').map((cuisine) => (
+              {cuisines.filter(c => c.id !== 'all').map((cuisine) => (
                 <label key={cuisine.id} className={styles.cuisineCheckbox}>
                   <input
                     type="checkbox"

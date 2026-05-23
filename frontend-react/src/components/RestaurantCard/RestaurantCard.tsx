@@ -1,7 +1,8 @@
 import React from 'react';
 import styles from './RestaurantCard.module.css';
-import { cuisineTypes } from '../../data/restaurants';
 import SeatStatusBadge from '../SeatStatusBadge/SeatStatusBadge';
+import { useAuth } from '../../contexts/AuthContext';
+
 
 interface RestaurantCardProps {
   id: string;
@@ -36,6 +37,8 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   onBooking,
   onClick,
 }) => {
+  const { cuisines } = useAuth();
+
   // Use multiple cuisines
   const displayCuisines = Array.isArray(cuisine) ? cuisine : [];
   const isFull = availableSeats <= 0;
@@ -75,7 +78,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
         {displayCuisines.length > 0 && (
           <div className={styles.cuisineContainer}>
             {displayCuisines.slice(0, 2).map((c, idx) => {
-              const label = cuisineTypes.find((ct) => ct.id === c || ct.label === c);
+              const label = cuisines.find((ct) => ct.id === c || ct.label === c);
               return label ? (
                 <span key={idx} className={styles.cuisineBadge}>
                   {label.icon} {label.label}

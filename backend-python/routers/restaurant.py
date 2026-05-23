@@ -2,7 +2,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends, Security
 from database import SessionDep
 from models import Restaurant, MenuItem, User, Review, Booking
-from schemas import RestaurantCreate, RestaurantUpdate
+from schemas import RestaurantCreate, RestaurantUpdate, CuisineOut
 from routers.authentication import get_current_user
 
 
@@ -125,3 +125,26 @@ def update_restaurant_by_id(restaurant_id: int, updated_restaurant: RestaurantUp
         session.refresh(restaurant)
         return get_restaurant_with_stats(restaurant, session)
     return {"message": "Restaurant not found"}
+
+CUISINES_DATA = [
+    {"id": "all", "label": "Tất cả", "icon": "🍽️"},
+    {"id": "seafood", "label": "Hải sản", "icon": "🦐"},
+    {"id": "european", "label": "Đồ Âu", "icon": "🥩"},
+    {"id": "buffet", "label": "Buffet", "icon": "🍱"},
+    {"id": "japanese", "label": "Nhật Bản", "icon": "🍣"},
+    {"id": "korean", "label": "Hàn Quốc", "icon": "🥘"},
+    {"id": "vietnamese", "label": "Việt Nam", "icon": "🍜"},
+    {"id": "hotpot", "label": "Lẩu", "icon": "♨️"},
+    {"id": "bbq", "label": "Nướng", "icon": "🔥"},
+    {"id": "chinese", "label": "Trung Hoa", "icon": "🥟"},
+    {"id": "thai", "label": "Thái Lan", "icon": "🌶️"},
+    {"id": "vegetarian", "label": "Món Chay", "icon": "🥗"},
+    {"id": "fastfood", "label": "Thức ăn nhanh", "icon": "🍔"},
+    {"id": "cafe", "label": "Café & Trà", "icon": "☕"},
+    {"id": "finedining", "label": "Sang trọng", "icon": "✨"}
+]
+
+@router.get("/api/cuisines/", response_model=list[CuisineOut], tags=["Cuisine"])
+def get_cuisines():
+    return CUISINES_DATA
+

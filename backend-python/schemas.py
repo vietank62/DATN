@@ -170,3 +170,9 @@ class ReviewOut(BaseModel):
     
     class Config:
         from_attributes = True
+
+class CuisineOut(BaseModel):
+    id: str
+    label: str
+    icon: str
+

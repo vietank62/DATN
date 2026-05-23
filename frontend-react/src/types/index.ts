@@ -137,3 +137,9 @@ export interface StatusChartResponse {
   distribution: BookingStatusStat[];
   totalBookings: number;
 }
+
+export interface CuisineType {
+  id: string;
+  label: string;
+  icon: string;
+}
