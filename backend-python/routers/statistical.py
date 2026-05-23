@@ -1,10 +1,10 @@
-from typing import Annotated
-from fastapi import APIRouter, HTTPException, Depends, Security
-from sqlalchemy import func
+from typing import Annotated, Optional
+from fastapi import APIRouter, HTTPException, Depends, Security, Query
+from sqlalchemy import func, extract
 from datetime import date
 from database import SessionDep
 from models import Booking, Restaurant, User, MenuItem, Review
-from schemas import ManagerStats, AdminStats
+from schemas import ManagerStats, AdminStats, BookingChartResponse, MenuChartResponse, StatusChartResponse, MonthlyBookingStat, MenuDistributionStat, BookingStatusStat
 from routers.authentication import get_current_user
 
 router = APIRouter()
@@ -71,3 +71,114 @@ def get_admin_stats(session: SessionDep, current_user: Annotated[User, Security(
         activeRestaurants=active_restaurants,
         newUsersThisMonth=new_users_this_month
     )
+
+
+@router.get("/api/stats/manager/{restaurantId}/monthly-bookings", tags=["Statistics"], response_model=BookingChartResponse)
+def get_monthly_bookings(
+    restaurantId: int,
+    session: SessionDep,
+    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    year: Optional[int] = Query(default=None)
+):
+    restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == restaurantId).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    if year is None:
+        year = date.today().year
+
+    MONTH_LABELS = ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6",
+                    "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"]
+
+    # Count bookings per month for the year
+    results = session.query(
+        func.substr(Booking.date, 6, 2).label("month"),
+        func.count(Booking.bookingId).label("count")
+    ).filter(
+        Booking.restaurantId == restaurantId,
+        func.substr(Booking.date, 1, 4) == str(year)
+    ).group_by(func.substr(Booking.date, 6, 2)).all()
+
+    month_map = {int(r.month): r.count for r in results}
+
+    monthly = [
+        MonthlyBookingStat(
+            month=m,
+            count=month_map.get(m, 0),
+            label=MONTH_LABELS[m - 1]
+        )
+        for m in range(1, 13)
+    ]
+
+    total_year = sum(m.count for m in monthly)
+
+    return BookingChartResponse(monthly=monthly, totalYear=total_year, year=year)
+
+
+@router.get("/api/stats/manager/{restaurantId}/menu-distribution", tags=["Statistics"], response_model=MenuChartResponse)
+def get_menu_distribution(
+    restaurantId: int,
+    session: SessionDep,
+    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
+):
+    restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == restaurantId).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    results = session.query(
+        func.coalesce(MenuItem.category, "Khác").label("category"),
+        func.count(MenuItem.itemId).label("count")
+    ).filter(
+        MenuItem.restaurantId == restaurantId
+    ).group_by(func.coalesce(MenuItem.category, "Khác")).all()
+
+    total = sum(r.count for r in results)
+
+    distribution = [
+        MenuDistributionStat(
+            category=r.category or "Khác",
+            count=r.count,
+            percentage=round((r.count / total * 100), 1) if total > 0 else 0.0
+        )
+        for r in results
+    ]
+
+    return MenuChartResponse(distribution=distribution, totalItems=total)
+
+
+@router.get("/api/stats/manager/{restaurantId}/booking-status", tags=["Statistics"], response_model=StatusChartResponse)
+def get_booking_status_distribution(
+    restaurantId: int,
+    session: SessionDep,
+    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
+):
+    restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == restaurantId).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    STATUS_LABELS = {
+        "pending": "Chờ xác nhận",
+        "confirmed": "Đã xác nhận",
+        "completed": "Hoàn thành",
+        "cancelled": "Đã huỷ"
+    }
+
+    results = session.query(
+        Booking.status,
+        func.count(Booking.bookingId).label("count")
+    ).filter(
+        Booking.restaurantId == restaurantId
+    ).group_by(Booking.status).all()
+
+    total = sum(r.count for r in results)
+
+    distribution = [
+        BookingStatusStat(
+            status=STATUS_LABELS.get(r.status, r.status),
+            count=r.count,
+            percentage=round((r.count / total * 100), 1) if total > 0 else 0.0
+        )
+        for r in results
+    ]
+
+    return StatusChartResponse(distribution=distribution, totalBookings=total)

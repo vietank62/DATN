@@ -257,3 +257,118 @@
   color: #ff6d00;
   font-weight: 600;
 }
+
+/* ===== Wide container for step 2 ===== */
+.containerWide {
+  max-width: 1100px;
+}
+
+/* ===== Manager note ===== */
+.managerNote {
+  padding: 12px 16px;
+  background: #e3f2fd;
+  color: #1565c0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-left: 4px solid #1976d2;
+}
+
+/* ===== Step indicator ===== */
+.stepIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.stepDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.7);
+  border: 2px solid rgba(255,255,255,0.4);
+}
+
+.stepDone {
+  background: #fff;
+  color: #e65100;
+  border-color: #fff;
+}
+
+.stepActive {
+  background: #e65100;
+  color: #fff;
+  border-color: #fff;
+}
+
+.stepLine {
+  flex: 1;
+  height: 2px;
+  background: rgba(255,255,255,0.4);
+  max-width: 40px;
+}
+
+/* ===== Textarea ===== */
+.textarea {
+  padding: 11px 14px;
+  border: 2px solid #e8e8e8;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.textarea:focus {
+  border-color: #e65100;
+}
+
+/* ===== Cuisine Grid ===== */
+.cuisineGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.cuisineCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.cuisineCheckbox:hover {
+  border-color: #e65100;
+  background: #fff3e0;
+}
+
+.cuisineCheckbox input[type="checkbox"] {
+  accent-color: #e65100;
+}
+
+/* 3-column row for step 2 */
+.row3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .cuisineGrid { grid-template-columns: repeat(2, 1fr); }
+  .row3 { grid-template-columns: 1fr; }
+}

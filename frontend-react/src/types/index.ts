@@ -101,3 +101,39 @@ export interface Review {
   comment: string;
   createdAt: string;
 }
+
+// ─── Chart / Statistics ───────────────────────────────────
+
+export interface MonthlyBookingStat {
+  month: number;
+  count: number;
+  label: string;
+}
+
+export interface BookingChartResponse {
+  monthly: MonthlyBookingStat[];
+  totalYear: number;
+  year: number;
+}
+
+export interface MenuDistributionStat {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+export interface MenuChartResponse {
+  distribution: MenuDistributionStat[];
+  totalItems: number;
+}
+
+export interface BookingStatusStat {
+  status: string;
+  count: number;
+  percentage: number;
+}
+
+export interface StatusChartResponse {
+  distribution: BookingStatusStat[];
+  totalBookings: number;
+}

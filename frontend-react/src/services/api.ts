@@ -1,4 +1,4 @@
-import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review } from '../types';
+import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review, BookingChartResponse, MenuChartResponse, StatusChartResponse } from '../types';
 import { cuisineTypes } from '../data/restaurants';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
@@ -519,7 +519,7 @@ export const deleteUser = async (email: string): Promise<void> => {
   await request(`/api/delete-user/${email}`, { method: 'DELETE' });
 };
 
-// ─── Statistics ───────────────────────────────────────────
+// ─── Statistics ─────────────────────────────────────
 
 export const fetchManagerStats = async (restaurantId: string): Promise<ManagerStats> => {
   return request<ManagerStats>(`/api/stats/manager/${restaurantId}`);
@@ -527,6 +527,21 @@ export const fetchManagerStats = async (restaurantId: string): Promise<ManagerSt
 
 export const fetchAdminStats = async (): Promise<AdminStats> => {
   return request<AdminStats>('/api/stats/admin');
+};
+
+export const fetchMonthlyBookings = async (restaurantId: string, year?: number): Promise<BookingChartResponse> => {
+  const url = year
+    ? `/api/stats/manager/${restaurantId}/monthly-bookings?year=${year}`
+    : `/api/stats/manager/${restaurantId}/monthly-bookings`;
+  return request<BookingChartResponse>(url);
+};
+
+export const fetchMenuDistribution = async (restaurantId: string): Promise<MenuChartResponse> => {
+  return request<MenuChartResponse>(`/api/stats/manager/${restaurantId}/menu-distribution`);
+};
+
+export const fetchBookingStatusDistribution = async (restaurantId: string): Promise<StatusChartResponse> => {
+  return request<StatusChartResponse>(`/api/stats/manager/${restaurantId}/booking-status`);
 };
 
 // ─── Reviews ──────────────────────────────────────────────
@@ -610,6 +625,9 @@ const api = {
   deleteUser,
   fetchManagerStats,
   fetchAdminStats,
+  fetchMonthlyBookings,
+  fetchMenuDistribution,
+  fetchBookingStatusDistribution,
   fetchReviews,
   createReview,
 };

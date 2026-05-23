@@ -115,6 +115,34 @@ class ManagerStats(BaseModel):
     pendingBookings: int
     confirmedBookings: int
 
+class MonthlyBookingStat(BaseModel):
+    month: int
+    count: int
+    label: str
+
+class MenuDistributionStat(BaseModel):
+    category: str
+    count: int
+    percentage: float
+
+class BookingStatusStat(BaseModel):
+    status: str
+    count: int
+    percentage: float
+
+class BookingChartResponse(BaseModel):
+    monthly: list[MonthlyBookingStat]
+    totalYear: int
+    year: int
+
+class MenuChartResponse(BaseModel):
+    distribution: list[MenuDistributionStat]
+    totalItems: int
+
+class StatusChartResponse(BaseModel):
+    distribution: list[BookingStatusStat]
+    totalBookings: int
+
 class AdminStats(BaseModel):
     totalRestaurants: int
     totalUsers: int
