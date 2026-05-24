@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './HeroSection.module.css';
-import { districts, availableTimes, guestOptions } from '../../data/restaurants';
+import { districts, availableTimes, guestOptions } from '../../constants';
 
 interface HeroSectionProps {
   onSearch?: (params: { location: string; date: string; time: string; guests: number }) => void;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './BookingModal.module.css';
-import { guestOptions } from '../../data/restaurants';
+import { guestOptions } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface BookingModalProps {

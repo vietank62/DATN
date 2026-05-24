@@ -4,11 +4,12 @@ import { toast } from 'react-hot-toast';
 import { registerPartner, uploadImage } from '../services/api';
 import styles from './RegisterPage.module.css'; // Reusing RegisterPage styles
 import partnerStyles from './PartnerRegisterPage.module.css'; // Additional styles
-import { cuisineTypes } from '../data/restaurants';
+import { useAuth } from '../contexts/AuthContext';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
 
 const PartnerRegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { cuisines } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1); // 1: User Info, 2: Restaurant Info, 3: Verification
@@ -181,7 +182,7 @@ const PartnerRegisterPage: React.FC = () => {
                   <div className={styles.fieldGroup}>
                     <label>Loại ẩm thực</label>
                     <div className={partnerStyles.cuisineGrid}>
-                      {cuisineTypes.filter(c => c.id !== 'all').map(c => (
+                      {cuisines.filter(c => c.id !== 'all').map(c => (
                         <label key={c.id} className={partnerStyles.checkboxLabel}>
                           <input 
                             type="checkbox" 
@@ -193,7 +194,7 @@ const PartnerRegisterPage: React.FC = () => {
                               updateField('cuisine', newCuisine);
                             }}
                           />
-                          {c.label}
+                          <span>{c.icon} {c.label}</span>
                         </label>
                       ))}
                     </div>

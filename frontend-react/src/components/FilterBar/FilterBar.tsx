@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styles from './FilterBar.module.css';
-import { priceRanges, districts } from '../../data/restaurants';
+import { priceRanges, districts } from '../../constants';
 import type { FilterOptions } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 
