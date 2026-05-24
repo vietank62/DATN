@@ -1,11 +1,16 @@
 from fastapi import FastAPI
 from database import create_db_and_tables
-from routers import user, authentication, restaurant, menuitem, booking, statistical, upload, review
+from routers import user, authentication, restaurant, menuitem, booking, statistical, upload, review, payment
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
-app = FastAPI()
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await create_db_and_tables()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 origins = [
     "http://localhost:3000",
@@ -26,11 +31,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
-
 app.include_router(user.router)
 
 app.include_router(restaurant.router)
@@ -47,9 +47,6 @@ app.include_router(upload.router)
 
 app.include_router(review.router)
 
+app.include_router(payment.router)
 
-
-# Mount uploads directory for static file serving
-uploads_dir = Path("uploads")
-uploads_dir.mkdir(exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+

@@ -91,6 +91,7 @@ function mapRestaurant(r: any): Restaurant {
     status: r.status,
     businessLicenseUrl: r.businessLicenseUrl,
     taxId: r.taxId,
+    promotion: r.promotion,
     menu: r.menu?.map(mapMenuItem),
   };
 }
@@ -555,6 +556,36 @@ export const fetchBookingStatusDistribution = async (restaurantId: string): Prom
   return request<StatusChartResponse>(`/api/stats/manager/${restaurantId}/booking-status`);
 };
 
+export const fetchFeeStats = async (restaurantId: string): Promise<any> => {
+  return request<any>(`/api/restaurants/${restaurantId}/fee-stats`);
+};
+
+export const payRestaurantFees = async (restaurantId: string): Promise<any> => {
+  return request<any>(`/api/restaurants/${restaurantId}/pay-fees`, {
+    method: 'POST',
+  });
+};
+
+export const createPayment = async (restaurantId: string): Promise<any> => {
+  return request<any>(`/api/payments/create?restaurant_id=${restaurantId}`, {
+    method: 'POST',
+  });
+};
+
+export const getPaymentStatus = async (paymentId: number): Promise<any> => {
+  return request<any>(`/api/payments/${paymentId}/status`);
+};
+
+export const getCheckoutFields = async (paymentId: number): Promise<any> => {
+  return request<any>(`/api/payments/${paymentId}/checkout-fields`);
+};
+
+export const simulatePaymentWebhook = async (paymentId: number): Promise<any> => {
+  return request<any>(`/api/sepay/simulate-webhook?payment_id=${paymentId}`, {
+    method: 'POST',
+  });
+};
+
 // ─── Reviews ──────────────────────────────────────────────
 
 export const fetchReviews = async (restaurantId: string): Promise<Review[]> => {
@@ -663,6 +694,12 @@ const api = {
   fetchMonthlyBookings,
   fetchMenuDistribution,
   fetchBookingStatusDistribution,
+  fetchFeeStats,
+  payRestaurantFees,
+  createPayment,
+  getPaymentStatus,
+  getCheckoutFields,
+  simulatePaymentWebhook,
   fetchReviews,
   createReview,
   registerPartner,

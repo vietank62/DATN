@@ -1,0 +1,165 @@
+.homepage {
+  background-color: #fafafa;
+  min-height: 100vh;
+}
+
+.collectionsContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid #eaeaea;
+  padding-bottom: 12px;
+}
+
+.titleContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionSubtitle {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+.viewAllBtn {
+  background: none;
+  border: none;
+  color: #e65100;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background-color: rgba(230, 81, 0, 0.05);
+  transition: all 0.2s;
+  outline: none;
+}
+
+.viewAllBtn:hover {
+  background-color: rgba(230, 81, 0, 0.1);
+  transform: translateX(3px);
+}
+
+.scrollWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.scrollContainer {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 8px 4px 16px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(230, 81, 0, 0.3) transparent;
+}
+
+/* Custom scrollbar for Webkit browsers (Chrome, Safari, Edge) */
+.scrollContainer::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scrollContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollContainer::-webkit-scrollbar-thumb {
+  background-color: rgba(230, 81, 0, 0.2);
+  border-radius: 10px;
+}
+
+.scrollContainer::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(230, 81, 0, 0.4);
+}
+
+.scrollItem {
+  min-width: 280px;
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.arrowBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #eaeaea;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.arrowBtn:hover {
+  background: #f5f5f5;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.leftArrow {
+  left: -20px;
+}
+
+.rightArrow {
+  right: -20px;
+}
+
+@media (max-width: 768px) {
+  .viewAllBtn {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+  
+  .sectionTitle {
+    font-size: 1.25rem;
+  }
+  
+  .arrowBtn {
+    display: none;
+  }
+  
+  .collectionsContainer {
+    gap: 32px;
+    padding: 20px 12px;
+  }
+}

@@ -18,6 +18,7 @@ interface RestaurantCardProps {
   totalSeats: number;
   availableSeats: number;
   description?: string;
+  promotion?: string;
   onBooking: () => void;
   onClick?: () => void;
 }
@@ -34,6 +35,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   totalSeats,
   availableSeats,
   description,
+  promotion,
   onBooking,
   onClick,
 }) => {
@@ -102,11 +104,19 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
       <div className={styles.content}>
         <h3 className={styles.name}>{name}</h3>
         <p className={styles.address}>📍 {address}</p>
+        {promotion && (
+          <div className={styles.promotionContainer} title={promotion}>
+            <span className={styles.promotionIcon}>🎁</span>
+            <span className={styles.promotionText}>{promotion}</span>
+          </div>
+        )}
         <div className={styles.meta}>
-          <span className={styles.rating}>⭐ {rating.toFixed(1)}</span>
-          {reviewCount !== undefined && (
-            <span className={styles.reviews}>({reviewCount} đánh giá)</span>
-          )}
+          <div className={styles.ratingGroup}>
+            <span className={styles.rating}>⭐ {rating.toFixed(1)}</span>
+            {reviewCount !== undefined && (
+              <span className={styles.reviews}>({reviewCount} đánh giá)</span>
+            )}
+          </div>
           <span className={styles.priceRange}>💰 {priceRange}</span>
         </div>
         <button

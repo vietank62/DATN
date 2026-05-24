@@ -7,6 +7,7 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .card:hover {
@@ -94,10 +95,18 @@
 
 .meta {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 14px;
+  width: 100%;
+}
+
+.ratingGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .rating {
@@ -114,8 +123,7 @@
 .priceRange {
   font-size: 0.85rem;
   color: #4caf50;
-  font-weight: 500;
-  margin-left: auto;
+  font-weight: 600;
 }
 
 .bookingButton {
@@ -155,4 +163,33 @@
   background: #ccc !important;
   transform: none !important;
   box-shadow: none !important;
+}
+
+.promotionContainer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(230, 81, 0, 0.06);
+  border: 1px dashed rgba(230, 81, 0, 0.3);
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: background-color 0.2s;
+}
+
+.card:hover .promotionContainer {
+  background: rgba(230, 81, 0, 0.1);
+}
+
+.promotionIcon {
+  font-size: 1.1rem;
+}
+
+.promotionText {
+  font-size: 0.82rem;
+  color: #d84315;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }

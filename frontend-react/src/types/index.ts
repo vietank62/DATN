@@ -30,6 +30,7 @@ export interface Restaurant {
   status?: 'pending' | 'active' | 'rejected';
   businessLicenseUrl?: string;
   taxId?: string;
+  promotion?: string;
 }
 
 export interface Booking {

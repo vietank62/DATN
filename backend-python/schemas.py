@@ -50,6 +50,10 @@ class RestaurantCreate(BaseModel):
     managerID: Optional[int] = None
     businessLicenseUrl: Optional[str] = None
     taxId: Optional[str] = None
+    rating: Optional[float] = 0.0
+    reviewCount: Optional[int] = 0
+    priceRange: Optional[str] = "Chưa cập nhật"
+    promotion: Optional[str] = None
 
 class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
@@ -65,6 +69,10 @@ class RestaurantUpdate(BaseModel):
     totalSeats: Optional[int] = None
     availableSeats: Optional[int] = None
     managerID: Optional[int] = None
+    rating: Optional[float] = None
+    reviewCount: Optional[int] = None
+    priceRange: Optional[str] = None
+    promotion: Optional[str] = None
     
 
 

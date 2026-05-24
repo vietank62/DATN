@@ -74,7 +74,7 @@ const Navbar: React.FC = () => {
         <span style={{ color: '#888', fontSize: '16px', marginRight: '4px' }}>🔍</span>
         <input
           type="text"
-          placeholder="Tìm nhà hàng, món ăn... (Nhấn Enter)"
+          placeholder="Tìm nhà hàng (Nhấn Enter)"
           className={styles['search-input']}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

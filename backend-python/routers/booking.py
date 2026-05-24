@@ -5,6 +5,7 @@ from database import SessionDep
 from models import Booking, Restaurant, User
 from schemas import BookingCreate, BookingUpdate
 from routers.authentication import get_current_user
+from sqlmodel import select
 
 router = APIRouter()
 
@@ -48,12 +49,13 @@ def send_booking_email(to_email: str, subject: str, content: str):
     except Exception as e:
         print(f"❌ Lỗi gửi email tới {to_email}: {str(e)}")
 
-def _enrich_bookings(bookings: list[Booking], session) -> list[dict]:
+async def _enrich_bookings(bookings: list[Booking], session) -> list[dict]:
     """Add restaurantName to each booking via a single query."""
     if not bookings:
         return []
     restaurant_ids = list({b.restaurantId for b in bookings})
-    restaurants = session.query(Restaurant).filter(Restaurant.restaurantId.in_(restaurant_ids)).all()
+    restaurants_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId.in_(restaurant_ids)))
+    restaurants = restaurants_res.scalars().all()
     name_map = {r.restaurantId: r.name for r in restaurants}
     results = []
     for b in bookings:
@@ -63,18 +65,19 @@ def _enrich_bookings(bookings: list[Booking], session) -> list[dict]:
     return results
 
 @router.post("/api/create-booking/", tags=["Booking"])
-def create_booking(booking_data: BookingCreate, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+async def create_booking(booking_data: BookingCreate, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
     booking = Booking(
         **booking_data.model_dump(),
         createdAt=datetime.now().isoformat(timespec="seconds"),
     )
     session.add(booking)
-    session.commit()
-    session.refresh(booking)
+    await session.commit()
+    await session.refresh(booking)
 
     # Send confirmation email via background task
     if booking.contactEmail:
-        restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == booking.restaurantId).first()
+        rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == booking.restaurantId))
+        restaurant = rest_res.scalars().first()
         restaurant_name = restaurant.name if restaurant else f"Nhà hàng #{booking.restaurantId}"
         
         email_content = f"Xin chào {booking.contactName},\n\nYêu cầu đặt bàn của bạn tại {restaurant_name} vào lúc {booking.time} ngày {booking.date} cho {booking.requestSeats} người đã được ghi nhận và đang chờ xác nhận từ nhà hàng.\n\nCảm ơn bạn đã sử dụng TableNow!"
@@ -83,49 +86,56 @@ def create_booking(booking_data: BookingCreate, background_tasks: BackgroundTask
     return booking
 
 @router.get("/api/get-all-booking/", tags=["Booking"])
-def get_all_bookings(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
-    bookings = session.query(Booking).all()
-    return _enrich_bookings(bookings, session)
+async def get_all_bookings(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    bookings_res = await session.execute(select(Booking))
+    bookings = bookings_res.scalars().all()
+    return await _enrich_bookings(bookings, session)
 
 @router.get("/api/get-bookings-by-user/{user_id}", tags=["Booking"])
-def get_bookings_by_user_id(user_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
-    bookings = session.query(Booking).filter(Booking.userId == user_id).all()
-    return _enrich_bookings(bookings, session)
+async def get_bookings_by_user_id(user_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    bookings_res = await session.execute(select(Booking).where(Booking.userId == user_id))
+    bookings = bookings_res.scalars().all()
+    return await _enrich_bookings(bookings, session)
 
 @router.get("/api/get-bookings-by-restaurant/{restaurant_id}", tags=["Booking"])
-def get_bookings_by_restaurant_id(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
-    bookings = session.query(Booking).filter(Booking.restaurantId == restaurant_id).all()
-    return _enrich_bookings(bookings, session)
+async def get_bookings_by_restaurant_id(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    bookings_res = await session.execute(select(Booking).where(Booking.restaurantId == restaurant_id))
+    bookings = bookings_res.scalars().all()
+    return await _enrich_bookings(bookings, session)
 
 @router.get("/api/get-booking/{booking_id}", tags=["Booking"])
-def get_booking_by_id(booking_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
-    booking = session.query(Booking).filter(Booking.bookingId == booking_id).first()
+async def get_booking_by_id(booking_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    booking_res = await session.execute(select(Booking).where(Booking.bookingId == booking_id))
+    booking = booking_res.scalars().first()
     return booking
 
 @router.delete("/api/delete-booking/{booking_id}", tags=["Booking"])
-def delete_booking_by_id(booking_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
-    booking = session.query(Booking).filter(Booking.bookingId == booking_id).first()
+async def delete_booking_by_id(booking_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    res = await session.execute(select(Booking).where(Booking.bookingId == booking_id))
+    booking = res.scalars().first()
     if booking:
-        session.delete(booking)
-        session.commit()
+        await session.delete(booking)
+        await session.commit()
         return {"message": "Booking deleted successfully"}
     return {"message": "Booking not found"}
 
 @router.put("/api/update-booking/{booking_id}", tags=["Booking"])
-def update_booking_by_id(booking_id: int, updated_booking: BookingUpdate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
-    booking = session.query(Booking).filter(Booking.bookingId == booking_id).first()
+async def update_booking_by_id(booking_id: int, updated_booking: BookingUpdate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    res = await session.execute(select(Booking).where(Booking.bookingId == booking_id))
+    booking = res.scalars().first()
     if booking:
         update_data = updated_booking.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(booking, field, value)
-        session.commit()
-        session.refresh(booking)
+        await session.commit()
+        await session.refresh(booking)
         return booking
     return {"message": "Booking not found"}
 
 @router.put("/api/bookings/{id}/confirm", tags=["Booking"])
-def confirm_booking(id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
-    booking = session.query(Booking).filter(Booking.bookingId == id).first()
+async def confirm_booking(id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    res = await session.execute(select(Booking).where(Booking.bookingId == id))
+    booking = res.scalars().first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     
@@ -134,7 +144,9 @@ def confirm_booking(id: int, background_tasks: BackgroundTasks, session: Session
     
     if booking.status == "cancelled":
         raise HTTPException(status_code=400, detail="Cannot confirm cancelled booking")
-    restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == booking.restaurantId).first()
+    
+    rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == booking.restaurantId))
+    restaurant = rest_res.scalars().first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
@@ -152,9 +164,9 @@ def confirm_booking(id: int, background_tasks: BackgroundTasks, session: Session
     # Giảm số ghế available của nhà hàng
     restaurant.availableSeats -= booking.assignedSeats
     
-    session.commit()
-    session.refresh(booking)
-    session.refresh(restaurant)
+    await session.commit()
+    await session.refresh(booking)
+    await session.refresh(restaurant)
     
     # Gửi email xác nhận
     if booking.contactEmail:
@@ -168,8 +180,9 @@ def confirm_booking(id: int, background_tasks: BackgroundTasks, session: Session
     }
 
 @router.put("/api/bookings/{id}/cancel", tags=["Booking"])
-def cancel_booking(id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
-    booking = session.query(Booking).filter(Booking.bookingId == id).first()
+async def cancel_booking(id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    res = await session.execute(select(Booking).where(Booking.bookingId == id))
+    booking = res.scalars().first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.status == "cancelled":
@@ -177,7 +190,6 @@ def cancel_booking(id: int, background_tasks: BackgroundTasks, session: SessionD
     
     # Kiểm tra thời gian hủy (phải trước 2 tiếng)
     try:
-        # Giả định booking.date là "YYYY-MM-DD" và booking.time là "HH:MM"
         booking_datetime_str = f"{booking.date} {booking.time}"
         booking_datetime = datetime.fromisoformat(booking_datetime_str) if 'T' in booking_datetime_str else datetime.strptime(booking_datetime_str, "%Y-%m-%d %H:%M")
         
@@ -190,13 +202,13 @@ def cancel_booking(id: int, background_tasks: BackgroundTasks, session: SessionD
                 detail="Bạn chỉ có thể hủy bàn trước thời gian đặt ít nhất 2 tiếng."
             )
     except ValueError:
-        # Nếu định dạng ngày giờ không khớp, bỏ qua kiểm tra này hoặc log lỗi
         pass
 
     if booking.status == "completed":
         raise HTTPException(status_code=400, detail="Cannot cancel completed booking")
     if booking.status == "confirmed" and booking.assignedSeats > 0:
-        restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == booking.restaurantId).first()
+        rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == booking.restaurantId))
+        restaurant = rest_res.scalars().first()
         if not restaurant:
             raise HTTPException(status_code=404, detail="Restaurant not found")
         
@@ -206,8 +218,8 @@ def cancel_booking(id: int, background_tasks: BackgroundTasks, session: SessionD
     
     # Hủy booking
     booking.status = "cancelled"
-    session.commit()
-    session.refresh(booking)
+    await session.commit()
+    await session.refresh(booking)
     
     # Gửi email huỷ
     if booking.contactEmail:
@@ -220,8 +232,9 @@ def cancel_booking(id: int, background_tasks: BackgroundTasks, session: SessionD
     }
 
 @router.put("/api/bookings/{id}/complete", tags=["Booking"])
-def complete_booking(id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
-    booking = session.query(Booking).filter(Booking.bookingId == id).first()
+async def complete_booking(id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    res = await session.execute(select(Booking).where(Booking.bookingId == id))
+    booking = res.scalars().first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
 
@@ -235,7 +248,8 @@ def complete_booking(id: int, session: SessionDep, current_user: Annotated[User,
     
     # Hoàn thành booking — trả lại ghế cho nhà hàng
     if booking.assignedSeats and booking.assignedSeats > 0:
-        restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == booking.restaurantId).first()
+        rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == booking.restaurantId))
+        restaurant = rest_res.scalars().first()
         if restaurant:
             restaurant.availableSeats = min(
                 restaurant.totalSeats,
@@ -244,11 +258,70 @@ def complete_booking(id: int, session: SessionDep, current_user: Annotated[User,
             session.add(restaurant)
 
     booking.status = "completed"
-    session.commit()
-    session.refresh(booking)
+    await session.commit()
+    await session.refresh(booking)
     
     return {
         "message": "Booking completed successfully",
         "booking": booking
     }
 
+@router.get("/api/restaurants/{restaurant_id}/fee-stats", tags=["Booking"])
+async def get_fee_stats(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    # Verify that the restaurant exists
+    rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
+    restaurant = rest_res.scalars().first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+        
+    # Check that this manager actually manages this restaurant
+    if restaurant.managerID != current_user.userId and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to view fee stats for this restaurant")
+
+    bookings_res = await session.execute(select(Booking).where(Booking.restaurantId == restaurant_id))
+    bookings = bookings_res.scalars().all()
+    completed_bookings = [b for b in bookings if b.status == "completed"]
+    unpaid_bookings = [b for b in completed_bookings if not b.isPaid]
+    paid_bookings = [b for b in completed_bookings if b.isPaid]
+
+    return {
+        "totalBookings": len(bookings),
+        "completedBookings": len(completed_bookings),
+        "unpaidBookingsCount": len(unpaid_bookings),
+        "paidBookingsCount": len(paid_bookings),
+        "unpaidAmount": len(unpaid_bookings) * 6000,
+        "paidAmount": len(paid_bookings) * 6000,
+        "totalAmount": len(completed_bookings) * 6000
+    }
+
+@router.post("/api/restaurants/{restaurant_id}/pay-fees", tags=["Booking"])
+async def pay_fees(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
+    restaurant = rest_res.scalars().first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    if restaurant.managerID != current_user.userId and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to pay fees for this restaurant")
+
+    unpaid_res = await session.execute(
+        select(Booking).where(
+            Booking.restaurantId == restaurant_id,
+            Booking.status == "completed",
+            Booking.isPaid == False
+        )
+    )
+    unpaid_bookings = unpaid_res.scalars().all()
+
+    updated_count = len(unpaid_bookings)
+    for b in unpaid_bookings:
+        b.isPaid = True
+        session.add(b)
+    
+    await session.commit()
+
+    return {
+        "message": f"Successfully paid fees for {updated_count} bookings",
+        "paidBookingsCount": updated_count,
+        "amountPaid": updated_count * 6000
+    }

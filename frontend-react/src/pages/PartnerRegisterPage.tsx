@@ -7,6 +7,13 @@ import partnerStyles from './PartnerRegisterPage.module.css'; // Additional styl
 import { useAuth } from '../contexts/AuthContext';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
 
+const DISTRICTS = [
+  'Quận 1', 'Quận 2', 'Quận 3', 'Quận 4', 'Quận 5', 'Quận 6', 'Quận 7',
+  'Quận 8', 'Quận 9', 'Quận 10', 'Quận 11', 'Quận 12', 
+  'Bình Tân', 'Bình Thạnh', 'Gò Vấp', 'Phú Nhuận', 'Tân Bình', 'Tân Phú', 'Thủ Đức',
+  'Huyện Bình Chánh', 'Huyện Cần Giờ', 'Huyện Củ Chi', 'Huyện Hóc Môn', 'Huyện Nhà Bè'
+];
+
 const PartnerRegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { cuisines } = useAuth();
@@ -109,20 +116,27 @@ const PartnerRegisterPage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <div className={styles.container} style={{ maxWidth: '900px' }}>
-        <div className={styles.formSection} style={{ width: '100%' }}>
-          <div className={styles.formWrapper} style={{ maxWidth: '700px' }}>
+      <div className={styles.container} style={{ maxWidth: '1100px' }}>
+        <div className={styles.imageSection} style={{ background: 'linear-gradient(135deg, rgba(13, 71, 161, 0.95), rgba(21, 101, 192, 0.95)), url("https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'flex-end', padding: '48px' }}>
+          <div className={styles.imageOverlay}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', lineHeight: 1.3, marginBottom: '8px' }}>Đối tác<br />TableNow</h2>
+            <p style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.8)', margin: 0 }}>Đăng ký trở thành đối tác kinh doanh ngay hôm nay để quản lý nhà hàng thông minh, tối ưu hóa ghế trống và tăng trưởng doanh thu vượt bậc cùng TableNow.</p>
+          </div>
+        </div>
+
+        <div className={styles.formSection}>
+          <div className={styles.formWrapper} style={{ maxWidth: '600px' }}>
             <Link to="/" className={styles.backLink}>← Về trang chủ</Link>
             <div className={styles.header}>
-              <h1>🏪 TableNow Partner</h1>
+              <h1 style={{ color: '#0d47a1' }}>🏪 TableNow Partner</h1>
               <h2>Đăng ký kinh doanh</h2>
               <p>Trở thành đối tác và tiếp cận hàng triệu khách hàng</p>
             </div>
 
             <div className={partnerStyles.stepper}>
-              <div className={`${partnerStyles.step} ${step >= 1 ? partnerStyles.active : ''}`}>1. Tài khoản</div>
-              <div className={`${partnerStyles.step} ${step >= 2 ? partnerStyles.active : ''}`}>2. Nhà hàng</div>
-              <div className={`${partnerStyles.step} ${step >= 3 ? partnerStyles.active : ''}`}>3. Xác minh</div>
+              <div className={`${partnerStyles.step} ${step >= 1 ? partnerStyles.active : ''}`}>Tài khoản</div>
+              <div className={`${partnerStyles.step} ${step >= 2 ? partnerStyles.active : ''}`}>Nhà hàng</div>
+              <div className={`${partnerStyles.step} ${step >= 3 ? partnerStyles.active : ''}`}>Xác minh</div>
             </div>
 
             {error && <div className={styles.errorMsg}>{error}</div>}
@@ -133,29 +147,31 @@ const PartnerRegisterPage: React.FC = () => {
                   <h3>Thông tin tài khoản quản lý</h3>
                   <div className={styles.fieldGroup}>
                     <label>Họ và tên</label>
-                    <input type="text" value={form.userName} onChange={(e) => updateField('userName', e.target.value)} placeholder="Tên chủ sở hữu" className={styles.input} />
+                    <input type="text" value={form.userName} onChange={(e) => updateField('userName', e.target.value)} placeholder="Nhập Họ và Tên" className={styles.input} />
                   </div>
                   <div className={styles.row}>
                     <div className={styles.fieldGroup}>
                       <label>Email</label>
-                      <input type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} placeholder="email@example.com" className={styles.input} />
+                      <input type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} placeholder="Nhập Email" className={styles.input} />
                     </div>
                     <div className={styles.fieldGroup}>
                       <label>Số điện thoại</label>
-                      <input type="tel" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="090..." className={styles.input} />
+                      <input type="tel" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="Nhập Số điện thoại" className={styles.input} />
                     </div>
                   </div>
                   <div className={styles.row}>
                     <div className={styles.fieldGroup}>
                       <label>Mật khẩu</label>
-                      <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} className={styles.input} />
+                      <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} placeholder="Nhập mật khẩu" className={styles.input} />
                     </div>
                     <div className={styles.fieldGroup}>
                       <label>Xác nhận mật khẩu</label>
-                      <input type="password" value={form.confirmPassword} onChange={(e) => updateField('confirmPassword', e.target.value)} className={styles.input} />
+                      <input type="password" value={form.confirmPassword} onChange={(e) => updateField('confirmPassword', e.target.value)} placeholder="Nhập lại mật khẩu" className={styles.input} />
                     </div>
                   </div>
-                  <button type="button" onClick={nextStep} className={styles.submitBtn}>Tiếp theo</button>
+                  <div className={partnerStyles.btnRow}>
+                    <button type="button" onClick={nextStep} className={styles.submitBtn}>Tiếp theo</button>
+                  </div>
                 </div>
               )}
 
@@ -164,7 +180,7 @@ const PartnerRegisterPage: React.FC = () => {
                   <h3>Thông tin nhà hàng</h3>
                   <div className={styles.fieldGroup}>
                     <label>Tên nhà hàng</label>
-                    <input type="text" value={form.resName} onChange={(e) => updateField('resName', e.target.value)} placeholder="VD: Nhà hàng Sen Tây Hồ" className={styles.input} />
+                    <input type="text" value={form.resName} onChange={(e) => updateField('resName', e.target.value)} placeholder="Nhập tên nhà hàng" className={styles.input} />
                   </div>
                   <div className={styles.row}>
                     <div className={styles.fieldGroup}>
@@ -173,10 +189,18 @@ const PartnerRegisterPage: React.FC = () => {
                     </div>
                     <div className={styles.fieldGroup}>
                       <label>Quận/Huyện</label>
-                      <select value={form.district} onChange={(e) => updateField('district', e.target.value)} className={styles.input}>
-                        <option value="">Chọn quận</option>
-                        {['Quận 1', 'Quận 3', 'Quận 7', 'Bình Thạnh', 'Thủ Đức'].map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
+                      <input 
+                        type="text" 
+                        value={form.district} 
+                        onChange={(e) => updateField('district', e.target.value)} 
+                        placeholder="Nhập hoặc chọn quận/huyện" 
+                        className={styles.input}
+                        list="districts-list"
+                        required
+                      />
+                      <datalist id="districts-list">
+                        {DISTRICTS.map(d => <option key={d} value={d} />)}
+                      </datalist>
                     </div>
                   </div>
                   <div className={styles.fieldGroup}>
@@ -184,11 +208,11 @@ const PartnerRegisterPage: React.FC = () => {
                     <div className={partnerStyles.cuisineGrid}>
                       {cuisines.filter(c => c.id !== 'all').map(c => (
                         <label key={c.id} className={partnerStyles.checkboxLabel}>
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={form.cuisine.includes(c.id)}
                             onChange={() => {
-                              const newCuisine = form.cuisine.includes(c.id) 
+                              const newCuisine = form.cuisine.includes(c.id)
                                 ? form.cuisine.filter(id => id !== c.id)
                                 : [...form.cuisine, c.id];
                               updateField('cuisine', newCuisine);
@@ -211,7 +235,10 @@ const PartnerRegisterPage: React.FC = () => {
                   </div>
                   <div className={styles.fieldGroup}>
                     <label>Hình ảnh nhà hàng</label>
-                    <ImageUpload 
+                    <span style={{ fontSize: '12.5px', color: '#64748b', marginBottom: '6px', display: 'block' }}>
+                      💡 Lưu ý: Hình ảnh sẽ được hiển thị trên trang chính của nhà hàng
+                    </span>
+                    <ImageUpload
                       images={form.images}
                       onImagesChange={(urls) => updateField('images', urls)}
                     />
@@ -227,13 +254,13 @@ const PartnerRegisterPage: React.FC = () => {
                 <div className={partnerStyles.stepContent}>
                   <h3>Xác minh pháp lý</h3>
                   <p className={partnerStyles.hint}>Thông tin này chỉ dùng để Admin xác thực và sẽ không hiển thị công khai.</p>
-                  
+
                   <div className={styles.fieldGroup}>
                     <label>Mã số thuế (Tax ID) *</label>
-                    <input 
-                      type="text" 
-                      value={form.taxId} 
-                      onChange={(e) => updateField('taxId', e.target.value)} 
+                    <input
+                      type="text"
+                      value={form.taxId}
+                      onChange={(e) => updateField('taxId', e.target.value)}
                       placeholder="Nhập mã số thuế doanh nghiệp"
                       className={styles.input}
                     />
@@ -248,8 +275,8 @@ const PartnerRegisterPage: React.FC = () => {
                           <button type="button" onClick={() => updateField('businessLicenseUrl', '')}>Gỡ bỏ</button>
                         </div>
                       ) : (
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           onChange={async (e) => {
                             if (e.target.files && e.target.files[0]) {

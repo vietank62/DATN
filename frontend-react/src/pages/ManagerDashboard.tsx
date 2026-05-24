@@ -28,6 +28,12 @@ import {
   fetchMonthlyBookings,
   fetchMenuDistribution,
   fetchBookingStatusDistribution,
+  fetchFeeStats,
+  payRestaurantFees,
+  createPayment,
+  getPaymentStatus,
+  getCheckoutFields,
+  simulatePaymentWebhook,
 } from '../services/api';
 import type { Booking, ManagerStats, Restaurant, MenuItem, BookingChartResponse, MenuChartResponse, StatusChartResponse } from '../types';
 import SeatStatusBadge from '../components/SeatStatusBadge/SeatStatusBadge';
@@ -59,7 +65,32 @@ const ManagerDashboard: React.FC = () => {
     avgRating: 0, pendingBookings: 0, confirmedBookings: 0 
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'restaurant' | 'menu' | 'stats'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'restaurant' | 'menu' | 'stats' | 'fees'>('bookings');
+
+  // Fee state
+  const [feeStats, setFeeStats] = useState<{
+    totalBookings: number;
+    completedBookings: number;
+    unpaidBookingsCount: number;
+    paidBookingsCount: number;
+    unpaidAmount: number;
+    paidAmount: number;
+    totalAmount: number;
+  } | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [activePayment, setActivePayment] = useState<{
+    paymentId: number;
+    restaurantId: number;
+    amount: number;
+    transactionCode: string;
+    status: string;
+    qrUrl: string;
+    bankId: string;
+    accountNo: string;
+    accountName: string;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [checkoutData, setCheckoutData] = useState<{ checkoutUrl: string; fields: Record<string, string> } | null>(null);
 
   // Restaurant state
   const [restaurant, setRestaurant] = useState<Restaurant>(defaultRestaurant);
@@ -163,6 +194,135 @@ const ManagerDashboard: React.FC = () => {
       loadChartData(restaurant.id, chartYear);
     }
   }, [activeTab, restaurant.id, chartYear]);
+
+  // Load fee statistics when fees tab is active
+  useEffect(() => {
+    if (activeTab === 'fees' && restaurant.id) {
+      loadFeeStats(restaurant.id);
+      setActivePayment(null); // Reset when tab changes
+    }
+  }, [activeTab, restaurant.id]);
+
+  // SePay automated polling effect
+  useEffect(() => {
+    let intervalId: any;
+    if (activePayment && activePayment.status === 'pending') {
+      intervalId = setInterval(async () => {
+        try {
+          const statusRes = await getPaymentStatus(activePayment.paymentId);
+          if (statusRes.status === 'completed') {
+            toast.success('Giao dịch chuyển khoản đã được hệ thống xác nhận! 🎉', { duration: 5000 });
+            setActivePayment(null);
+            if (restaurant.id) {
+              await loadFeeStats(restaurant.id);
+            }
+          }
+        } catch (e) {
+          console.error('Error polling payment status:', e);
+        }
+      }, 4000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activePayment, restaurant.id]);
+
+  // SePay Checkout Fields loading effect
+  useEffect(() => {
+    if (activePayment) {
+      const loadFields = async () => {
+        try {
+          const data = await getCheckoutFields(activePayment.paymentId);
+          setCheckoutData(data);
+        } catch (e) {
+          console.error("Failed to load checkout fields", e);
+          toast.error("Không thể tải cấu hình cổng thanh toán SePay Checkout");
+        }
+      };
+      loadFields();
+    } else {
+      setCheckoutData(null);
+    }
+  }, [activePayment]);
+
+  const loadFeeStats = async (resId: string) => {
+    try {
+      const data = await fetchFeeStats(resId);
+      setFeeStats(data);
+    } catch (e) {
+      console.error('Lỗi tải thông tin phí:', e);
+      toast.error('Không thể tải thông tin phí đặt bàn');
+    }
+  };
+
+  const handleCreatePayment = async () => {
+    if (!restaurant.id) return;
+    setPaymentLoading(true);
+    const loadingToast = toast.loading('Đang khởi tạo mã VietQR SePay...');
+    try {
+      const payRes = await createPayment(restaurant.id);
+      setActivePayment(payRes);
+      toast.success('Đã tạo giao dịch thành công!', { id: loadingToast });
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khởi tạo thanh toán', { id: loadingToast });
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleSimulateWebhook = async () => {
+    if (!activePayment) return;
+    setPaymentLoading(true);
+    const loadingToast = toast.loading('Đang gửi tín hiệu chuyển khoản giả lập...');
+    try {
+      const simRes = await simulatePaymentWebhook(activePayment.paymentId);
+      if (simRes.webhookResult && simRes.webhookResult.success) {
+        toast.success('Ngân hàng báo: Đã nhận tiền thành công! Hệ thống đang cập nhật...', { id: loadingToast });
+        
+        // Manual verification check to instantly resolve the UI state
+        const statusRes = await getPaymentStatus(activePayment.paymentId);
+        if (statusRes.status === 'completed') {
+          toast.success('Thanh toán hoàn thành! 🎉', { icon: '💰' });
+          setActivePayment(null);
+          if (restaurant.id) {
+            await loadFeeStats(restaurant.id);
+          }
+        }
+      } else {
+        toast.error(simRes.webhookResult?.message || 'Giả lập thất bại', { id: loadingToast });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi gửi yêu cầu giả lập', { id: loadingToast });
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleCopyText = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    toast.success(`Đã copy ${field}!`);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handlePayFees = async () => {
+    // Deprecated in favor of SePay, but keep fallback
+    if (!restaurant.id || !feeStats || feeStats.unpaidAmount === 0) {
+      toast.error('Không có phí cần thanh toán');
+      return;
+    }
+    setPaymentLoading(true);
+    const loadingToast = toast.loading('Đang kết nối cổng thanh toán...');
+    try {
+      await payRestaurantFees(restaurant.id);
+      toast.success('Thanh toán phí dịch vụ thành công!', { id: loadingToast });
+      await loadFeeStats(restaurant.id);
+    } catch (err: any) {
+      toast.error(err.message || 'Thanh toán thất bại', { id: loadingToast });
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   const loadChartData = async (restaurantId: string, year: number) => {
     setChartsLoading(true);
@@ -316,6 +476,12 @@ const ManagerDashboard: React.FC = () => {
           >
             📊 Thống kê
           </button>
+          <button 
+            className={`${styles.navItem} ${activeTab === 'fees' ? styles.navActive : ''}`}
+            onClick={() => setActiveTab('fees')}
+          >
+            💰 Thanh toán phí
+          </button>
         </div>
       </nav>
 
@@ -326,6 +492,7 @@ const ManagerDashboard: React.FC = () => {
             {activeTab === 'restaurant' && 'Thông tin nhà hàng'}
             {activeTab === 'menu' && 'Thực đơn'}
             {activeTab === 'stats' && 'Thống kê'}
+            {activeTab === 'fees' && 'Thanh toán phí dịch vụ'}
           </h1>
           <div className={styles.topBarRight}>
             <div className={styles.userInfo}>
@@ -726,6 +893,162 @@ const ManagerDashboard: React.FC = () => {
                     )}
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'fees' && (
+            <div className={styles.feesSection}>
+              <div className={styles.feeNotice}>
+                <h4>💡 Chính sách thu phí dịch vụ đặt bàn</h4>
+                <p>
+                  TableNow áp dụng mức phí dịch vụ là <strong>6.000đ cho mỗi đơn đặt bàn hoàn thành thành công</strong>.
+                  Phí dịch vụ này <strong>chỉ được tính</strong> sau khi nhà hàng xác nhận khách đã đến dùng bữa thực tế (nhấp vào nút "Xong" trong tab Đơn đặt bàn để chuyển sang trạng thái "Hoàn thành"). Các đơn đang chờ, đã xác nhận nhưng chưa dùng bữa, hoặc đã hủy sẽ hoàn toàn không bị tính phí.
+                </p>
+              </div>
+
+              {feeStats ? (
+                <>
+                  <div className={styles.statsSummaryGrid}>
+                    <div className={styles.summaryCard} style={{ borderLeft: '4px solid #4caf50' }}>
+                      <div className={styles.summaryIcon}>✅</div>
+                      <div>
+                        <div className={styles.summaryValue}>{feeStats.completedBookings}</div>
+                        <div className={styles.summaryLabel}>Đơn đã hoàn thành</div>
+                      </div>
+                    </div>
+                    <div className={styles.summaryCard} style={{ borderLeft: '4px solid #ff9800' }}>
+                      <div className={styles.summaryIcon}>💸</div>
+                      <div>
+                        <div className={styles.summaryValue} style={{ color: '#e65100' }}>
+                          {(feeStats.unpaidAmount).toLocaleString()}đ
+                        </div>
+                        <div className={styles.summaryLabel}>Phí cần thanh toán ({feeStats.unpaidBookingsCount} đơn)</div>
+                      </div>
+                    </div>
+                    <div className={styles.summaryCard} style={{ borderLeft: '4px solid #2196f3' }}>
+                      <div className={styles.summaryIcon}>💳</div>
+                      <div>
+                        <div className={styles.summaryValue} style={{ color: '#2196f3' }}>
+                          {(feeStats.paidAmount).toLocaleString()}đ
+                        </div>
+                        <div className={styles.summaryLabel}>Phí đã thanh toán ({feeStats.paidBookingsCount} đơn)</div>
+                      </div>
+                    </div>
+                    <div className={styles.summaryCard} style={{ borderLeft: '4px solid #9c27b0' }}>
+                      <div className={styles.summaryIcon}>📊</div>
+                      <div>
+                        <div className={styles.summaryValue}>
+                          {(feeStats.totalAmount).toLocaleString()}đ
+                        </div>
+                        <div className={styles.summaryLabel}>Tổng tích lũy</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.paymentCard}>
+                    <h3>💳 Cổng thanh toán phí dịch vụ tự động SePay</h3>
+                    
+                    {activePayment ? (
+                      <div className={styles.paymentDetails}>
+                        <p style={{ marginBottom: '20px', fontSize: '15px' }}>
+                          Giao dịch thanh toán phí dịch vụ đặt bàn <strong>#{activePayment.paymentId}</strong> đã được khởi tạo. 
+                          Vui lòng bấm nút dưới đây để được chuyển hướng an toàn qua Cổng SePay Checkout hoàn tất giao dịch.
+                        </p>
+
+                        <div style={{ background: '#fff', border: '1px solid #e9ecef', borderRadius: '16px', padding: '24px', marginBottom: '20px' }}>
+                          {checkoutData ? (
+                            <form action={checkoutData.checkoutUrl} method="POST" target="_blank" style={{ textAlign: 'center', padding: '16px 0' }}>
+                              <strong style={{ fontSize: '18px', color: '#1a1a2e', display: 'block', marginBottom: '8px' }}>Chuyển hướng qua Cổng thanh toán bảo mật SePay</strong>
+                              <p style={{ color: '#666', fontSize: '13px', margin: '0 auto 24px auto', maxWidth: '500px', lineHeight: 1.5 }}>
+                                Hệ thống sẽ mở một trang thanh toán hosted bảo mật của SePay. Bạn có thể thanh toán thuận tiện qua thẻ ATM, chuyển khoản VietQR Napas, hoặc ví điện tử.
+                              </p>
+                              
+                              <div style={{ maxWidth: '360px', margin: '0 auto 24px auto', fontSize: '14px', color: '#555', background: '#f8f9fa', padding: '16px', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'left' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                  <span>Mã đơn hàng:</span>
+                                  <strong>TNPAY{activePayment.paymentId}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>Số tiền cần nộp:</span>
+                                  <strong style={{ color: '#e65100', fontWeight: 800 }}>{activePayment.amount.toLocaleString()}đ</strong>
+                                </div>
+                              </div>
+                              
+                              {Object.keys(checkoutData.fields).map(field => (
+                                <input key={field} type="hidden" name={field} value={checkoutData.fields[field]} />
+                              ))}
+                              
+                              <button 
+                                type="submit" 
+                                className={styles.payBtn}
+                                style={{ padding: '16px 40px', fontSize: '16px', background: 'linear-gradient(135deg, #0077b6, #0096c7)', boxShadow: '0 4px 15px rgba(0,119,182,0.25)' }}
+                              >
+                                ⚡ Đi tới Cổng SePay Checkout ngay
+                              </button>
+                            </form>
+                          ) : (
+                            <div style={{ padding: '48px', textAlign: 'center', color: '#888' }}>
+                              ⏳ Đang kết nối và thiết lập chữ ký bảo mật giao dịch SePay...
+                            </div>
+                          )}
+                        </div>
+
+                        <div className={styles.pollingStatusBox}>
+                          <span className={styles.pulseDot}></span>
+                          <span>🔄 Hệ thống đang chờ giao dịch chuyển khoản tự động... Trạng thái sẽ được cập nhật ngay lập tức khi nhận được tiền.</span>
+                        </div>
+
+                        <div className={styles.paymentActionRow} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <button 
+                            className={styles.simBtn}
+                            onClick={handleSimulateWebhook}
+                            disabled={paymentLoading}
+                          >
+                            {paymentLoading ? 'Đang gửi...' : '⚡ Giả lập chuyển khoản thành công (Test Webhook)'}
+                          </button>
+                          
+                          <button 
+                            className={styles.cancelPayBtn}
+                            onClick={() => {
+                              setActivePayment(null);
+                              setCheckoutData(null);
+                            }}
+                            disabled={paymentLoading}
+                          >
+                            Quay lại / Huỷ giao dịch
+                          </button>
+                        </div>
+                      </div>
+                    ) : feeStats.unpaidAmount > 0 ? (
+                      <div className={styles.paymentDetails}>
+                        <p style={{ fontSize: '15px', lineHeight: 1.6, marginBottom: '24px' }}>
+                          Bạn có <strong>{(feeStats.unpaidAmount).toLocaleString()}đ</strong> phí dịch vụ đặt bàn chưa thanh toán (tổng cộng <strong>{feeStats.unpaidBookingsCount} đơn</strong> đã hoàn thành).
+                          Vui lòng nhấn nút dưới đây để khởi tạo mã chuyển khoản tự động và hoàn tất nghĩa vụ phí.
+                        </p>
+                        
+                        <div className={styles.paymentActionRow}>
+                          <button 
+                            className={styles.payBtn}
+                            onClick={handleCreatePayment}
+                            disabled={paymentLoading}
+                            style={{ padding: '16px 36px', fontSize: '16px' }}
+                          >
+                            {paymentLoading ? 'Đang khởi tạo...' : '⚡ Khởi tạo mã chuyển khoản SePay'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.paymentSuccessState}>
+                        <span className={styles.successIcon}>🎉</span>
+                        <strong>Tuyệt vời! Bạn đã thanh toán đầy đủ phí dịch vụ.</strong>
+                        <p>Không có bất cứ khoản phí chưa thanh toán nào tại thời điểm này. Cảm ơn bạn đã luôn đồng hành và hợp tác cùng TableNow!</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className={styles.chartsLoading}>⏳ Đang tải thông tin phí...</div>
               )}
             </div>
           )}

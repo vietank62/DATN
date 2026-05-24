@@ -77,12 +77,12 @@ const LoginPage: React.FC = () => {
                     className={styles.input}
                     style={{ width: '100%', paddingRight: '40px', boxSizing: 'border-box' }}
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: 0 }}
                   >
-                    {showPassword ? "👁️" : "👁️‍🗨️"}
+                    {showPassword ? "👁️" : "🔒"}
                   </button>
                 </div>
               </div>

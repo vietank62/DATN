@@ -30,6 +30,10 @@ class Restaurant(SQLModel, table=True):
     status: str = Field(default="pending") # pending, active, rejected
     businessLicenseUrl: Optional[str] = None
     taxId: Optional[str] = None
+    rating: float = Field(default=0.0)
+    reviewCount: int = Field(default=0)
+    priceRange: str = Field(default="Chưa cập nhật")
+    promotion: Optional[str] = Field(default=None)
 
 
 
@@ -58,6 +62,7 @@ class Booking(SQLModel, table=True):
     contactPhone: str
     note: Optional[str] = None
     createdAt: Optional[str] = None
+    isPaid: bool = Field(default=False)
 
 class Review(SQLModel, table=True):
     reviewId: Optional[int] = Field(default=None, primary_key=True)
@@ -66,3 +71,14 @@ class Review(SQLModel, table=True):
     rating: int 
     comment: Optional[str] = None
     createdAt: Optional[str] = None
+
+class Payment(SQLModel, table=True):
+    paymentId: Optional[int] = Field(default=None, primary_key=True)
+    restaurantId: int = Field(foreign_key="restaurant.restaurantId")
+    amount: float
+    transactionCode: str = Field(unique=True, index=True)
+    status: str = Field(default="pending")
+    createdAt: str
+    paidAt: Optional[str] = None
+    bookingIds: Optional[str] = None
+    sepayTransactionId: Optional[str] = None

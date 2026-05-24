@@ -101,6 +101,7 @@ const RestaurantList: React.FC<RestaurantListProps> = ({
             totalSeats={restaurant.totalSeats}
             availableSeats={restaurant.availableSeats}
             description={restaurant.description}
+            promotion={restaurant.promotion}
             onBooking={() => onBooking?.(restaurant.id)}
             onClick={() => navigate(`/restaurant/${restaurant.id}`)}
           />
