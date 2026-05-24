@@ -1,6 +1,6 @@
 fastapi[standard]
 sqlmodel
-psycopg2
+psycopg2-binary
 pyjwt
 pwdlib
 alembic
