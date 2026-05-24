@@ -26,7 +26,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
     <section className={styles.heroSection}>
       <div className={styles.heroOverlay}>
         <div className={styles.heroContent}>
-          <span className={styles.badge}>🔥 Hơn 1,200+ nhà hàng đang chờ bạn</span>
           <h1 className={styles.heroTitle}>
             Khám phá & Đặt bàn<br />
             <span className={styles.highlight}>Nhà hàng yêu thích</span>
@@ -62,11 +61,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
           <button type="submit" className={styles.searchButton}>🔍 Tìm nhà hàng</button>
         </form>
 
-        <div className={styles.stats}>
-          <div><strong>1,200+</strong><span>Nhà hàng</span></div>
-          <div><strong>50,000+</strong><span>Đánh giá</span></div>
-          <div><strong>100,000+</strong><span>Lượt đặt bàn</span></div>
-        </div>
       </div>
     </section>
   );

@@ -1,5 +1,4 @@
-import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review } from '../types';
-import { cuisineTypes } from '../data/restaurants';
+import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review, BookingChartResponse, MenuChartResponse, StatusChartResponse, CuisineType } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -229,6 +228,7 @@ export async function registerUser(info: {
   email: string;
   phone: string;
   password: string;
+  role?: UserRole;
 }): Promise<User> {
   const data = await request<any>('/api/create-user/', {
     method: 'POST',
@@ -241,14 +241,18 @@ export async function registerUser(info: {
 
 // ─── Restaurants ──────────────────────────────────────────
 
-export const fetchRestaurants = async (filters?: FilterOptions): Promise<Restaurant[]> => {
+export const fetchCuisines = async (): Promise<CuisineType[]> => {
+  return request<CuisineType[]>('/api/cuisines/');
+};
+
+export const fetchRestaurants = async (filters?: FilterOptions, cuisinesList: CuisineType[] = []): Promise<Restaurant[]> => {
   const url = `/api/get-all-restaurant/`;
   const rawData = await request<any[]>(url);
   let data = rawData.map(mapRestaurant);
 
   if (filters) {
     if (filters.cuisineType && filters.cuisineType !== 'all') {
-      const selectedCuisine = cuisineTypes.find(c => c.id === filters.cuisineType);
+      const selectedCuisine = cuisinesList.find((c) => c.id === filters.cuisineType);
       const expectedLabel = selectedCuisine ? selectedCuisine.label : filters.cuisineType;
 
       data = data.filter((r) =>
@@ -526,7 +530,7 @@ export const deleteUser = async (email: string): Promise<void> => {
   await request(`/api/delete-user/${email}`, { method: 'DELETE' });
 };
 
-// ─── Statistics ───────────────────────────────────────────
+// ─── Statistics ─────────────────────────────────────
 
 export const fetchManagerStats = async (restaurantId: string): Promise<ManagerStats> => {
   return request<ManagerStats>(`/api/stats/manager/${restaurantId}`);
@@ -534,6 +538,21 @@ export const fetchManagerStats = async (restaurantId: string): Promise<ManagerSt
 
 export const fetchAdminStats = async (): Promise<AdminStats> => {
   return request<AdminStats>('/api/stats/admin');
+};
+
+export const fetchMonthlyBookings = async (restaurantId: string, year?: number): Promise<BookingChartResponse> => {
+  const url = year
+    ? `/api/stats/manager/${restaurantId}/monthly-bookings?year=${year}`
+    : `/api/stats/manager/${restaurantId}/monthly-bookings`;
+  return request<BookingChartResponse>(url);
+};
+
+export const fetchMenuDistribution = async (restaurantId: string): Promise<MenuChartResponse> => {
+  return request<MenuChartResponse>(`/api/stats/manager/${restaurantId}/menu-distribution`);
+};
+
+export const fetchBookingStatusDistribution = async (restaurantId: string): Promise<StatusChartResponse> => {
+  return request<StatusChartResponse>(`/api/stats/manager/${restaurantId}/booking-status`);
 };
 
 // ─── Reviews ──────────────────────────────────────────────
@@ -641,6 +660,9 @@ const api = {
   deleteUser,
   fetchManagerStats,
   fetchAdminStats,
+  fetchMonthlyBookings,
+  fetchMenuDistribution,
+  fetchBookingStatusDistribution,
   fetchReviews,
   createReview,
   registerPartner,

@@ -1,25 +1,8 @@
 import type { Restaurant, Booking, User, ManagerStats, AdminStats, MenuItem } from '../types';
 
-/* ========== DANH SÁCH ẨM THỰC ========== */
-export const cuisineTypes = [
-  { id: 'all', label: 'Tất cả', icon: '🍽️' },
-  { id: 'seafood', label: 'Hải sản', icon: '🦐' },
-  { id: 'european', label: 'Đồ Âu', icon: '🥩' },
-  { id: 'buffet', label: 'Buffet', icon: '🍱' },
-  { id: 'japanese', label: 'Nhật Bản', icon: '🍣' },
-  { id: 'korean', label: 'Hàn Quốc', icon: '🥘' },
-  { id: 'vietnamese', label: 'Việt Nam', icon: '🍜' },
-  { id: 'hotpot', label: 'Lẩu', icon: '♨️' },
-  { id: 'bbq', label: 'Nướng', icon: '🔥' },
-  { id: 'chinese', label: 'Trung Hoa', icon: '🥟' },
-  { id: 'thai', label: 'Thái Lan', icon: '🌶️' },
-  { id: 'vegetarian', label: 'Món Chay', icon: '🥗' },
-  { id: 'fastfood', label: 'Thức ăn nhanh', icon: '🍔' },
-  { id: 'cafe', label: 'Café & Trà', icon: '☕' },
-  { id: 'finedining', label: 'Sang trọng', icon: '✨' },
-];
 
 export const priceRanges = [
+
   { id: 'all', label: 'Tất cả' },
   { id: 'under200', label: 'Dưới 200K' },
   { id: '200to500', label: '200K - 500K' },

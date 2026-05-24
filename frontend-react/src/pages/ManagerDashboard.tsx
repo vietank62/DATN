@@ -3,6 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './ManagerDashboard.module.css';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+  Title,
+} from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
 import { 
   fetchBookings, 
   fetchRestaurants, 
@@ -13,13 +24,19 @@ import {
   createMenuItem as apiCreateMenuItem, 
   updateMenuItem as apiUpdateMenuItem, 
   deleteMenuItem as apiDeleteMenuItem,
-  updateUser as apiUpdateUser
+  updateUser as apiUpdateUser,
+  fetchMonthlyBookings,
+  fetchMenuDistribution,
+  fetchBookingStatusDistribution,
 } from '../services/api';
-import type { Booking, ManagerStats, Restaurant, MenuItem } from '../types';
+import type { Booking, ManagerStats, Restaurant, MenuItem, BookingChartResponse, MenuChartResponse, StatusChartResponse } from '../types';
 import SeatStatusBadge from '../components/SeatStatusBadge/SeatStatusBadge';
 import ManagerBookingAction from '../components/ManagerBookingAction/ManagerBookingAction';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
-import { cuisineTypes } from '../data/restaurants';
+// Register ChartJS components
+
+// Register ChartJS components
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, Title);
 
 const emptyMenuItem: Omit<MenuItem, 'id'> = {
   name: '', description: '', price: 0, imageUrl: '', category: '', available: true,
@@ -34,7 +51,8 @@ const defaultRestaurant: Restaurant = {
 
 const ManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user: authUser, logout, updateUser: updateContextUser } = useAuth();
+  const { user: authUser, logout, updateUser: updateContextUser, cuisines } = useAuth();
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState<ManagerStats>({ 
     totalBookings: 0, todayBookings: 0, totalRevenue: 0, 
@@ -64,6 +82,17 @@ const ManagerDashboard: React.FC = () => {
   // Profile state
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', phone: '', password: '', confirmPassword: '' });
+
+  // Note modal state
+  const [viewingNote, setViewingNote] = useState<{ bookingId: string; note: string; contactName: string } | null>(null);
+
+  // Chart data state
+  const [chartYear, setChartYear] = useState<number>(new Date().getFullYear());
+  const [monthlyData, setMonthlyData] = useState<BookingChartResponse | null>(null);
+  const [menuDistData, setMenuDistData] = useState<MenuChartResponse | null>(null);
+  const [statusData, setStatusData] = useState<StatusChartResponse | null>(null);
+  const [chartsLoading, setChartsLoading] = useState(false);
+
 
   const DISTRICTS = [
     'Quận 1','Quận 2','Quận 3','Quận 4','Quận 5','Quận 6','Quận 7',
@@ -127,6 +156,33 @@ const ManagerDashboard: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [authUser, restaurant.id]);
+
+  // Load chart data when stats tab is active or restaurantId changes
+  useEffect(() => {
+    if (activeTab === 'stats' && restaurant.id) {
+      loadChartData(restaurant.id, chartYear);
+    }
+  }, [activeTab, restaurant.id, chartYear]);
+
+  const loadChartData = async (restaurantId: string, year: number) => {
+    setChartsLoading(true);
+    try {
+      const [monthly, menuDist, statusDist] = await Promise.all([
+        fetchMonthlyBookings(restaurantId, year),
+        fetchMenuDistribution(restaurantId),
+        fetchBookingStatusDistribution(restaurantId),
+      ]);
+      setMonthlyData(monthly);
+      setMenuDistData(menuDist);
+      setStatusData(statusDist);
+    } catch (err) {
+      console.error('Chart data error:', err);
+      toast.error('Lỗi khi tải dữ liệu thống kê');
+    } finally {
+      setChartsLoading(false);
+    }
+  };
+
 
   const handleLogout = async () => {
     await logout();
@@ -204,7 +260,7 @@ const ManagerDashboard: React.FC = () => {
         setMenuItems((prev) => prev.map((item) => item.id === editingMenuItem.id ? updated : item));
         toast.success('Cập nhật món ăn thành công', { id: loadingToast });
       } else {
-        const created = await apiCreateMenuItem({ ...menuForm, restaurantId: Number(restaurant.id) });
+        const created = await apiCreateMenuItem({ ...menuForm, restaurantId: restaurant.id });
         setMenuItems((prev) => [...prev, created]);
         toast.success('Thêm món ăn thành công', { id: loadingToast });
       }
@@ -326,8 +382,9 @@ const ManagerDashboard: React.FC = () => {
                     <tr>
                       <th>Mã</th>
                       <th>Khách hàng</th>
-                      <th>Ngày & Giờ</th>
+                      <th>Ngày &amp; Giờ</th>
                       <th>Khách</th>
+                      <th>Ghi chú</th>
                       <th>Trạng thái</th>
                       <th>Hành động</th>
                     </tr>
@@ -335,7 +392,7 @@ const ManagerDashboard: React.FC = () => {
                   <tbody>
                     {filteredBookings.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '32px' }}>
                           Không tìm thấy đơn đặt bàn nào phù hợp.
                         </td>
                       </tr>
@@ -350,14 +407,32 @@ const ManagerDashboard: React.FC = () => {
                         <td>{booking.date} {booking.time}</td>
                         <td>{booking.guestCount}</td>
                         <td>
+                          {booking.note ? (
+                            <button
+                              className={styles.noteBtn}
+                              onClick={() => setViewingNote({ bookingId: booking.id, note: booking.note, contactName: booking.contactInfo.name })}
+                              title={booking.note}
+                            >
+                              📝 Xem ghi chú
+                            </button>
+                          ) : (
+                            <span className={styles.noNote}>—</span>
+                          )}
+                        </td>
+                        <td>
                           <span className={`${styles.statusBadge} ${styles[booking.status]}`}>
-                            {booking.status}
+                            {booking.status === 'pending' ? 'Chờ' :
+                             booking.status === 'confirmed' ? 'Xác nhận' :
+                             booking.status === 'completed' ? 'Hoàn thành' : 'Huỷ'}
                           </span>
                         </td>
                         <td>
                           <div className={styles.actionGroup}>
                             {booking.status === 'pending' && (
                               <button onClick={() => handleStatusChange(booking.id, 'confirmed')} className={styles.confirmBtn}>Xác nhận</button>
+                            )}
+                            {booking.status === 'confirmed' && (
+                              <button onClick={() => handleStatusChange(booking.id, 'completed')} className={styles.completeBtn}>Xong</button>
                             )}
                             {['pending', 'confirmed'].includes(booking.status) && (
                               <button onClick={() => handleStatusChange(booking.id, 'cancelled')} className={styles.cancelBtn}>Huỷ</button>
@@ -369,8 +444,8 @@ const ManagerDashboard: React.FC = () => {
                     )}
                   </tbody>
                 </table>
-              </div>
-            </div>
+        </div>
+          </div>
           );
         })()}
 
@@ -385,9 +460,13 @@ const ManagerDashboard: React.FC = () => {
                   <div className={styles.restaurantHeroOverlay}>
                     <h2>{restaurant.name}</h2>
                     <div className={styles.restaurantBadges}>
-                      {restaurant.cuisine.map(c => <span key={c} className={styles.cuisineBadge}>{c}</span>)}
+                      {restaurant.cuisine.map(c => {
+                        const cuisine = cuisines.find(ct => ct.id === c || ct.label === c);
+                        return <span key={c} className={styles.cuisineBadge}>{cuisine ? `${cuisine.icon} ${cuisine.label}` : c}</span>;
+                      })}
                       {restaurant.featured && <span className={styles.featuredBadge}>⭐ Nổi bật</span>}
                     </div>
+
                   </div>
                 </div>
               )}
@@ -432,7 +511,7 @@ const ManagerDashboard: React.FC = () => {
                       <div className={`${styles.editFormGroup} ${styles.editFormGroupFull}`}>
                         <label>Loại ẩm thực (Chọn nhiều)</label>
                         <div className={styles.cuisineGrid}>
-                          {cuisineTypes.filter(c => c.id !== 'all').map(c => (
+                          {cuisines.filter(c => c.id !== 'all').map(c => (
                             <label key={c.id} className={styles.checkboxLabel}>
                               <input type="checkbox" checked={editForm.cuisine.includes(c.id)} onChange={() => toggleCuisine(c.id)} />
                               <span>{c.icon} {c.label}</span>
@@ -531,24 +610,145 @@ const ManagerDashboard: React.FC = () => {
 
           {activeTab === 'stats' && (
             <div className={styles.statsSection}>
-              <h2>Thống kê kinh doanh</h2>
-              <div className={styles.statsGrid}>
-                <div className={styles.statCard}>
-                  <span>Tổng đơn</span>
-                  <h3>{stats.totalBookings}</h3>
-                </div>
-                <div className={styles.statCard}>
-                  <span>Doanh thu dự kiến</span>
-                  <h3>{stats.totalRevenue.toLocaleString()}đ</h3>
-                </div>
-                <div className={styles.statCard}>
-                  <span>Đánh giá TB</span>
-                  <h3>⭐ {stats.avgRating.toFixed(1)}</h3>
-                </div>
+              {/* Summary cards */}
+              <div className={styles.statsSummaryGrid}>
+                <div className={styles.summaryCard}><div className={styles.summaryIcon}>📋</div><div><div className={styles.summaryValue}>{stats.totalBookings}</div><div className={styles.summaryLabel}>Tổng đơn</div></div></div>
+                <div className={styles.summaryCard}><div className={styles.summaryIcon}>📅</div><div><div className={styles.summaryValue}>{stats.todayBookings}</div><div className={styles.summaryLabel}>Hôm nay</div></div></div>
+                <div className={styles.summaryCard}><div className={styles.summaryIcon}>⏳</div><div><div className={styles.summaryValue}>{stats.pendingBookings}</div><div className={styles.summaryLabel}>Chờ xác nhận</div></div></div>
+                <div className={styles.summaryCard}><div className={styles.summaryIcon}>⭐</div><div><div className={styles.summaryValue}>{stats.avgRating.toFixed(1)}</div><div className={styles.summaryLabel}>Đánh giá TB</div></div></div>
               </div>
+
+              {chartsLoading ? (
+                <div className={styles.chartsLoading}>⏳ Đang tải dữ liệu thống kê...</div>
+              ) : (
+                <div className={styles.chartsGrid}>
+                  {/* Chart 1: Monthly Bookings */}
+                  <div className={styles.chartCard} style={{ gridColumn: '1 / -1' }}>
+                    <div className={styles.chartHeader}>
+                      <div>
+                        <h3>📊 Số đơn đặt bàn theo tháng</h3>
+                        <p className={styles.chartSubtitle}>Năm {monthlyData?.year || chartYear} — Tổng: <strong>{monthlyData?.totalYear ?? 0} đơn</strong></p>
+                      </div>
+                      <div className={styles.yearSelector}>
+                        <button onClick={() => setChartYear(y => y - 1)} className={styles.yearBtn}>‹</button>
+                        <span className={styles.yearLabel}>{chartYear}</span>
+                        <button onClick={() => setChartYear(y => y + 1)} className={styles.yearBtn}>›</button>
+                      </div>
+                    </div>
+                    <div className={styles.chartWrap}>
+                      <Bar
+                        data={{
+                          labels: monthlyData?.monthly.map(m => m.label) || [],
+                          datasets: [{
+                            label: 'Số đơn',
+                            data: monthlyData?.monthly.map(m => m.count) || [],
+                            backgroundColor: 'rgba(230,81,0,0.7)',
+                            borderColor: '#e65100',
+                            borderWidth: 2,
+                            borderRadius: 6,
+                          }]
+                        }}
+                        options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.parsed.y} đơn` } } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }}
+                      />
+                    </div>
+                    <div className={styles.totalYearBadge}>
+                      Tổng năm {monthlyData?.year || chartYear}: <strong>{monthlyData?.totalYear ?? 0} đơn đặt bàn</strong>
+                    </div>
+                  </div>
+
+                  {/* Chart 2: Menu Distribution */}
+                  <div className={styles.chartCard}>
+                    <div className={styles.chartHeader}>
+                      <div>
+                        <h3>🍽️ Tỉ lệ danh mục thực đơn</h3>
+                        <p className={styles.chartSubtitle}>Tổng: {menuDistData?.totalItems ?? 0} món ăn</p>
+                      </div>
+                    </div>
+                    <div className={styles.chartWrapSmall}>
+                      {menuDistData && menuDistData.distribution.length > 0 ? (
+                        <Doughnut
+                          data={{
+                            labels: menuDistData.distribution.map(d => d.category),
+                            datasets: [{
+                              data: menuDistData.distribution.map(d => d.count),
+                              backgroundColor: ['#e65100','#ff9800','#ffc107','#4caf50','#2196f3','#9c27b0','#f44336','#00bcd4'],
+                              borderWidth: 2,
+                            }]
+                          }}
+                          options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.parsed} món (${menuDistData.distribution[ctx.dataIndex]?.percentage}%)` } } } }}
+                        />
+                      ) : <div className={styles.noChartData}>Chưa có dữ liệu thực đơn</div>}
+                    </div>
+                    {menuDistData && menuDistData.distribution.length > 0 && (
+                      <div className={styles.legendList}>
+                        {menuDistData.distribution.map((d, i) => (
+                          <div key={d.category} className={styles.legendItem}>
+                            <span className={styles.legendDot} style={{ background: ['#e65100','#ff9800','#ffc107','#4caf50','#2196f3','#9c27b0','#f44336','#00bcd4'][i] }} />
+                            <span>{d.category}: {d.count} món ({d.percentage}%)</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Chart 3: Booking Status */}
+                  <div className={styles.chartCard}>
+                    <div className={styles.chartHeader}>
+                      <div>
+                        <h3>📈 Tỉ lệ trạng thái đặt bàn</h3>
+                        <p className={styles.chartSubtitle}>Tổng: {statusData?.totalBookings ?? 0} đơn</p>
+                      </div>
+                    </div>
+                    <div className={styles.chartWrapSmall}>
+                      {statusData && statusData.distribution.length > 0 ? (
+                        <Doughnut
+                          data={{
+                            labels: statusData.distribution.map(d => d.status),
+                            datasets: [{
+                              data: statusData.distribution.map(d => d.count),
+                              backgroundColor: ['#ff9800','#4caf50','#2196f3','#f44336'],
+                              borderWidth: 2,
+                            }]
+                          }}
+                          options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.parsed} đơn (${statusData.distribution[ctx.dataIndex]?.percentage}%)` } } } }}
+                        />
+                      ) : <div className={styles.noChartData}>Chưa có dữ liệu đặt bàn</div>}
+                    </div>
+                    {statusData && statusData.distribution.length > 0 && (
+                      <div className={styles.legendList}>
+                        {statusData.distribution.map((d, i) => (
+                          <div key={d.status} className={styles.legendItem}>
+                            <span className={styles.legendDot} style={{ background: ['#ff9800','#4caf50','#2196f3','#f44336'][i] }} />
+                            <span>{d.status}: {d.count} đơn ({d.percentage}%)</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>
+
+      {/* Note viewing modal */}
+      {viewingNote && (
+        <div className={styles.modalOverlay} onClick={() => setViewingNote(null)}>
+          <div className={`${styles.modal} ${styles.modalSmall}`} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>📝 Ghi chú của {viewingNote.contactName}</h2>
+              <button className={styles.modalClose} onClick={() => setViewingNote(null)}>&times;</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{viewingNote.note}</p>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.cancelEditBtn} onClick={() => setViewingNote(null)}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Món ăn */}
       {showMenuModal && (
         <div className={styles.modalOverlay} onClick={() => setShowMenuModal(false)}>

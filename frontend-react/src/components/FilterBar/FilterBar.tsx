@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import styles from './FilterBar.module.css';
-import { cuisineTypes, priceRanges, districts } from '../../data/restaurants';
+import { priceRanges, districts } from '../../data/restaurants';
 import type { FilterOptions } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FilterBarProps {
   filters: FilterOptions;
@@ -10,9 +11,12 @@ interface FilterBarProps {
 }
 
 const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, resultCount }) => {
+  const { cuisines } = useAuth();
+  
   const updateFilter = (key: keyof FilterOptions, value: string | number) => {
     onFilterChange({ ...filters, [key]: value });
   };
+
 
   const hasActiveFilters = filters.cuisineType !== 'all' || filters.priceRange !== 'all' ||
     filters.area !== 'Tất cả' || filters.rating > 0 || !!filters.query;
@@ -25,7 +29,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, resultCo
     <div id="restaurant-section" className={styles.filterBar}>
       {/* Cuisine chips */}
       <div className={styles.cuisineRow}>
-        {cuisineTypes.map((c) => (
+        {cuisines.map((c) => (
           <button
             key={c.id}
             className={`${styles.chip} ${filters.cuisineType === c.id ? styles.chipActive : ''}`}
@@ -35,6 +39,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, resultCo
           </button>
         ))}
       </div>
+
 
       {/* Filters row */}
       <div className={styles.filtersRow}>

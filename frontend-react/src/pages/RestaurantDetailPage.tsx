@@ -6,13 +6,13 @@ import type { Restaurant, Review } from '../types';
 import BookingModal from '../components/BookingModal/BookingModal';
 import type { BookingFormData } from '../components/BookingModal/BookingModal';
 import SeatStatusBadge from '../components/SeatStatusBadge/SeatStatusBadge';
-import { cuisineTypes } from '../data/restaurants';
 import styles from './RestaurantDetailPage.module.css';
 
 const RestaurantDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user: authUser, isAuthenticated } = useAuth();
+  const { user: authUser, isAuthenticated, cuisines } = useAuth();
+
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setModalOpen] = useState(false);
@@ -194,7 +194,7 @@ const RestaurantDetailPage: React.FC = () => {
           <div className={styles.badges}>
             {restaurant.featured && <span className={styles.featuredBadge}>⭐ Nổi bật</span>}
             {restaurant.cuisine && Array.isArray(restaurant.cuisine) && restaurant.cuisine.map((cId) => {
-              const cLabel = cuisineTypes.find(c => c.id === cId);
+              const cLabel = cuisines.find(c => c.id === cId);
               return cLabel ? (
                 <span key={cId} className={styles.cuisineBadge}>{cLabel.icon} {cLabel.label}</span>
               ) : null;

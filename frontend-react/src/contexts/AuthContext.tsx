@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { User, UserRole } from '../types';
-import { loginUser, logoutUser, getActiveUser } from '../services/api';
+import type { User, UserRole, CuisineType } from '../types';
+import { loginUser, logoutUser, getActiveUser, fetchCuisines } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -8,6 +8,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; role: UserRole; name: string }>;
   logout: () => void;
   updateUser: (updatedUser: User) => void;
+  cuisines: CuisineType[];
+  loadingCuisines: boolean;
+
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +20,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem('tablenow_user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [cuisines, setCuisines] = useState<CuisineType[]>([]);
+  const [loadingCuisines, setLoadingCuisines] = useState<boolean>(true);
+
 
   // On mount, if we have a token try to fetch the active user
   useEffect(() => {
@@ -35,6 +41,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetchCuisines()
+      .then((data) => {
+        setCuisines(data);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch cuisines:', err);
+      })
+      .finally(() => {
+        setLoadingCuisines(false);
+      });
+  }, []);
+
 
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; role: UserRole; name: string }> => {
     try {
@@ -61,10 +81,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, updateUser, cuisines, loadingCuisines }}>
       {children}
     </AuthContext.Provider>
   );
+
 };
 
 export const useAuth = (): AuthContextType => {

@@ -6,7 +6,7 @@ import { fetchRestaurants, fetchBookings, fetchAllUsers, fetchAdminStats, create
 import type { Restaurant, Booking, User, AdminStats, UserRole } from '../types';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
 import styles from './AdminDashboard.module.css';
-import { cuisineTypes } from '../data/restaurants';
+
 
 const emptyRestaurant: Omit<Restaurant, 'id'> = {
   name: '', address: '', district: '', cuisine: [], priceRange: '',
@@ -22,7 +22,7 @@ const emptyUser: Omit<User, 'id'> = {
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user: authUser, logout } = useAuth();  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const { user: authUser, logout, cuisines } = useAuth();  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<AdminStats>({ totalRestaurants: 0, totalUsers: 0, totalBookings: 0, totalRevenue: 0, activeRestaurants: 0, newUsersThisMonth: 0 });
@@ -581,7 +581,7 @@ const AdminDashboard: React.FC = () => {
                 <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                   <label>Loại ẩm thực (Chọn nhiều) *</label>
                   <div className={styles.cuisineGrid}>
-                    {cuisineTypes.filter(c => c.id !== 'all').map((cuisine) => (
+                    {cuisines.filter(c => c.id !== 'all').map((cuisine) => (
                       <label key={cuisine.id} className={styles.checkboxLabel}>
                         <input
                           type="checkbox"

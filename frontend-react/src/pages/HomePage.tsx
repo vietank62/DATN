@@ -5,6 +5,7 @@ import FilterBar from '../components/FilterBar/FilterBar';
 import RestaurantList from '../components/RestaurantList/RestaurantList';
 import { fetchRestaurants } from '../services/api';
 import type { Restaurant, FilterOptions } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const defaultFilters: FilterOptions = {
   cuisineType: 'all',
@@ -20,6 +21,8 @@ const HomePage: React.FC = () => {
   const [filters, setFilters] = useState<FilterOptions>(defaultFilters);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { cuisines } = useAuth();
+
   
   // Update filters if URL query changes
   useEffect(() => {
@@ -31,14 +34,15 @@ const HomePage: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await fetchRestaurants(currentFilters);
+      const data = await fetchRestaurants(currentFilters, cuisines);
       setRestaurants(data);
     } catch (err) {
       setError('Không thể tải danh sách nhà hàng. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [cuisines]);
+
 
   useEffect(() => {
     loadRestaurants(filters);

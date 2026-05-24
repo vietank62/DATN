@@ -1347,3 +1347,209 @@
     padding: 0 16px 16px;
   }
 }
+
+/* ===== Note Button ===== */
+.noteBtn {
+  padding: 5px 10px;
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.noteBtn:hover {
+  background: #ffe0b2;
+  border-color: #e65100;
+}
+
+/* ===== Stats Section ===== */
+.statsSection {
+  padding: 32px;
+}
+
+.statsSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.summaryCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.summaryCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+.summaryIcon {
+  font-size: 28px;
+  width: 52px;
+  height: 52px;
+  background: #fff3e0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summaryValue {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  line-height: 1;
+}
+
+.summaryLabel {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.chartsLoading {
+  text-align: center;
+  padding: 60px;
+  color: #888;
+  font-size: 16px;
+}
+
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.chartCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.chartHeader h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 4px;
+}
+
+.chartSubtitle {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+}
+
+.chartWrap {
+  height: 280px;
+  position: relative;
+}
+
+.chartWrapSmall {
+  height: 240px;
+  position: relative;
+}
+
+.totalYearBadge {
+  margin-top: 16px;
+  text-align: center;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+  border-radius: 10px;
+  font-size: 14px;
+  color: #e65100;
+}
+
+.noChartData {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #bbb;
+  font-size: 14px;
+}
+
+.yearSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yearBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e0e0e0;
+  background: #f5f5f5;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #555;
+}
+.yearBtn:hover {
+  background: #fff3e0;
+  border-color: #e65100;
+  color: #e65100;
+}
+
+.yearLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  min-width: 40px;
+  text-align: center;
+}
+
+.legendList {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #555;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  .statsSummaryGrid { grid-template-columns: repeat(2, 1fr); }
+  .chartsGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .statsSection { padding: 16px; }
+  .statsSummaryGrid { grid-template-columns: 1fr 1fr; gap: 12px; }
+}
