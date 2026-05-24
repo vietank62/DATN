@@ -57,7 +57,7 @@ def get_all_restaurants(session: SessionDep):
         Restaurant,
         func.count(Review.reviewId).label("reviewCount"),
         func.avg(Review.rating).label("avgRating")
-    ).outerjoin(Review, Restaurant.restaurantId == Review.restaurantId).group_by(Restaurant.restaurantId).all()
+    ).outerjoin(Review, Restaurant.restaurantId == Review.restaurantId).filter(Restaurant.status == "active").group_by(Restaurant.restaurantId).all()
 
     response = []
     
@@ -125,3 +125,28 @@ def update_restaurant_by_id(restaurant_id: int, updated_restaurant: RestaurantUp
         session.refresh(restaurant)
         return get_restaurant_with_stats(restaurant, session)
     return {"message": "Restaurant not found"}
+
+@router.get("/api/admin/pending-restaurants/", tags=["Admin"])
+def get_pending_restaurants(session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    restaurants = session.query(Restaurant).filter(Restaurant.status == "pending").all()
+    return [r.model_dump() for r in restaurants]
+
+@router.patch("/api/admin/approve-restaurant/{restaurant_id}", tags=["Admin"])
+def approve_restaurant(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == restaurant_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    
+    restaurant.status = "active"
+    session.commit()
+    return {"message": "Restaurant approved successfully"}
+
+@router.patch("/api/admin/reject-restaurant/{restaurant_id}", tags=["Admin"])
+def reject_restaurant(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    restaurant = session.query(Restaurant).filter(Restaurant.restaurantId == restaurant_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    
+    restaurant.status = "rejected"
+    session.commit()
+    return {"message": "Restaurant rejected"}

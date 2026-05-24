@@ -12,7 +12,8 @@ from pydantic import BaseModel, ValidationError
 from models import  User
 from database import SessionDep
 from sqlmodel import Session, select
-from schemas import UserOut, Token, TokenData
+from schemas import UserOut, Token, TokenData, PartnerRegister
+from models import Restaurant
 
 router = APIRouter()
 # SECRET_KEY loaded from .env – generate with: openssl rand -hex 32
@@ -202,5 +203,39 @@ def read_users_me(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     return current_user
+
+@router.post("/api/authentication/register-partner", tags=["Authentication"])
+def register_partner(partner_data: PartnerRegister, session: SessionDep):
+    # Kiểm tra email tồn tại
+    existing_user = session.execute(select(User).where(User.email == partner_data.user.email)).scalars().first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email đã được sử dụng")
+    
+    # Tạo tài khoản manager
+    user_db = User(
+        name=partner_data.user.name,
+        email=partner_data.user.email,
+        phone=partner_data.user.phone,
+        password=pwd_context.hash(partner_data.user.password),
+        role="manager",
+        createdAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+    session.add(user_db)
+    session.commit()
+    session.refresh(user_db)
+    
+    # Tạo nhà hàng ở trạng thái pending
+    # Loại bỏ managerID từ data đầu vào để dùng ID của user vừa tạo
+    restaurant_data = partner_data.restaurant.model_dump(exclude={"managerID"})
+    restaurant_db = Restaurant(
+        **restaurant_data,
+        managerID=user_db.userId,
+        status="pending"
+    )
+    session.add(restaurant_db)
+    session.commit()
+    session.refresh(restaurant_db)
+    
+    return {"message": "Đăng ký đối tác thành công. Vui lòng chờ Admin phê duyệt.", "restaurantId": restaurant_db.restaurantId}
 
 

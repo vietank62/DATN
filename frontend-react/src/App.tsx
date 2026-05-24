@@ -18,6 +18,7 @@ import RestaurantDetailPage from './pages/RestaurantDetailPage';
 import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import RegisterPage from './pages/RegisterPage';
+import PartnerRegisterPage from './pages/PartnerRegisterPage';
 import NewRestaurantPage from './pages/NewRestaurantPage';
 import ManagerDashboard from './pages/ManagerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -41,6 +42,7 @@ const App: React.FC = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register-partner" element={<PartnerRegisterPage />} />
         <Route path="/new-restaurant" element={<NewRestaurantPage />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/manager-dashboard" element={<ManagerDashboard />} />

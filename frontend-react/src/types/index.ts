@@ -29,6 +29,9 @@ export interface Restaurant {
   totalSeats: number;
   availableSeats: number;
   managerID?: number;
+  status?: 'pending' | 'active' | 'rejected';
+  businessLicenseUrl?: string;
+  taxId?: string;
 }
 
 export interface Booking {

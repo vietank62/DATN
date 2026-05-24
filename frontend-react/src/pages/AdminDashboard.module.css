@@ -822,3 +822,63 @@
   cursor: pointer;
 }
 
+
+/* ===== Pending Requests ===== */
+.badge {
+  background: #ff4757;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.legalInfoCell {
+  font-size: 0.85rem;
+}
+
+.legalInfoCell code {
+  background: #f1f2f6;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.viewLicenseBtn {
+  display: inline-block;
+  margin-top: 4px;
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.viewLicenseBtn:hover {
+  text-decoration: underline;
+}
+
+.approveBtn {
+  padding: 5px 12px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.approveBtn:hover {
+  background: #c8e6c9;
+}
+
+.emptyState {
+  padding: 3rem;
+  text-align: center;
+  color: #747d8c;
+  background: white;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-style: italic;
+}

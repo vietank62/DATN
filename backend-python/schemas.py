@@ -47,7 +47,9 @@ class RestaurantCreate(BaseModel):
     phone: str
     totalSeats: int
     availableSeats: int
-    managerID: int
+    managerID: Optional[int] = None
+    businessLicenseUrl: Optional[str] = None
+    taxId: Optional[str] = None
 
 class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
@@ -142,3 +144,7 @@ class ReviewOut(BaseModel):
     
     class Config:
         from_attributes = True
+
+class PartnerRegister(BaseModel):
+    user: UserRegister
+    restaurant: RestaurantCreate

@@ -175,6 +175,24 @@ def cancel_booking(id: int, background_tasks: BackgroundTasks, session: SessionD
     if booking.status == "cancelled":
         raise HTTPException(status_code=400, detail="Booking already cancelled")
     
+    # Kiểm tra thời gian hủy (phải trước 2 tiếng)
+    try:
+        # Giả định booking.date là "YYYY-MM-DD" và booking.time là "HH:MM"
+        booking_datetime_str = f"{booking.date} {booking.time}"
+        booking_datetime = datetime.fromisoformat(booking_datetime_str) if 'T' in booking_datetime_str else datetime.strptime(booking_datetime_str, "%Y-%m-%d %H:%M")
+        
+        now = datetime.now()
+        time_diff = booking_datetime - now
+        
+        if time_diff.total_seconds() < 2 * 3600:
+            raise HTTPException(
+                status_code=400, 
+                detail="Bạn chỉ có thể hủy bàn trước thời gian đặt ít nhất 2 tiếng."
+            )
+    except ValueError:
+        # Nếu định dạng ngày giờ không khớp, bỏ qua kiểm tra này hoặc log lỗi
+        pass
+
     if booking.status == "completed":
         raise HTTPException(status_code=400, detail="Cannot cancel completed booking")
     if booking.status == "confirmed" and booking.assignedSeats > 0:

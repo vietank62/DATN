@@ -227,6 +227,22 @@
 .cancelBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  border-color: #ddd;
+  color: #999;
+  background: #f5f5f5;
+}
+
+.cancelWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.cancelNotice {
+  font-size: 0.75rem;
+  color: #ff4757;
+  font-style: italic;
 }
 
 /* ── Responsive ── */

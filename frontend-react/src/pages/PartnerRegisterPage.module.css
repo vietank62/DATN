@@ -1,0 +1,99 @@
+.stepper {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.step {
+  color: #999;
+  font-weight: 500;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.step.active {
+  color: #ff4757;
+}
+
+.stepContent h3 {
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  color: #2f3542;
+}
+
+.cuisineGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.checkboxLabel:hover {
+  background: #e9ecef;
+}
+
+.btnRow {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.backBtn {
+  flex: 1;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: #747d8c;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.licenseUpload {
+  border: 2px dashed #ddd;
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  background: #fafafa;
+}
+
+.licensePreview {
+  position: relative;
+}
+
+.licensePreview img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+}
+
+.licensePreview button {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}

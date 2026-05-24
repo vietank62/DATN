@@ -77,6 +77,19 @@ const MyBookingsPage: React.FC = () => {
     return map[status] || '';
   };
 
+  const canCancel = (bookingDate: string, bookingTime: string) => {
+    try {
+      // Đảm bảo format date và time khớp (YYYY-MM-DD và HH:mm)
+      const bookingDateTime = new Date(`${bookingDate}T${bookingTime}`);
+      const now = new Date();
+      const diffMs = bookingDateTime.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return diffHours >= 2;
+    } catch {
+      return false;
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -152,13 +165,19 @@ const MyBookingsPage: React.FC = () => {
                   Đặt lúc: {booking.createdAt || '—'}
                 </span>
                 {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                  <button
-                    className={styles.cancelBtn}
-                    disabled={cancellingId === booking.id}
-                    onClick={() => handleCancel(booking.id)}
-                  >
-                    {cancellingId === booking.id ? 'Đang huỷ...' : 'Huỷ đặt bàn'}
-                  </button>
+                  <div className={styles.cancelWrapper}>
+                    <button
+                      className={styles.cancelBtn}
+                      disabled={cancellingId === booking.id || !canCancel(booking.date, booking.time)}
+                      onClick={() => handleCancel(booking.id)}
+                      title={!canCancel(booking.date, booking.time) ? 'Chỉ có thể huỷ trước 2 tiếng' : ''}
+                    >
+                      {cancellingId === booking.id ? 'Đang huỷ...' : 'Huỷ đặt bàn'}
+                    </button>
+                    {!canCancel(booking.date, booking.time) && (
+                      <span className={styles.cancelNotice}>Hết hạn huỷ (trước 2h)</span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

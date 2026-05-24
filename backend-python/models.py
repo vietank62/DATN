@@ -27,6 +27,9 @@ class Restaurant(SQLModel, table=True):
     totalSeats: int
     availableSeats: int
     managerID : int = Field(foreign_key="user.userId")
+    status: str = Field(default="pending") # pending, active, rejected
+    businessLicenseUrl: Optional[str] = None
+    taxId: Optional[str] = None
 
 
 

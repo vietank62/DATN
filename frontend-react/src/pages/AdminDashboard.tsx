@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import { fetchRestaurants, fetchBookings, fetchAllUsers, fetchAdminStats, createRestaurant, updateRestaurant as apiUpdateRestaurant, deleteRestaurant as apiDeleteRestaurant, registerUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from '../services/api';
+import { fetchRestaurants, fetchBookings, fetchAllUsers, fetchAdminStats, createRestaurant, updateRestaurant as apiUpdateRestaurant, deleteRestaurant as apiDeleteRestaurant, registerUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser, fetchPendingRestaurants, approveRestaurant, rejectRestaurant } from '../services/api';
 import type { Restaurant, Booking, User, AdminStats, UserRole } from '../types';
 import ImageUpload from '../components/ImageUpload/ImageUpload';
 import styles from './AdminDashboard.module.css';
@@ -13,6 +13,7 @@ const emptyRestaurant: Omit<Restaurant, 'id'> = {
   rating: 0, reviewCount: 0, imageUrl: [], description: '',
   openTime: '10:00', closeTime: '22:00', phone: '', featured: false, menu: [],
   totalSeats: 0, availableSeats: 0, managerID: 0,
+  businessLicenseUrl: '', taxId: '',
 };
 
 const emptyUser: Omit<User, 'id'> = {
@@ -26,7 +27,8 @@ const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<AdminStats>({ totalRestaurants: 0, totalUsers: 0, totalBookings: 0, totalRevenue: 0, activeRestaurants: 0, newUsersThisMonth: 0 });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'restaurants' | 'users' | 'bookings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'restaurants' | 'users' | 'bookings' | 'pending'>('overview');
+  const [pendingRestaurants, setPendingRestaurants] = useState<Restaurant[]>([]);
 
   // Modal states
   const [showRestaurantModal, setShowRestaurantModal] = useState(false);
@@ -41,16 +43,18 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [rData, bData, uData, sData] = await Promise.all([
+        const [rData, bData, uData, sData, pData] = await Promise.all([
           fetchRestaurants(),
           fetchBookings(),
           fetchAllUsers(),
           fetchAdminStats(),
+          fetchPendingRestaurants(),
         ]);
         setRestaurants(rData);
         setBookings(bData);
         setUsers(uData);
         setStats(sData);
+        setPendingRestaurants(pData);
       } catch (err) {
         console.error(err);
       } finally {
@@ -225,6 +229,9 @@ const AdminDashboard: React.FC = () => {
           <button className={`${styles.navItem} ${activeTab === 'bookings' ? styles.navActive : ''}`} onClick={() => setActiveTab('bookings')}>
             Đặt bàn
           </button>
+          <button className={`${styles.navItem} ${activeTab === 'pending' ? styles.navActive : ''}`} onClick={() => setActiveTab('pending')}>
+            Duyệt yêu cầu {pendingRestaurants.length > 0 && <span className={styles.badge}>{pendingRestaurants.length}</span>}
+          </button>
         </nav>
       </aside>
 
@@ -236,6 +243,7 @@ const AdminDashboard: React.FC = () => {
             {activeTab === 'restaurants' && 'Quản lý nhà hàng'}
             {activeTab === 'users' && 'Quản lý người dùng'}
             {activeTab === 'bookings' && 'Quản lý đặt bàn'}
+            {activeTab === 'pending' && 'Duyệt yêu cầu đăng ký'}
           </h1>
           <div className={styles.topBarRight}>
             <div className={styles.userInfo}>
@@ -464,6 +472,94 @@ const AdminDashboard: React.FC = () => {
                 </table>
               </div>
             )}
+
+            {/* Pending Requests Tab */}
+            {activeTab === 'pending' && (
+              <div className={styles.tableContainer}>
+                <div className={styles.tableHeader}>
+                  <h3>Yêu cầu đăng ký mới ({pendingRestaurants.length})</h3>
+                </div>
+                {pendingRestaurants.length === 0 ? (
+                  <div className={styles.emptyState}>Không có yêu cầu nào đang chờ duyệt.</div>
+                ) : (
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Nhà hàng</th>
+                        <th>Thông tin pháp lý</th>
+                        <th>Khu vực</th>
+                        <th>Ngày gửi</th>
+                        <th>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingRestaurants.map((r) => (
+                        <tr key={r.id}>
+                          <td>
+                            <div className={styles.restaurantCell}>
+                              <img src={r.imageUrl?.[0] || '/default-restaurant.jpg'} alt="" className={styles.tableThumbnail} />
+                              <div>
+                                <strong>{r.name}</strong>
+                                <small>{r.address}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className={styles.legalInfoCell}>
+                              <p>MST: <code>{r.taxId}</code></p>
+                              {r.businessLicenseUrl && (
+                                <a href={r.businessLicenseUrl} target="_blank" rel="noreferrer" className={styles.viewLicenseBtn}>
+                                  📄 Xem giấy phép
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td>{r.district}</td>
+                          <td>{r.phone}</td>
+                          <td>
+                            <div className={styles.actionBtns}>
+                              <button 
+                                className={styles.approveBtn}
+                                onClick={async () => {
+                                  if (window.confirm(`Phê duyệt nhà hàng ${r.name}?`)) {
+                                    try {
+                                      await approveRestaurant(r.id);
+                                      toast.success('Đã phê duyệt!');
+                                      setPendingRestaurants(prev => prev.filter(p => p.id !== r.id));
+                                      setRestaurants(prev => [...prev, { ...r, status: 'active' }]);
+                                    } catch (err: any) {
+                                      toast.error(err.message);
+                                    }
+                                  }
+                                }}
+                              >
+                                Duyệt
+                              </button>
+                              <button 
+                                className={styles.deleteBtn}
+                                onClick={async () => {
+                                  if (window.confirm(`Từ chối yêu cầu của ${r.name}?`)) {
+                                    try {
+                                      await rejectRestaurant(r.id);
+                                      toast.success('Đã từ chối');
+                                      setPendingRestaurants(prev => prev.filter(p => p.id !== r.id));
+                                    } catch (err: any) {
+                                      toast.error(err.message);
+                                    }
+                                  }
+                                }}
+                              >
+                                Từ chối
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>
@@ -555,6 +651,33 @@ const AdminDashboard: React.FC = () => {
                     images={restaurantForm.imageUrl}
                     onImagesChange={(urls) => setRestaurantForm({ ...restaurantForm, imageUrl: urls })}
                   />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Mã số thuế *</label>
+                  <input 
+                    type="text" 
+                    value={restaurantForm.taxId} 
+                    onChange={(e) => setRestaurantForm({ ...restaurantForm, taxId: e.target.value })} 
+                    placeholder="MST doanh nghiệp" 
+                    disabled={!!editingRestaurant}
+                  />
+                </div>
+                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                  <label>Ảnh Giấy phép kinh doanh *</label>
+                  {editingRestaurant ? (
+                    restaurantForm.businessLicenseUrl ? (
+                      <div className={styles.licensePreview}>
+                        <img src={restaurantForm.businessLicenseUrl} alt="GPKD" className={styles.imagePreview} />
+                      </div>
+                    ) : (
+                      <p>Chưa cập nhật</p>
+                    )
+                  ) : (
+                    <ImageUpload
+                      images={restaurantForm.businessLicenseUrl ? [restaurantForm.businessLicenseUrl] : []}
+                      onImagesChange={(urls) => setRestaurantForm({ ...restaurantForm, businessLicenseUrl: urls[0] || '' })}
+                    />
+                  )}
                 </div>
                 <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                   <label>Mô tả</label>

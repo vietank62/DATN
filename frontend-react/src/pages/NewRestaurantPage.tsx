@@ -20,6 +20,8 @@ const NewRestaurantPage: React.FC = () => {
     totalSeats: 50,
     description: '',
     imageUrl: [] as string[],  // Array of image URLs
+    businessLicenseUrl: '',
+    taxId: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -214,6 +216,29 @@ const NewRestaurantPage: React.FC = () => {
             <ImageUpload
               images={formData.imageUrl}
               onImagesChange={(urls) => updateField('imageUrl', urls)}
+              onError={(error) => setError(error)}
+              maxSize={5}
+              disabled={loading}
+            />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label>Mã số thuế *</label>
+            <input
+              type="text"
+              placeholder="Nhập mã số thuế doanh nghiệp"
+              value={formData.taxId}
+              onChange={(e) => updateField('taxId', e.target.value)}
+              className={styles.input}
+              required
+            />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label>Ảnh Giấy phép kinh doanh *</label>
+            <ImageUpload
+              images={formData.businessLicenseUrl ? [formData.businessLicenseUrl] : []}
+              onImagesChange={(urls) => updateField('businessLicenseUrl', urls[0] || '')}
               onError={(error) => setError(error)}
               maxSize={5}
               disabled={loading}

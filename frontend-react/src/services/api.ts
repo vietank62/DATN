@@ -89,6 +89,9 @@ function mapRestaurant(r: any): Restaurant {
     totalSeats: r.totalSeats,
     availableSeats: r.availableSeats,
     managerID: r.managerID,
+    status: r.status,
+    businessLicenseUrl: r.businessLicenseUrl,
+    taxId: r.taxId,
     menu: r.menu?.map(mapMenuItem),
   };
 }
@@ -201,7 +204,7 @@ export async function logoutUser(): Promise<void> {
   await fetch(`${API_BASE}/api/authentication/logout`, {
     method: 'POST',
     credentials: 'include',
-  }).catch(() => {});
+  }).catch(() => { });
   localStorage.removeItem('tablenow_token');
   localStorage.removeItem('tablenow_user');
 }
@@ -234,6 +237,8 @@ export async function registerUser(info: {
   return mapUser(data);
 }
 
+// Removed redundant registerPartner definition
+
 // ─── Restaurants ──────────────────────────────────────────
 
 export const fetchRestaurants = async (filters?: FilterOptions): Promise<Restaurant[]> => {
@@ -245,8 +250,8 @@ export const fetchRestaurants = async (filters?: FilterOptions): Promise<Restaur
     if (filters.cuisineType && filters.cuisineType !== 'all') {
       const selectedCuisine = cuisineTypes.find(c => c.id === filters.cuisineType);
       const expectedLabel = selectedCuisine ? selectedCuisine.label : filters.cuisineType;
-      
-      data = data.filter((r) => 
+
+      data = data.filter((r) =>
         r.cuisine.includes(filters.cuisineType) ||
         r.cuisine.includes(expectedLabel)
       );
@@ -260,11 +265,11 @@ export const fetchRestaurants = async (filters?: FilterOptions): Promise<Restaur
     if (filters.priceRange && filters.priceRange !== 'all') {
       data = data.filter((r) => {
         if (!r.priceRange || r.priceRange === 'Chưa cập nhật') return false;
-        
+
         const cleanStr = r.priceRange.replace(/[,.đ\s]/g, '');
         const numMatches = cleanStr.match(/\d+/g);
         if (!numMatches) return false;
-        
+
         const minPrice = parseInt(numMatches[0], 10);
         const maxPrice = numMatches.length > 1 ? parseInt(numMatches[1], 10) : minPrice;
         const avgPrice = (minPrice + maxPrice) / 2;
@@ -273,7 +278,7 @@ export const fetchRestaurants = async (filters?: FilterOptions): Promise<Restaur
         if (filters.priceRange === '200to500') return avgPrice >= 200000 && avgPrice <= 500000;
         if (filters.priceRange === '500to1m') return avgPrice > 500000 && avgPrice <= 1000000;
         if (filters.priceRange === 'above1m') return avgPrice > 1000000;
-        
+
         return true;
       });
     }
@@ -336,6 +341,8 @@ export const createRestaurant = async (
       totalSeats: restaurant.totalSeats,
       availableSeats: restaurant.availableSeats,
       managerID: restaurant.managerID,
+      businessLicenseUrl: (restaurant as any).businessLicenseUrl,
+      taxId: (restaurant as any).taxId,
     }),
   });
   return mapRestaurant(data);
@@ -583,6 +590,30 @@ export const uploadImage = async (file: File): Promise<{ url: string; filename: 
 
 // ─── Default export (backward-compatible) ─────────────────
 
+
+export const registerPartner = async (data: {
+  user: any;
+  restaurant: any;
+}): Promise<any> => {
+  return request('/api/authentication/register-partner', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const fetchPendingRestaurants = async (): Promise<Restaurant[]> => {
+  const data = await request<any[]>('/api/admin/pending-restaurants/');
+  return data.map(mapRestaurant);
+};
+
+export const approveRestaurant = async (id: string): Promise<void> => {
+  await request(`/api/admin/approve-restaurant/${id}`, { method: 'PATCH' });
+};
+
+export const rejectRestaurant = async (id: string): Promise<void> => {
+  await request(`/api/admin/reject-restaurant/${id}`, { method: 'PATCH' });
+};
+
 const api = {
   fetchRestaurants,
   fetchRestaurantById,
@@ -612,6 +643,10 @@ const api = {
   fetchAdminStats,
   fetchReviews,
   createReview,
+  registerPartner,
+  fetchPendingRestaurants,
+  approveRestaurant,
+  rejectRestaurant,
 };
 
 export default api;
