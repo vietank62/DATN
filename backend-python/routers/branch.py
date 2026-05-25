@@ -9,66 +9,61 @@ from sqlmodel import select
 router = APIRouter()
 
 @router.post("/api/branches/", tags=["Branch"])
-async def create_branch(
+def create_branch(
     branch_data: BranchCreate,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
 ):
     # Kiểm tra nhà hàng tồn tại
-    rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == branch_data.restaurantId))
-    restaurant = rest_res.scalars().first()
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == branch_data.restaurantId)).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
     branch = Branch(**branch_data.model_dump())
     session.add(branch)
-    await session.commit()
-    await session.refresh(branch)
+    session.commit()
+    session.refresh(branch)
     return branch
 
 @router.get("/api/branches/restaurant/{restaurant_id}", tags=["Branch"])
-async def get_branches_by_restaurant(restaurant_id: int, session: SessionDep):
-    res = await session.execute(select(Branch).where(Branch.restaurantId == restaurant_id))
-    branches = res.scalars().all()
+def get_branches_by_restaurant(restaurant_id: int, session: SessionDep):
+    branches = session.exec(select(Branch).where(Branch.restaurantId == restaurant_id)).all()
     return branches
 
 @router.get("/api/branches/{branch_id}", tags=["Branch"])
-async def get_branch_by_id(branch_id: int, session: SessionDep):
-    res = await session.execute(select(Branch).where(Branch.branchId == branch_id))
-    branch = res.scalars().first()
+def get_branch_by_id(branch_id: int, session: SessionDep):
+    branch = session.exec(select(Branch).where(Branch.branchId == branch_id)).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
     return branch
 
 @router.put("/api/branches/{branch_id}", tags=["Branch"])
-async def update_branch(
+def update_branch(
     branch_id: int,
     updated_branch: BranchUpdate,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
 ):
-    res = await session.execute(select(Branch).where(Branch.branchId == branch_id))
-    branch = res.scalars().first()
+    branch = session.exec(select(Branch).where(Branch.branchId == branch_id)).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
     
     update_data = updated_branch.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(branch, field, value)
-    await session.commit()
-    await session.refresh(branch)
+    session.commit()
+    session.refresh(branch)
     return branch
 
 @router.delete("/api/branches/{branch_id}", tags=["Branch"])
-async def delete_branch(
+def delete_branch(
     branch_id: int,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
 ):
-    res = await session.execute(select(Branch).where(Branch.branchId == branch_id))
-    branch = res.scalars().first()
+    branch = session.exec(select(Branch).where(Branch.branchId == branch_id)).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
-    await session.delete(branch)
-    await session.commit()
+    session.delete(branch)
+    session.commit()
     return {"message": "Branch deleted successfully"}

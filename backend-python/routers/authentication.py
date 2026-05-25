@@ -39,9 +39,8 @@ def verify_password(plain_password, hashed_password):
         return False
 
 
-async def authenticate_user(username: str, password: str, session: SessionDep):
-    result = await session.execute(select(User).where(User.email == username))
-    user = result.scalars().first()
+def authenticate_user(username: str, password: str, session: SessionDep):
+    user = session.exec(select(User).where(User.email == username)).first()
     if not user:
         return False
     if not verify_password(password, user.password):
@@ -70,12 +69,12 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 @router.post("/api/authentication/login", tags = ["Authentication"])
-async def login_for_access_token(
+def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: SessionDep,
     response: Response
 ) -> Token:
-    user = await authenticate_user(form_data.username, form_data.password, session)
+    user = authenticate_user(form_data.username, form_data.password, session)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -109,7 +108,7 @@ async def login_for_access_token(
     return Token(access_token = access_token, token_type = "bearer")
 
 @router.post("/api/authentication/refresh-token", tags=["Authentication"])
-async def refresh_access_token(request: Request, session: SessionDep) -> Token:
+def refresh_access_token(request: Request, session: SessionDep) -> Token:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(
@@ -139,8 +138,7 @@ async def refresh_access_token(request: Request, session: SessionDep) -> Token:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during token refresh",
         )
-    result = await session.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
+    user = session.exec(select(User).where(User.email == email)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -165,7 +163,7 @@ def logout(response: Response):
     response.delete_cookie("refresh_token")
     return {"message": "Đăng xuất thành công"}
 
-async def get_current_user(security_scopes: SecurityScopes, token: Annotated[str, Depends(oauth2_scheme)], session : SessionDep) -> User:
+def get_current_user(security_scopes: SecurityScopes, token: Annotated[str, Depends(oauth2_scheme)], session : SessionDep) -> User:
     if security_scopes.scopes:
         authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
     else:
@@ -184,8 +182,7 @@ async def get_current_user(security_scopes: SecurityScopes, token: Annotated[str
         token_data = TokenData(scopes=token_scopes, username=email)
     except (InvalidTokenError, ValidationError):
         raise credentials_exception
-    result = await session.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
+    user = session.exec(select(User).where(User.email == email)).first()
     if user is None:
         raise credentials_exception
     for scope in security_scopes.scopes:
@@ -199,16 +196,15 @@ async def get_current_user(security_scopes: SecurityScopes, token: Annotated[str
 
 
 @router.get("/api/authentication/active-user", response_model = UserOut, tags=["Authentication"])
-async def read_users_me(
+def read_users_me(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     return current_user
 
 @router.post("/api/authentication/register-partner", tags=["Authentication"])
-async def register_partner(partner_data: PartnerRegister, session: SessionDep):
+def register_partner(partner_data: PartnerRegister, session: SessionDep):
     # Kiểm tra email tồn tại
-    result = await session.execute(select(User).where(User.email == partner_data.user.email))
-    existing_user = result.scalars().first()
+    existing_user = session.exec(select(User).where(User.email == partner_data.user.email)).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email đã được sử dụng")
     
@@ -222,8 +218,8 @@ async def register_partner(partner_data: PartnerRegister, session: SessionDep):
         createdAt=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
     session.add(user_db)
-    await session.commit()
-    await session.refresh(user_db)
+    session.commit()
+    session.refresh(user_db)
     
     # Tạo nhà hàng ở trạng thái pending
     # Loại bỏ managerID từ data đầu vào để dùng ID của user vừa tạo
@@ -234,7 +230,7 @@ async def register_partner(partner_data: PartnerRegister, session: SessionDep):
         status="pending"
     )
     session.add(restaurant_db)
-    await session.commit()
-    await session.refresh(restaurant_db)
+    session.commit()
+    session.refresh(restaurant_db)
     
     return {"message": "Đăng ký đối tác thành công. Vui lòng chờ Admin phê duyệt.", "restaurantId": restaurant_db.restaurantId}

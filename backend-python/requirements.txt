@@ -7,4 +7,3 @@ alembic
 passlib[argon2]
 python-dotenv
 cloudinary
-asyncpg

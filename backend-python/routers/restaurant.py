@@ -15,48 +15,44 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 router = APIRouter()
 
-async def get_restaurant_with_stats(restaurant: Restaurant, session: SessionDep) -> dict:
+def get_restaurant_with_stats(restaurant: Restaurant, session: SessionDep) -> dict:
     r_dict = restaurant.model_dump()
     
-    # rating, reviewCount, priceRange, and promotion are already stored in the Restaurant model!
-    # No need to query database for reviews and prices on read.
-    
     # Booked seats is computed dynamically based on current bookings
-    booked_res = await session.execute(
+    booked_res = session.exec(
         select(func.sum(Booking.requestSeats)).where(
             Booking.restaurantId == restaurant.restaurantId,
             Booking.status.in_(['pending', 'confirmed'])
         )
     )
-    booked_seats = booked_res.scalar() or 0
+    booked_seats = booked_res.first() or 0
     r_dict['availableSeats'] = max(0, restaurant.totalSeats - booked_seats)
         
     return r_dict
 
 @router.post("/api/create-restaurant/", tags=["Restaurant"])
-async def create_restaurant(restaurant_data: RestaurantCreate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+def create_restaurant(restaurant_data: RestaurantCreate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
     restaurant = Restaurant(**restaurant_data.model_dump())
     session.add(restaurant)
-    await session.commit()
-    await session.refresh(restaurant)
-    return await get_restaurant_with_stats(restaurant, session)
+    session.commit()
+    session.refresh(restaurant)
+    return get_restaurant_with_stats(restaurant, session)
 
 @router.get("/api/get-all-restaurant/", tags=["Restaurant"])
-async def get_all_restaurants(session: SessionDep):
-    # 1. Query all active restaurants directly without joins
-    res = await session.execute(
+def get_all_restaurants(session: SessionDep):
+    # 1. Query all active restaurants directly
+    restaurants = session.exec(
         select(Restaurant).where(Restaurant.status == "active")
-    )
-    restaurants = res.scalars().all()
+    ).all()
 
     # 2. Bulk query booked seats for active bookings
-    booked_res = await session.execute(
+    booked_res = session.exec(
         select(
             Booking.restaurantId,
             func.sum(Booking.requestSeats)
         ).filter(Booking.status.in_(['pending', 'confirmed'])).group_by(Booking.restaurantId)
-    )
-    booked_map = {row[0]: row[1] or 0 for row in booked_res.all()}
+    ).all()
+    booked_map = {row[0]: row[1] or 0 for row in booked_res}
     
     response = []
     for r in restaurants:
@@ -70,62 +66,55 @@ async def get_all_restaurants(session: SessionDep):
     return response
 
 @router.get("/api/get-restaurant/{restaurant_id}", tags=["Restaurant"])
-async def get_restaurant_by_id(restaurant_id: int, session: SessionDep):
-    res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
-    restaurant = res.scalars().first()
+def get_restaurant_by_id(restaurant_id: int, session: SessionDep):
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
     # Join menu items
-    menu_res = await session.execute(select(MenuItem).where(MenuItem.restaurantId == restaurant_id))
-    menu_items = menu_res.scalars().all()
+    menu_items = session.exec(select(MenuItem).where(MenuItem.restaurantId == restaurant_id)).all()
     
-    result = await get_restaurant_with_stats(restaurant, session)
+    result = get_restaurant_with_stats(restaurant, session)
     result["menu"] = [item.model_dump() for item in menu_items]
     return result
 
 @router.delete("/api/delete-restaurant/{restaurant_id}", tags=["Restaurant"])
-async def delete_restaurant_by_id(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
-    res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
-    restaurant = res.scalars().first()
+def delete_restaurant_by_id(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
     if restaurant:
-        await session.delete(restaurant)
-        await session.commit()
+        session.delete(restaurant)
+        session.commit()
         return {"message": "Restaurant deleted successfully"}
     return {"message": "Restaurant not found"}
 
 @router.put("/api/update-restaurant/{restaurant_id}", tags=["Restaurant"])
-async def update_restaurant_by_id(restaurant_id: int, updated_restaurant: RestaurantUpdate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
-    res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
-    restaurant = res.scalars().first()
+def update_restaurant_by_id(restaurant_id: int, updated_restaurant: RestaurantUpdate, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
     if restaurant:
         update_data = updated_restaurant.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(restaurant, field, value)
-        await session.commit()
-        await session.refresh(restaurant)
-        return await get_restaurant_with_stats(restaurant, session)
+        session.commit()
+        session.refresh(restaurant)
+        return get_restaurant_with_stats(restaurant, session)
     return {"message": "Restaurant not found"}
 
 @router.get("/api/admin/pending-restaurants/", tags=["Admin"])
-async def get_pending_restaurants(session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
-    res = await session.execute(select(Restaurant).where(Restaurant.status == "pending"))
-    restaurants = res.scalars().all()
+def get_pending_restaurants(session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    restaurants = session.exec(select(Restaurant).where(Restaurant.status == "pending")).all()
     return [r.model_dump() for r in restaurants]
 
 @router.patch("/api/admin/approve-restaurant/{restaurant_id}", tags=["Admin"])
-async def approve_restaurant(restaurant_id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
-    res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
-    restaurant = res.scalars().first()
+def approve_restaurant(restaurant_id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
     restaurant.status = "active"
-    await session.commit()
+    session.commit()
 
     # Gửi email thông báo phê duyệt
-    manager_res = await session.execute(select(User).where(User.userId == restaurant.managerID))
-    manager = manager_res.scalars().first()
+    manager = session.exec(select(User).where(User.userId == restaurant.managerID)).first()
     if manager and manager.email:
         email_subject = f"🎉 [TableNow] Chúc mừng! Đối tác nhà hàng '{restaurant.name}' đã được phê duyệt thành công"
         email_content = (
@@ -170,18 +159,16 @@ async def approve_restaurant(restaurant_id: int, background_tasks: BackgroundTas
     return {"message": "Restaurant approved successfully"}
 
 @router.patch("/api/admin/reject-restaurant/{restaurant_id}", tags=["Admin"])
-async def reject_restaurant(restaurant_id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
-    res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
-    restaurant = res.scalars().first()
+def reject_restaurant(restaurant_id: int, background_tasks: BackgroundTasks, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
     restaurant.status = "rejected"
-    await session.commit()
+    session.commit()
 
     # Gửi email thông báo từ chối
-    manager_res = await session.execute(select(User).where(User.userId == restaurant.managerID))
-    manager = manager_res.scalars().first()
+    manager = session.exec(select(User).where(User.userId == restaurant.managerID)).first()
     if manager and manager.email:
         email_subject = f"❌ [TableNow] Thông báo kết quả phê duyệt hồ sơ đối tác '{restaurant.name}'"
         email_content = (

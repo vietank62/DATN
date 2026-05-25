@@ -1,18 +1,16 @@
 import os
 import sys
-import asyncio
 import random
 
 # Add backend root directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, Session
 from sqlalchemy import func
 from database import engine
 import models
 
-async def sync_restaurant_stats():
+def sync_restaurant_stats():
     print("=== STARTING RESTAURANT DATA STATS & PROMO SYNC ===")
     
     # Beautiful mock promotions for demo
@@ -25,16 +23,15 @@ async def sync_restaurant_stats():
         "Tặng bánh ngọt tráng miệng cho mỗi khách"
     ]
     
-    async with AsyncSession(engine) as session:
-        res = await session.execute(select(models.Restaurant))
-        restaurants = res.scalars().all()
+    with Session(engine) as session:
+        restaurants = session.exec(select(models.Restaurant)).all()
         print(f"Scanning {len(restaurants)} restaurants in database...")
         
         for idx, r in enumerate(restaurants):
             print(f"\nSyncing: {r.name} (ID: {r.restaurantId})")
             
             # 1. Rating and reviewCount calculation
-            review_res = await session.execute(
+            review_res = session.exec(
                 select(
                     func.count(models.Review.reviewId),
                     func.avg(models.Review.rating)
@@ -52,7 +49,7 @@ async def sync_restaurant_stats():
                 print(f"  -> No reviews. Seeded random rating: {r.rating} ({r.reviewCount} reviews)")
                 
             # 2. priceRange calculation
-            price_res = await session.execute(
+            price_res = session.exec(
                 select(
                     func.min(models.MenuItem.price),
                     func.max(models.MenuItem.price)
@@ -82,8 +79,8 @@ async def sync_restaurant_stats():
                 
             session.add(r)
             
-        await session.commit()
+        session.commit()
         print("\n=== DATA STATS & PROMO SYNC COMPLETED SUCCESSFULLY ===")
 
 if __name__ == "__main__":
-    asyncio.run(sync_restaurant_stats())
+    sync_restaurant_stats()

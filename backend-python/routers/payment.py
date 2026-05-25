@@ -13,7 +13,6 @@ import hmac
 import hashlib
 import base64
 
-
 router = APIRouter()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -39,14 +38,13 @@ class PaymentCreateResponse(BaseModel):
     status: str
 
 @router.post("/api/payments/create", response_model=PaymentCreateResponse, tags=["Payment"])
-async def create_payment(
+def create_payment(
     restaurant_id: int, 
     session: SessionDep, 
     current_user: Annotated[User, Depends(get_current_user)]
 ):
     # Verify that the restaurant exists
-    rest_res = await session.execute(select(Restaurant).where(Restaurant.restaurantId == restaurant_id))
-    restaurant = rest_res.scalars().first()
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
         
@@ -55,14 +53,13 @@ async def create_payment(
         raise HTTPException(status_code=403, detail="Not authorized to pay fees for this restaurant")
 
     # Fetch completed, unpaid bookings for this restaurant
-    unpaid_res = await session.execute(
+    unpaid_bookings = session.exec(
         select(Booking).where(
             Booking.restaurantId == restaurant_id,
             Booking.status == "completed",
             Booking.isPaid == False
         )
-    )
-    unpaid_bookings = unpaid_res.scalars().all()
+    ).all()
     
     if not unpaid_bookings:
         raise HTTPException(
@@ -74,15 +71,12 @@ async def create_payment(
     booking_ids_str = ",".join(str(b.bookingId) for b in unpaid_bookings)
 
     # Check if there is already a pending payment for the same booking IDs to avoid duplicate payments
-    # We can create a new payment transaction anyway because a manager might want to refresh.
-    # We will mark other pending payments for this restaurant as cancelled
-    existing_pending_res = await session.execute(
+    existing_pendings = session.exec(
         select(Payment).where(
             Payment.restaurantId == restaurant_id,
             Payment.status == "pending"
         )
-    )
-    existing_pendings = existing_pending_res.scalars().all()
+    ).all()
     for p in existing_pendings:
         p.status = "cancelled"
         session.add(p)
@@ -97,14 +91,14 @@ async def create_payment(
         bookingIds=booking_ids_str
     )
     session.add(payment)
-    await session.commit()
-    await session.refresh(payment)
+    session.commit()
+    session.refresh(payment)
 
     # Generate the unique transaction code
     payment.transactionCode = f"TNPAY{payment.paymentId}"
     session.add(payment)
-    await session.commit()
-    await session.refresh(payment)
+    session.commit()
+    session.refresh(payment)
 
     return PaymentCreateResponse(
         paymentId=payment.paymentId,
@@ -116,9 +110,8 @@ async def create_payment(
 
 
 @router.get("/api/payments/{payment_id}/status", tags=["Payment"])
-async def get_payment_status(payment_id: int, session: SessionDep):
-    res = await session.execute(select(Payment).where(Payment.paymentId == payment_id))
-    payment = res.scalars().first()
+def get_payment_status(payment_id: int, session: SessionDep):
+    payment = session.exec(select(Payment).where(Payment.paymentId == payment_id)).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment transaction not found")
     return {
@@ -130,7 +123,7 @@ async def get_payment_status(payment_id: int, session: SessionDep):
     }
 
 @router.post("/sepay/ipn", tags=["Payment"])
-async def sepay_webhook(
+def sepay_webhook(
     payload: SePayWebhookPayload, 
     session: SessionDep, 
     authorization: Optional[str] = Header(None)
@@ -154,8 +147,7 @@ async def sepay_webhook(
     tx_code = match.group(0).upper()
     
     # Query corresponding pending Payment record
-    pay_res = await session.execute(select(Payment).where(Payment.transactionCode == tx_code))
-    payment = pay_res.scalars().first()
+    payment = session.exec(select(Payment).where(Payment.transactionCode == tx_code)).first()
     
     if not payment:
         return {"success": False, "message": f"Payment with code {tx_code} not found"}
@@ -180,25 +172,23 @@ async def sepay_webhook(
     if payment.bookingIds:
         booking_ids = [int(bid.strip()) for bid in payment.bookingIds.split(",") if bid.strip()]
         if booking_ids:
-            bookings_res = await session.execute(
+            bookings = session.exec(
                 select(Booking).where(Booking.bookingId.in_(booking_ids))
-            )
-            bookings = bookings_res.scalars().all()
+            ).all()
             for booking in bookings:
                 booking.isPaid = True
                 session.add(booking)
 
-    await session.commit()
+    session.commit()
     return {"success": True, "message": "Payment processed successfully", "paymentId": payment.paymentId}
 
 @router.post("/api/sepay/simulate-webhook", tags=["Payment"])
-async def simulate_webhook(payment_id: int, session: SessionDep):
+def simulate_webhook(payment_id: int, session: SessionDep):
     """
     Simulation utility to mock a bank transfer callback from SePay.
     Extremely helpful for development, testing, and UI demonstration.
     """
-    pay_res = await session.execute(select(Payment).where(Payment.paymentId == payment_id))
-    payment = pay_res.scalars().first()
+    payment = session.exec(select(Payment).where(Payment.paymentId == payment_id)).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment transaction not found")
         
@@ -223,7 +213,7 @@ async def simulate_webhook(payment_id: int, session: SessionDep):
     )
 
     # Execute webhook logic directly
-    result = await sepay_webhook(payload=payload, session=session, authorization=None)
+    result = sepay_webhook(payload=payload, session=session, authorization=None)
     return {
         "message": "Simulation executed successfully",
         "sepayPayload": payload,
@@ -231,9 +221,8 @@ async def simulate_webhook(payment_id: int, session: SessionDep):
     }
 
 @router.get("/api/payments/{payment_id}/checkout-fields", tags=["Payment"])
-async def get_checkout_fields(payment_id: int, session: SessionDep, request: Request):
-    pay_res = await session.execute(select(Payment).where(Payment.paymentId == payment_id))
-    payment = pay_res.scalars().first()
+def get_checkout_fields(payment_id: int, session: SessionDep, request: Request):
+    payment = session.exec(select(Payment).where(Payment.paymentId == payment_id)).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment transaction not found")
         
@@ -477,7 +466,7 @@ def get_payment_html_view(status: str, title: str, message: str, color_theme: st
     return html_content
 
 @router.get("/api/payment/success", response_class=HTMLResponse, tags=["Payment"])
-async def payment_success(id: int):
+def payment_success(id: int):
     # This route is hit by success_url redirection from SePay Checkout Gateway
     html_content = get_payment_html_view(
         status=str(id),
@@ -488,7 +477,7 @@ async def payment_success(id: int):
     return html_content
 
 @router.get("/api/payment/error", response_class=HTMLResponse, tags=["Payment"])
-async def payment_error(id: int):
+def payment_error(id: int):
     # This route is hit by error_url redirection from SePay Checkout Gateway
     html_content = get_payment_html_view(
         status=str(id),
@@ -499,7 +488,7 @@ async def payment_error(id: int):
     return html_content
 
 @router.get("/api/payment/cancel", response_class=HTMLResponse, tags=["Payment"])
-async def payment_cancel(id: int):
+def payment_cancel(id: int):
     # This route is hit by cancel_url redirection from SePay Checkout Gateway
     html_content = get_payment_html_view(
         status=str(id),
@@ -508,5 +497,3 @@ async def payment_cancel(id: int):
         color_theme="cancel"
     )
     return html_content
-
-

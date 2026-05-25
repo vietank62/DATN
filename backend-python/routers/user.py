@@ -18,7 +18,7 @@ def get_password_hash(password: str) -> str:
 
 
 @router.post("/api/create-user/", tags=["User"])
-async def create_user(user_data: UserRegister, session: SessionDep):
+def create_user(user_data: UserRegister, session: SessionDep):
     user = User(
         name=user_data.name,
         email=user_data.email,
@@ -28,43 +28,39 @@ async def create_user(user_data: UserRegister, session: SessionDep):
         createdAt=datetime.now().isoformat(timespec="seconds"),
     )
     session.add(user)
-    await session.commit()
-    await session.refresh(user)
+    session.commit()
+    session.refresh(user)
     return user
 
 @router.get("/api/get-user/{email}", tags=["User"])
-async def get_user_by_email(email: str, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
-    result = await session.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
+def get_user_by_email(email: str, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    user = session.exec(select(User).where(User.email == email)).first()
     return user
 
 @router.get("/api/get-all-user/", tags=["User"])
-async def get_all_users(session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
-    result = await session.execute(select(User))
-    users = result.scalars().all()
+def get_all_users(session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    users = session.exec(select(User)).all()
     return users
 
 @router.delete("/api/delete-user/{email}", tags=["User"])
-async def delete_user_by_email(email: str, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
-    result = await session.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
+def delete_user_by_email(email: str, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
+    user = session.exec(select(User).where(User.email == email)).first()
     if user:
-        await session.delete(user)
-        await session.commit()
+        session.delete(user)
+        session.commit()
         return {"message": "User deleted successfully"}
     return {"message": "User not found"}
 
 @router.put("/api/update-user/{email}", tags=["User"])
-async def update_user_by_email(email: str, user_data: UserUpdate, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
-    result = await session.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
+def update_user_by_email(email: str, user_data: UserUpdate, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    user = session.exec(select(User).where(User.email == email)).first()
     if user:
         update_data = user_data.model_dump(exclude_unset=True)
         if "password" in update_data and update_data["password"]:
             update_data["password"] = get_password_hash(update_data["password"])
         for field, value in update_data.items():
             setattr(user, field, value)
-        await session.commit()
-        await session.refresh(user)
+        session.commit()
+        session.refresh(user)
         return user
     return {"message": "User not found"}
