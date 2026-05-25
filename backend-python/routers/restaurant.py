@@ -65,6 +65,19 @@ def get_all_restaurants(session: SessionDep):
         response.append(r_dict)
     return response
 
+@router.get("/api/get-restaurant-by-manager/{manager_id}", tags=["Restaurant"])
+def get_restaurant_by_manager(manager_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    # Security check: Managers can only fetch their own restaurant; Admins can fetch any.
+    if current_user.role == "manager" and current_user.userId != manager_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this restaurant's data")
+        
+    restaurant = session.exec(select(Restaurant).where(Restaurant.managerID == manager_id)).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found for this manager")
+        
+    return get_restaurant_with_stats(restaurant, session)
+
+
 @router.get("/api/get-restaurant/{restaurant_id}", tags=["Restaurant"])
 def get_restaurant_by_id(restaurant_id: int, session: SessionDep):
     restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
@@ -78,13 +91,63 @@ def get_restaurant_by_id(restaurant_id: int, session: SessionDep):
     result["menu"] = [item.model_dump() for item in menu_items]
     return result
 
+def cascade_delete_restaurant(restaurant_id: int, session: SessionDep):
+    # 1. Fetch restaurant
+    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
+    if not restaurant:
+        return False
+
+    manager_id = restaurant.managerID
+
+    # 2. Delete MenuItems
+    from models import MenuItem
+    menu_items = session.exec(select(MenuItem).where(MenuItem.restaurantId == restaurant_id)).all()
+    for item in menu_items:
+        session.delete(item)
+
+    # 3. Delete Bookings
+    from models import Booking
+    bookings = session.exec(select(Booking).where(Booking.restaurantId == restaurant_id)).all()
+    for booking in bookings:
+        session.delete(booking)
+
+    # 4. Delete Reviews
+    from models import Review
+    reviews = session.exec(select(Review).where(Review.restaurantId == restaurant_id)).all()
+    for review in reviews:
+        session.delete(review)
+
+    # 5. Delete Payments
+    from models import Payment
+    payments = session.exec(select(Payment).where(Payment.restaurantId == restaurant_id)).all()
+    for payment in payments:
+        session.delete(payment)
+
+    # 7. Delete Restaurant
+    session.delete(restaurant)
+
+    # 8. Delete Manager User (if they are a manager and own this restaurant)
+    if manager_id:
+        # Check if the manager owns any other restaurant before deleting them
+        other_res = session.exec(select(Restaurant).where(Restaurant.managerID == manager_id, Restaurant.restaurantId != restaurant_id)).first()
+        if not other_res:
+            manager = session.exec(select(User).where(User.userId == manager_id)).first()
+            if manager and manager.role == "manager":
+                # Delete manager's Notifications
+                from models import Notification
+                notifications = session.exec(select(Notification).where(Notification.userId == manager_id)).all()
+                for notif in notifications:
+                    session.delete(notif)
+                session.delete(manager)
+
+    session.commit()
+    return True
+
 @router.delete("/api/delete-restaurant/{restaurant_id}", tags=["Restaurant"])
 def delete_restaurant_by_id(restaurant_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
-    restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurant_id)).first()
-    if restaurant:
-        session.delete(restaurant)
-        session.commit()
-        return {"message": "Restaurant deleted successfully"}
+    success = cascade_delete_restaurant(restaurant_id, session)
+    if success:
+        return {"message": "Restaurant deleted successfully with all associated records"}
     return {"message": "Restaurant not found"}
 
 @router.put("/api/update-restaurant/{restaurant_id}", tags=["Restaurant"])

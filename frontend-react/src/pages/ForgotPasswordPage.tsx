@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import styles from './LoginPage.module.css'; // Reusing login styles
+import styles from './ForgotPasswordPage.module.css';
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');

@@ -137,10 +137,24 @@ const AdminDashboard: React.FC = () => {
   const deleteRestaurant = async (id: string) => {
     const loadingToast = toast.loading('Đang xoá nhà hàng...');
     try {
+      const restaurant = restaurants.find(r => r.id === id);
+      const managerId = restaurant ? restaurant.managerID : null;
+
       await apiDeleteRestaurant(id);
+
+      // 1. Remove restaurant from state
       setRestaurants((prev) => prev.filter((r) => r.id !== id));
+
+      // 2. Remove manager user from state if they are a manager
+      if (managerId) {
+        setUsers((prev) => prev.filter((u) => u.id !== String(managerId) || u.role !== 'manager'));
+      }
+
+      // 3. Remove bookings of this restaurant from state
+      setBookings((prev) => prev.filter((b) => b.restaurantId !== id));
+
       setShowDeleteConfirm(null);
-      toast.success('Xoá nhà hàng thành công!', { id: loadingToast });
+      toast.success('Xoá nhà hàng và các dữ liệu liên quan thành công!', { id: loadingToast });
     } catch (err: any) {
       toast.error(`Lỗi khi xoá: ${err.message || 'Thao tác thất bại'}`, { id: loadingToast });
     }
@@ -199,12 +213,43 @@ const AdminDashboard: React.FC = () => {
 
     const loadingToast = toast.loading('Đang xoá người dùng...');
     try {
+      const managedRes = restaurants.find(r => r.managerID === Number(id));
+
       await apiDeleteUser(user.email);
+
+      // 1. Remove user from state
       setUsers((prev) => prev.filter((u) => u.id !== id));
+
+      // 2. If user is manager, remove their restaurant and its bookings
+      if (user.role === 'manager' && managedRes) {
+        setRestaurants((prev) => prev.filter((r) => r.id !== managedRes.id));
+        setBookings((prev) => prev.filter((b) => b.restaurantId !== managedRes.id));
+      }
+
       setShowDeleteConfirm(null);
-      toast.success('Xoá người dùng thành công!', { id: loadingToast });
+      toast.success('Xoá người dùng và các dữ liệu liên quan thành công!', { id: loadingToast });
     } catch (err: any) {
       toast.error(`Lỗi khi xoá: ${err.message || 'Thao tác thất bại'}`, { id: loadingToast });
+    }
+  };
+
+  const getDeleteWarningMessage = () => {
+    if (!showDeleteConfirm) return '';
+    if (showDeleteConfirm.type === 'restaurant') {
+      const restaurant = restaurants.find(r => r.id === showDeleteConfirm.id);
+      const name = restaurant ? restaurant.name : 'nhà hàng';
+      return `Bạn có chắc chắn muốn xóa nhà hàng '${name}' không? Nếu đồng ý, hệ thống sẽ thực hiện xóa toàn bộ tài khoản quản lý, đơn đặt bàn và tất cả các dữ liệu liên quan khác.`;
+    } else {
+      const user = users.find(u => u.id === showDeleteConfirm.id);
+      if (!user) return '';
+      
+      if (user.role === 'manager') {
+        const managedRes = restaurants.find(r => r.managerID === Number(user.id));
+        if (managedRes) {
+          return `Tài khoản '${user.name}' là quản lý của nhà hàng '${managedRes.name}'. Bạn có chắc chắn muốn xóa nhà hàng '${managedRes.name}' không? Nếu đồng ý, hệ thống sẽ thực hiện xóa toàn bộ tài khoản quản lý, đơn đặt bàn và tất cả các dữ liệu liên quan khác.`;
+        }
+      }
+      return `Bạn có chắc chắn muốn xóa người dùng '${user.name}' này? Hành động không thể hoàn tác.`;
     }
   };
 
@@ -750,7 +795,7 @@ const AdminDashboard: React.FC = () => {
               <button className={styles.modalClose} onClick={() => setShowDeleteConfirm(null)}>&times;</button>
             </div>
             <div className={styles.modalBody}>
-              <p>Bạn có chắc chắn muốn xoá {showDeleteConfirm.type === 'restaurant' ? 'nhà hàng' : 'người dùng'} này? Hành động không thể hoàn tác.</p>
+              <p style={{ lineHeight: 1.6, color: '#333' }}>{getDeleteWarningMessage()}</p>
             </div>
             <div className={styles.modalFooter}>
               <button className={styles.modalCancelBtn} onClick={() => setShowDeleteConfirm(null)}>Huỷ</button>

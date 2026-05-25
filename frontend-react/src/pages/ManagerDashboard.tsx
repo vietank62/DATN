@@ -17,6 +17,7 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 import { 
   fetchBookings, 
   fetchRestaurants, 
+  fetchRestaurantByManagerId,
   fetchManagerStats, 
   updateBookingStatus, 
   updateRestaurant as apiUpdateRestaurant, 
@@ -135,11 +136,18 @@ const ManagerDashboard: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const allRestaurants = await fetchRestaurants();
         const managerId = authUser ? Number(authUser.id) : undefined;
-        const myRestaurant = managerId
-          ? allRestaurants.find((r) => r.managerID === managerId) || allRestaurants[0]
-          : allRestaurants[0];
+        let myRestaurant: Restaurant | undefined;
+
+        if (managerId) {
+          myRestaurant = await fetchRestaurantByManagerId(String(managerId));
+        }
+
+        // Only fall back to allRestaurants[0] if there is no logged-in manager
+        if (!myRestaurant && !managerId) {
+          const allRestaurants = await fetchRestaurants();
+          myRestaurant = allRestaurants[0];
+        }
           
         if (myRestaurant) {
           setRestaurant(myRestaurant);
@@ -152,6 +160,10 @@ const ManagerDashboard: React.FC = () => {
           setBookings(bData);
           setStats(sData);
           setMenuItems(mData);
+        } else {
+          setRestaurant(defaultRestaurant);
+          setBookings([]);
+          setMenuItems([]);
         }
       } catch (err) {
         console.error(err);
@@ -450,6 +462,13 @@ const ManagerDashboard: React.FC = () => {
         <div className={styles.sidebarHeader}>
           <h2>Quản lý Nhà hàng</h2>
           <p>{restaurant.name || 'Đang tải...'}</p>
+          {restaurant.status && (
+            <span className={`${styles.restaurantStatusBadge} ${styles[restaurant.status]}`}>
+              {restaurant.status === 'pending' ? '⏳ Chờ duyệt' :
+               restaurant.status === 'active' ? '🟢 Hoạt động' :
+               restaurant.status === 'rejected' ? '❌ Bị từ chối' : restaurant.status}
+            </span>
+          )}
         </div>
         <div className={styles.sidebarNav}>
           <button 
@@ -503,6 +522,23 @@ const ManagerDashboard: React.FC = () => {
             <button className={styles.logoutBtnTop} onClick={handleLogout}>Đăng xuất</button>
           </div>
         </div>
+
+        {!restaurant.id ? (
+          <div className={styles.noRestaurantContainer}>
+            <div className={styles.noRestaurantCard}>
+              <div className={styles.noRestaurantIcon}>🍽️</div>
+              <h2>Tài khoản chưa liên kết nhà hàng</h2>
+              <p>
+                Chào mừng đối tác! Hiện tại tài khoản của bạn chưa được liên kết với nhà hàng nào hoặc yêu cầu đăng ký của bạn đang được Ban quản trị TableNow xử lý.
+              </p>
+              <div className={styles.noRestaurantContact}>
+                <p>📞 Hotline hỗ trợ đối tác: <strong>1900 6868</strong></p>
+                <p>📧 Email hỗ trợ: <strong>partner@tablenow.vn</strong></p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
 
         {activeTab === 'bookings' && (() => {
           const filteredBookings = bookings.filter(b => {
@@ -1052,7 +1088,9 @@ const ManagerDashboard: React.FC = () => {
               )}
             </div>
           )}
-        </main>
+          </>
+        )}
+      </main>
 
       {/* Note viewing modal */}
       {viewingNote && (

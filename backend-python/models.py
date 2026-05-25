@@ -82,3 +82,12 @@ class Payment(SQLModel, table=True):
     paidAt: Optional[str] = None
     bookingIds: Optional[str] = None
     sepayTransactionId: Optional[str] = None
+
+class Notification(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    userId: int = Field(foreign_key="user.userId")
+    title: str
+    message: str
+    isRead: bool = Field(default=False)
+    createdAt: str
+    type: str = Field(default="system") # new_booking, expiring_booking, cancelled_booking

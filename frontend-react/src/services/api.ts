@@ -321,6 +321,15 @@ export const fetchRestaurantById = async (id: string): Promise<Restaurant | unde
   }
 };
 
+export const fetchRestaurantByManagerId = async (managerId: string): Promise<Restaurant | undefined> => {
+  try {
+    const data = await request<any>(`/api/get-restaurant-by-manager/${managerId}`);
+    return mapRestaurant(data);
+  } catch {
+    return undefined;
+  }
+};
+
 export const searchRestaurants = async (query: string): Promise<Restaurant[]> => {
   if (!query.trim()) return [];
   const data = await request<any[]>(`/api/search-restaurants/?q=${encodeURIComponent(query)}`);
@@ -476,10 +485,14 @@ export const fetchBookingsByUser = async (userId: string): Promise<Booking[]> =>
 export const updateBookingStatus = async (
   bookingId: string,
   status: Booking['status'],
+  assignedSeats?: number,
 ): Promise<{ success: boolean }> => {
   let url: string;
   if (status === 'confirmed') {
     url = `/api/bookings/${bookingId}/confirm`;
+    if (assignedSeats !== undefined) {
+      url += `?assignedSeats=${assignedSeats}`;
+    }
   } else if (status === 'cancelled') {
     url = `/api/bookings/${bookingId}/cancel`;
   } else if (status === 'completed') {
@@ -614,6 +627,20 @@ export const createReview = async (
   return mapReview(data);
 };
 
+// ─── Notifications ──────────────────────────────────────────
+
+export const fetchNotifications = async (): Promise<any[]> => {
+  return request<any[]>('/api/notifications/');
+};
+
+export const markNotificationAsRead = async (id: number): Promise<void> => {
+  await request(`/api/notifications/${id}/read`, { method: 'PUT' });
+};
+
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  await request('/api/notifications/read-all', { method: 'PUT' });
+};
+
 // ─── Upload ───────────────────────────────────────────────
 
 export const uploadImage = async (file: File): Promise<{ url: string; filename: string }> => {
@@ -668,6 +695,7 @@ const api = {
   fetchRestaurants,
   fetchRestaurantById,
   getRestaurantById: fetchRestaurantById,
+  fetchRestaurantByManagerId,
   createBooking,
   fetchBookings,
   updateBookingStatus,
@@ -706,6 +734,9 @@ const api = {
   fetchPendingRestaurants,
   approveRestaurant,
   rejectRestaurant,
+  fetchNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
 };
 
 export default api;

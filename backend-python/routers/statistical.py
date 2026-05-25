@@ -15,6 +15,10 @@ def get_manager_stats(restaurantId: int, session: SessionDep, current_user: Anno
     restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurantId)).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+        
+    if restaurant.managerID != current_user.userId and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to view stats for this restaurant")
+
 
     today_str = date.today().isoformat()
 
@@ -89,6 +93,10 @@ def get_monthly_bookings(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
 
+    if restaurant.managerID != current_user.userId and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to view stats for this restaurant")
+
+
     if year is None:
         year = date.today().year
 
@@ -132,6 +140,10 @@ def get_menu_distribution(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
 
+    if restaurant.managerID != current_user.userId and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to view stats for this restaurant")
+
+
     results = session.exec(
         select(
             func.coalesce(MenuItem.category, "Khác").label("category"),
@@ -164,6 +176,10 @@ def get_booking_status_distribution(
     restaurant = session.exec(select(Restaurant).where(Restaurant.restaurantId == restaurantId)).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    if restaurant.managerID != current_user.userId and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to view stats for this restaurant")
+
 
     STATUS_LABELS = {
         "pending": "Chờ xác nhận",

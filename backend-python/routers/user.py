@@ -46,9 +46,23 @@ def get_all_users(session: SessionDep, current_user: Annotated[User, Security(ge
 def delete_user_by_email(email: str, session: SessionDep, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]):
     user = session.exec(select(User).where(User.email == email)).first()
     if user:
+        # If the user is a manager, delete all of their restaurants (which cascades to bookings, menu items, etc.!)
+        if user.role == "manager":
+            from models import Restaurant
+            from routers.restaurant import cascade_delete_restaurant
+            restaurants = session.exec(select(Restaurant).where(Restaurant.managerID == user.userId)).all()
+            for r in restaurants:
+                cascade_delete_restaurant(r.restaurantId, session)
+                
+        # Delete User Notifications
+        from models import Notification
+        notifications = session.exec(select(Notification).where(Notification.userId == user.userId)).all()
+        for notif in notifications:
+            session.delete(notif)
+            
         session.delete(user)
         session.commit()
-        return {"message": "User deleted successfully"}
+        return {"message": "User deleted successfully with all associated records"}
     return {"message": "User not found"}
 
 @router.put("/api/update-user/{email}", tags=["User"])

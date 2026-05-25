@@ -1,14 +1,23 @@
 from fastapi import FastAPI
 from database import create_db_and_tables
-from routers import user, authentication, restaurant, menuitem, booking, statistical, upload, review, payment
+from routers import user, authentication, restaurant, menuitem, booking, statistical, upload, review, payment, notification
 from fastapi.middleware.cors import CORSMiddleware
 
 from contextlib import asynccontextmanager
+import asyncio
+from datetime import datetime, timedelta
+from sqlmodel import Session, select
+from database import engine
+from models import Booking, Notification, Restaurant
+from routers.notification import auto_cancel_and_notify_loop
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    # Chạy background task
+    task = asyncio.create_task(auto_cancel_and_notify_loop())
     yield
+    task.cancel()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -50,5 +59,7 @@ app.include_router(upload.router)
 app.include_router(review.router)
 
 app.include_router(payment.router)
+
+app.include_router(notification.router)
 
 

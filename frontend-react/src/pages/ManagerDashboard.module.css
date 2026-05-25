@@ -36,6 +36,34 @@
   margin: 0;
 }
 
+.restaurantStatusBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-top: 8px;
+  border: 1px solid transparent;
+}
+
+.restaurantStatusBadge.pending {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+  border-color: rgba(255, 152, 0, 0.25);
+}
+
+.restaurantStatusBadge.active {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+  border-color: rgba(76, 175, 80, 0.25);
+}
+
+.restaurantStatusBadge.rejected {
+  background: rgba(244, 67, 54, 0.15);
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.25);
+}
+
 .sidebarNav {
   flex: 1;
   padding: 16px 12px;
@@ -1855,5 +1883,382 @@
   border-color: #999;
   color: #333;
 }
+.paymentActionRow {
+  margin-top: 12px;
+}
 
+.payBtn {
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #e65100, #ff6d00);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: inherit;
+  box-shadow: 0 4px 15px rgba(230, 81, 0, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 
+.payBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #bf360c, #e65100);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(230, 81, 0, 0.35);
+}
+
+.payBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.paymentSuccessState {
+  text-align: center;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.successIcon {
+  font-size: 48px;
+  animation: bounce 1s infinite alternate;
+}
+
+.paymentSuccessState strong {
+  font-size: 18px;
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+.paymentSuccessState p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  max-width: 420px;
+  line-height: 1.6;
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+/* Custom SePay styles added at the end */
+.payMethodGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.payInfoField {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.payInfoField:hover {
+  background: #f1f3f5;
+  border-color: #dee2e6;
+}
+
+.payInfoLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #868e96;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.payInfoVal {
+  font-size: 14px;
+  color: #212529;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.payCopyBtn {
+  background: #e9ecef;
+  border: none;
+  border-radius: 6px;
+  color: #495057;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.payCopyBtn:hover {
+  background: #ced4da;
+  color: #212529;
+}
+
+.payCopyBtn.copied {
+  background: #2b8a3e;
+  color: #fff;
+}
+
+.pollingStatusBox {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  background: #e8f4fd;
+  border: 1px solid #bde0fe;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #0077b6;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pulseDot {
+  width: 10px;
+  height: 10px;
+  background-color: #0077b6;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 10px rgba(0, 119, 182, 0.6); }
+  100% { transform: scale(0.8); opacity: 0.5; }
+}
+
+.simBtn {
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: inherit;
+  box-shadow: 0 4px 15px rgba(245, 124, 0, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.simBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f57c00, #e65100);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245, 124, 0, 0.35);
+}
+
+.cancelPayBtn {
+  padding: 14px 24px;
+  background: transparent;
+  color: #666;
+  border: 1.5px solid #ccc;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.cancelPayBtn:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+/* ===== Notifications ===== */
+.notificationWrapper {
+  position: relative;
+}
+
+.notificationBtn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  position: relative;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.notificationBtn:hover {
+  background: #f5f5f5;
+}
+
+.notificationBadge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #e53935;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.notificationDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 100;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.notificationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.notificationHeader h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.markAllBtn {
+  background: none;
+  border: none;
+  color: #0077b6;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.markAllBtn:hover {
+  text-decoration: underline;
+}
+
+.notificationList {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notificationItem {
+  padding: 16px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notificationItem:hover {
+  background: #f9f9f9;
+}
+
+.notificationItem.unread {
+  background: #fff3e0;
+}
+
+.notificationItem strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.notificationItem p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.notificationItem small {
+  color: #999;
+  font-size: 11px;
+}
+
+.noNotif {
+  padding: 32px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.noRestaurantContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  min-height: calc(100vh - 120px);
+  background: #f5f6fa;
+}
+
+.noRestaurantCard {
+  background: #fff;
+  border-radius: 20px;
+  padding: 48px 32px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid #eee;
+  animation: fadeIn 0.3s ease;
+}
+
+.noRestaurantIcon {
+  font-size: 64px;
+  margin-bottom: 24px;
+}
+
+.noRestaurantCard h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 12px;
+}
+
+.noRestaurantCard p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.noRestaurantContact {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px dashed #e0e0e0;
+  display: inline-block;
+  width: 100%;
+  text-align: left;
+}
+
+.noRestaurantContact p {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #555;
+}
+
+.noRestaurantContact p:last-child {
+  margin-bottom: 0;
+}
