@@ -1,6 +1,6 @@
 import type { Restaurant, Booking, FilterOptions, MenuItem, User, UserRole, ManagerStats, AdminStats, Review, BookingChartResponse, MenuChartResponse, StatusChartResponse, CuisineType } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 // ─── Helpers ──────────────────────────────────────────────
 
