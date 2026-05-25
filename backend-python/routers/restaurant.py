@@ -9,6 +9,10 @@ from routers.booking import send_booking_email
 from sqlalchemy import func
 from sqlmodel import select
 
+import os
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 router = APIRouter()
 
 async def get_restaurant_with_stats(restaurant: Restaurant, session: SessionDep) -> dict:
@@ -143,7 +147,7 @@ async def approve_restaurant(restaurant_id: int, background_tasks: BackgroundTas
             f"--------------------------------------------------\n"
             f"• Tài khoản đăng nhập (Email): {manager.email}\n"
             f"• Mật khẩu: [Mật khẩu bạn đã tạo khi đăng ký đối tác]\n"
-            f"• Đường dẫn đăng nhập quản lý: http://localhost:5173/login\n\n"
+            f"• Đường dẫn đăng nhập quản lý: {FRONTEND_URL}/login\n\n"
             f"--------------------------------------------------\n"
             f"💼 CHÍNH SÁCH PHÍ DỊCH VỤ:\n"
             f"--------------------------------------------------\n"

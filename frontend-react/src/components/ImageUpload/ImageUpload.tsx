@@ -43,7 +43,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('http://localhost:8000/api/upload-image/', {
+    const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+    const response = await fetch(`${apiBase}/api/upload-image/`, {
       method: 'POST',
       body: formData,
     });
@@ -54,7 +55,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
     const data = await response.json();
     // Use the URL returned from backend (could be local or cloudinary)
-    const url = data.url.startsWith('http') ? data.url : `http://localhost:8000${data.url}`;
+    const url = data.url.startsWith('http') ? data.url : `${apiBase}${data.url}`;
     return url;
   };
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Annotated, Optional
-from fastapi import APIRouter, HTTPException, Depends, Security, Header
+from fastapi import APIRouter, HTTPException, Depends, Security, Header, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from database import SessionDep
@@ -15,6 +15,8 @@ import base64
 
 
 router = APIRouter()
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 # Webhook payload schema defined by SePay
 class SePayWebhookPayload(BaseModel):
@@ -229,7 +231,7 @@ async def simulate_webhook(payment_id: int, session: SessionDep):
     }
 
 @router.get("/api/payments/{payment_id}/checkout-fields", tags=["Payment"])
-async def get_checkout_fields(payment_id: int, session: SessionDep):
+async def get_checkout_fields(payment_id: int, session: SessionDep, request: Request):
     pay_res = await session.execute(select(Payment).where(Payment.paymentId == payment_id))
     payment = pay_res.scalars().first()
     if not payment:
@@ -252,9 +254,10 @@ async def get_checkout_fields(payment_id: int, session: SessionDep):
         checkout_url = "https://sandbox.sepay.vn/checkout"
         
     # Callback URLs pointing to our backend landing page endpoints
-    success_url = f"http://localhost:8000/api/payment/success?id={payment.paymentId}"
-    error_url = f"http://localhost:8000/api/payment/error?id={payment.paymentId}"
-    cancel_url = f"http://localhost:8000/api/payment/cancel?id={payment.paymentId}"
+    base_url = str(request.base_url).rstrip('/')
+    success_url = f"{base_url}/api/payment/success?id={payment.paymentId}"
+    error_url = f"{base_url}/api/payment/error?id={payment.paymentId}"
+    cancel_url = f"{base_url}/api/payment/cancel?id={payment.paymentId}"
     
     fields = {
         "merchant": merchant_id,
@@ -325,7 +328,7 @@ def get_payment_html_view(status: str, title: str, message: str, color_theme: st
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="refresh" content="5;url=http://localhost:5173/manager/dashboard" />
+        <meta http-equiv="refresh" content="5;url={FRONTEND_URL}/manager/dashboard" />
         <title>{title}</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
@@ -462,7 +465,7 @@ def get_payment_html_view(status: str, title: str, message: str, color_theme: st
             <h1>{title}</h1>
             <p>{message}</p>
             
-            <a href="http://localhost:5173/manager/dashboard?payment={color_theme}&id={status}" class="btn">Quay lại Dashboard ngay</a>
+            <a href="{FRONTEND_URL}/manager/dashboard?payment={color_theme}&id={status}" class="btn">Quay lại Dashboard ngay</a>
             
             <div class="footer-info">
                 <span class="spinner"></span> Tự động chuyển hướng về TableNow sau 5 giây...
