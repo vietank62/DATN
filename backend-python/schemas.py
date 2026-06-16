@@ -32,7 +32,6 @@ class UserOut(BaseModel):
     role: str
     avatar: Optional[str] = None
     createdAt: Optional[str] = None
-    password: Optional[str] = None
     
 class RestaurantCreate(BaseModel):
     name: str

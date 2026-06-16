@@ -53,15 +53,6 @@ Thumbs.db
 .Spotlight-V100
 .Trashes
 
-# Project specific
-backend-python/uploads/
-BAO_CAO_DO_AN_TableNow.md
-HK252-DATN-332.pdf.txt
-main.pdf.txt
-nhom3-baocaodoan.pdf.txt
-QUICK_START_GUIDE.md
-BaoCao_HeThong_Frontend.md
-
 # Logs
 logs/
 *.log

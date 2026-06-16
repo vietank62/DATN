@@ -11,15 +11,11 @@ from database import engine
 from models import Booking, Notification, Restaurant
 from routers.notification import auto_cancel_and_notify_loop
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()
-    # Chạy background task
-    task = asyncio.create_task(auto_cancel_and_notify_loop())
-    yield
-    task.cancel()
+app = FastAPI()
 
-app = FastAPI(lifespan=lifespan)
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
 
 origins = [
     "http://localhost:3000",
@@ -36,7 +32,6 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
