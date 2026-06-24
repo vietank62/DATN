@@ -1,41 +1,5 @@
-from typing import Optional, List
-from sqlmodel import SQLModel, Field
-from sqlalchemy import JSON
-
-class User(SQLModel, table=True):
-    userId: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    email: str = Field(unique=True)
-    phone: str = Field(unique=True)
-    password: str
-    role: str = Field(default="customer")
-    avatar: Optional[str] = None
-    createdAt: Optional[str] = None
-
-class Restaurant(SQLModel, table=True):
-    restaurantId: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    address: str
-    district: str
-    cuisine: List[str] = Field(default=[], sa_type=JSON)  # Mảng các loại ẩm thực (VD: ["Việt Nam", "Hải sản"])
-    imageUrl: Optional[List[str]] = Field(default=None, sa_type=JSON)  # Mảng các đường dẫn ảnh
-    description: Optional[str] = None
-    openTime: str  
-    closeTime: str
-    phone: str
-    featured: bool = Field(default=False)
-    totalSeats: int
-    availableSeats: int
-    managerID : int = Field(foreign_key="user.userId")
-    status: str = Field(default="pending") # pending, active, rejected
-    businessLicenseUrl: Optional[str] = None
-    taxId: Optional[str] = None
-    rating: float = Field(default=0.0)
-    reviewCount: int = Field(default=0)
-    priceRange: str = Field(default="Chưa cập nhật")
-    promotion: Optional[str] = Field(default=None)
-
-
+from typing import Optional
+from sqlmodel import SQLModel, Field # type: ignore
 
 class MenuItem(SQLModel, table=True):
     itemId: Optional[int] = Field(default=None, primary_key=True)

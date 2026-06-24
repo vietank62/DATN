@@ -8,6 +8,6 @@ bước 1 : cài môi trường ảo
  pip install "fastapi[standard]"
  pip install -r requirements.txt
  bước 3 : chạy app
- fastapi dev main.py
+python.exe -m uvicorn app.main:app
  bước 4: mở http://127.0.0.1:8000/docs để test api
  có thể dùng postman thay thế

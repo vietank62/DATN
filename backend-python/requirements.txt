@@ -7,3 +7,4 @@ alembic
 passlib[argon2]
 python-dotenv
 cloudinary
+redis

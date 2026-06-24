@@ -1,21 +1,26 @@
-from fastapi import FastAPI
-from database import create_db_and_tables
-from routers import user, authentication, restaurant, menuitem, booking, statistical, upload, review, payment, notification
-from fastapi.middleware.cors import CORSMiddleware
-
 from contextlib import asynccontextmanager
-import asyncio
-from datetime import datetime, timedelta
-from sqlmodel import Session, select
-from database import engine
-from models import Booking, Notification, Restaurant
-from routers.notification import auto_cancel_and_notify_loop
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from database import create_db_and_tables
+from routers import (
+    user, 
+    authentication, 
+    restaurant, 
+    menuitem, 
+    booking, 
+    statistical, 
+    upload, 
+    review, 
+    payment, 
+    notification
+)
 
-app = FastAPI()
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     create_db_and_tables()
+    yield
+
+app = FastAPI(lifespan=lifespan, title="DATN API")
 
 origins = [
     "http://localhost:3000",
@@ -37,24 +42,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(user.router)
-
-app.include_router(restaurant.router)
-
-app.include_router(menuitem.router)
-
 app.include_router(authentication.router)
-
-app.include_router(booking.router)
-
-app.include_router(statistical.router)
-
-app.include_router(upload.router)
-
-app.include_router(review.router)
-
-app.include_router(payment.router)
-
-app.include_router(notification.router)
-
-
+app.include_router(user.router)
+app.include_router(restaurant.router)
+# app.include_router(menuitem.router)
+# app.include_router(booking.router)
+# app.include_router(statistical.router)
+# app.include_router(upload.router)
+# app.include_router(review.router)
+# app.include_router(payment.router)
+# app.include_router(notification.router)
