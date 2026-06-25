@@ -7,7 +7,7 @@ export default function AdminLayout() {
             <Auth />
 
             {/* Thành phần KHÁC NHAU ở mỗi trang sẽ được React Router bơm vào <Outlet /> */}
-            <main className="flex-grow bg-gray-50">
+            <main className="grow bg-gray-50">
                 <Outlet />
             </main>
         </div>

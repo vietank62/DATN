@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { useLocation } from "../../context/LocationContext";
+import { useLocation } from "../../hooks/useLocation";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type FilterState = {

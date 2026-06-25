@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { api } from "../../services/api";
 import { toast } from "sonner";
+import axios from "axios";
 
 export const Auth = () => {
   const { isAuthenticated, login, logout } = useAuth();
@@ -73,8 +74,14 @@ export const Auth = () => {
         return;
       }
       toast.success(`Đăng nhập thành công! Xin chào ${userRes.data.name}`);
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Đăng nhập thất bại");
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.detail || "Đăng nhập thất bại";
+        toast.error(message);
+      } else {
+      toast.error("Đã xảy ra lỗi hệ thống");
+      console.error(error);
+    }
     }
   };
 
@@ -102,14 +109,20 @@ export const Auth = () => {
       closeRegister();
       // Tự động mở form đăng nhập để user không phải click lại lần nữa
       openLogin();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Đăng ký thất bại");
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.detail || "Đăng nhập thất bại";
+        toast.error(message);
+      } else {
+      toast.error("Đã xảy ra lỗi hệ thống");
+      console.error(error);
+    }
     }
   };
 
   return (
     <div className="relative">
-      <div className={`w-full h-[40px] bg-[#2C2C2C] flex text-white text-sm items-center ${isLoginOpen ? "blur-sm" : ""}`}>
+      <div className={`w-full h-10 bg-[#2C2C2C] flex text-white text-sm items-center ${isLoginOpen ? "blur-sm" : ""}`}>
         <div className="lg:ml-20 md:ml-20 ml-2">
           <a href="/" className="group flex items-center gap-2">
             <span className="text-white font-black tracking-tighter text-xl italic group-hover:text-red-500 transition-colors">
@@ -142,7 +155,7 @@ export const Auth = () => {
       {/* Login Modal */}
       {isLoginOpen && (
         <div className="fixed inset-0 bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-40" onClick={handleOverlayClick}>
-          <div className="flex-1 absolute w-[635px] bg-gray-50 left-[50%] translate-x-[-50%] top-[50px] text-black">
+          <div className="flex-1 absolute w-158.75 bg-gray-50 left-[50%] translate-x-[-50%] top-12.5 text-black">
             <div className="p-10 shadow-2xl">
               <h1 className="text-xl font-bold">Đăng nhập tài khoản</h1>
               <form className="flex flex-col gap-4 mt-4" onSubmit={onLoginSubmit}>
@@ -162,7 +175,7 @@ export const Auth = () => {
                   onChange={e => setLoginData(prev => ({ ...prev, password: e.target.value }))}
                   required
                 />
-                <button type="submit" className="w-[120px] bg-red-600 text-white p-2 hover:bg-red-700 cursor-pointer transition-colors shadow">
+                <button type="submit" className="w-30 bg-red-600 text-white p-2 hover:bg-red-700 cursor-pointer transition-colors shadow">
                   Đăng nhập
                 </button>
               </form>
@@ -178,7 +191,7 @@ export const Auth = () => {
       {/* Register Modal */}
       {isRegisterOpen && (
         <div className="fixed inset-0 bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-40" onClick={handleRegisterOverlayClick}>
-          <div className="flex-1 absolute w-[635px] bg-gray-50 left-[50%] translate-x-[-50%] top-[50px] text-black">
+          <div className="flex-1 absolute w-158.75 bg-gray-50 left-[50%] translate-x-[-50%] top-12.5 text-black">
             <div className="p-10 shadow-2xl">
               <h1 className="text-xl font-bold">Đăng ký tài khoản</h1>
               <form className="grid grid-cols-2 gap-4 mt-4" onSubmit={onRegisterSubmit}>
@@ -235,7 +248,7 @@ export const Auth = () => {
                     Tôi đồng ý với các <span className="text-red-600 cursor-pointer">điều khoản và dịch vụ</span> của <span className="text-red-600">TABLE NOW</span>
                   </label>
                 </div>
-                <button type="submit" className="w-[120px] bg-red-600 text-white p-2 hover:bg-red-700 cursor-pointer transition-colors shadow">
+                <button type="submit" className="w-30 bg-red-600 text-white p-2 hover:bg-red-700 cursor-pointer transition-colors shadow">
                   Đăng ký
                 </button>
               </form>
