@@ -20,7 +20,7 @@ class Restaurant(SQLModel, table=True):
     review_count: int = Field(default=0, index=True)
     like_count: int = Field(default=0, index=True)
     has_exclusive: bool = Field(default=False, index=True)
-    category_ids: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
+    category: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
     suitable_for: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
     service_types: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
     capacity: int = Field(default=0, index=True)

@@ -10,40 +10,45 @@ import AdminLayout from './layouts/AdminLayout';
 // import UserManagement from './pages/Admin/UserManagement';
 // import RestaurantManagement from './pages/Admin/RestaurantManagement';
 import ManagerLayout from './layouts/ManagerLayout';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // import ManagerDashboard from './pages/Manager/ManagerDashboard';
 // import BookingManagement from './pages/Manager/BookingManagement';
 // import MenuManagement from './pages/Manager/MenuManagement';
 
+const queryClient = new QueryClient();
+
 function App() {
   return (
-    <LocationProvider>
-      <Toaster position="top-right" richColors />
-      <Router>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
-            {/* Thêm các Route mới ở đây. Ví dụ: */}
-            {/* <Route path="/about" element={<AboutPage />} /> */}
-          </Route>
+    <QueryClientProvider client={queryClient}>
+      <LocationProvider>
+        <Toaster position="top-right" richColors />
+        <Router>
+          <Routes>
+            <Route element={<MainLayout />}>
+                <Route path="/" element={<HomePage />} />
+                {/* Thêm các Route mới ở đây. Ví dụ: */}
+                {/* <Route path="/about" element={<AboutPage />} /> */}
+            </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-            <Route element={<AdminLayout />}>
-              {/* <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<UserManagement />} />
-              <Route path="/admin/restaurants" element={<RestaurantManagement />} /> */}
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+              <Route element={<AdminLayout />}>
+                {/* <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<UserManagement />} />
+                <Route path="/admin/restaurants" element={<RestaurantManagement />} /> */}
+              </Route>
             </Route>
-          </Route>
-          {/* === Trang Manager (ManagerLayout + chỉ role manager) === */}
-          <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
-            <Route element={<ManagerLayout />}>
-              {/* <Route path="/manager" element={<ManagerDashboard />} />
-              <Route path="/manager/bookings" element={<BookingManagement />} />
-              <Route path="/manager/menu" element={<MenuManagement />} /> */}
+            {/* === Trang Manager (ManagerLayout + chỉ role manager) === */}
+            <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
+              <Route element={<ManagerLayout />}>
+                {/* <Route path="/manager" element={<ManagerDashboard />} />
+                <Route path="/manager/bookings" element={<BookingManagement />} />
+                <Route path="/manager/menu" element={<MenuManagement />} /> */}
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Router>
-    </LocationProvider>
+          </Routes>
+        </Router>
+      </LocationProvider>
+    </QueryClientProvider>
   );
 }
 
