@@ -10,19 +10,19 @@ export const Footer = () => {
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4">
                                 <path fillRule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clipRule="evenodd" />
                                 </svg>
-                                <h4 className="text-sm">Store I : Di An, Binh Duong</h4>
+                                <h4 className="text-sm">Office I : Di An, Binh Duong</h4>
                             </div>
                             <div className="flex gap-2 items-center py-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4">
                                 <path fillRule="evenodd" d="m7.539 14.841.003.003.002.002a.755.755 0 0 0 .912 0l.002-.002.003-.003.012-.009a5.57 5.57 0 0 0 .19-.153 15.588 15.588 0 0 0 2.046-2.082c1.101-1.362 2.291-3.342 2.291-5.597A5 5 0 0 0 3 7c0 2.255 1.19 4.235 2.292 5.597a15.591 15.591 0 0 0 2.046 2.082 8.916 8.916 0 0 0 .189.153l.012.01ZM8 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clipRule="evenodd" />
                                 </svg>
-                                <h4 className="text-sm">Store II : Quan 10, TP.HCM</h4>
+                                <h4 className="text-sm">Office II : District 10, Ho Chi Minh City</h4>
                             </div>
                             <div className="flex gap-2 items-center py-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4">
                                 <path fillRule="evenodd" d="m3.855 7.286 1.067-.534a1 1 0 0 0 .542-1.046l-.44-2.858A1 1 0 0 0 4.036 2H3a1 1 0 0 0-1 1v2c0 .709.082 1.4.238 2.062a9.012 9.012 0 0 0 6.7 6.7A9.024 9.024 0 0 0 11 14h2a1 1 0 0 0 1-1v-1.036a1 1 0 0 0-.848-.988l-2.858-.44a1 1 0 0 0-1.046.542l-.534 1.067a7.52 7.52 0 0 1-4.86-4.859Z" clipRule="evenodd" />
                                 </svg>
-                                <h4 className="text-sm">Phone : 0889733937</h4>
+                                <h4 className="text-sm">Phone : 0975 354 204</h4>
                             </div>
                         </div>
                         <div className="flex-col">
@@ -43,7 +43,7 @@ export const Footer = () => {
                 </div>
             </div>
             <div className="text-center text-sm py-2">
-                <h1>Pham Viet Anh® All Rights Reserved.</h1>
+                <h1>Pham Viet Anh & Nguyen Hoang Minh, All Rights Reserved.</h1>
             </div>
         </footer>
     );

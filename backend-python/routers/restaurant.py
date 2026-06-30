@@ -1,15 +1,17 @@
 import json
-from fastapi import APIRouter, HTTPException, Query
+from typing import Annotated, List, Optional
+from fastapi import APIRouter, HTTPException, Query, Security
 from fastapi.encoders import jsonable_encoder
 from database import SessionDep, redis_client
 from sqlmodel import select  # type: ignore
 from models.resModel import Restaurant
+from models.user import User
 from schemas.resSchema import RestaurantCreate, RestaurantBase
-from typing import List, Optional
 from sqlalchemy import desc  # type: ignore
+from routers.deps import get_current_user
 import os
 
-CACHE_TTL = int(os.getenv("CACHE_TTL"))
+CACHE_TTL = int(os.getenv("CACHE_TTL", "60"))
 
 router = APIRouter(prefix="/v1/restaurants", tags=["Restaurant"])
 
@@ -63,9 +65,31 @@ async def create_restaurant(restaurant: RestaurantCreate, session: SessionDep): 
     session.commit()
     session.refresh(db_restaurant)
     return db_restaurant
+@router.get("/all", response_model=List[RestaurantBase])
+def get_all_restaurants_admin(
+    session: SessionDep,  # type: ignore
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]
+):
+    """Admin: lấy toàn bộ danh sách nhà hàng (không limit/cache)."""
+    results = session.exec(select(Restaurant).order_by(desc(Restaurant.id))).all()
+    return results
 
 
-    
+@router.patch("/{restaurant_id}/toggle-active")
+def toggle_restaurant_active(
+    restaurant_id: int,
+    session: SessionDep,  # type: ignore
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]
+):
+    """Admin: bật/tắt trạng thái hoạt động của nhà hàng."""
+    restaurant = session.get(Restaurant, restaurant_id)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    restaurant.is_active = not restaurant.is_active
+    session.add(restaurant)
+    session.commit()
+    session.refresh(restaurant)
+    return {"id": restaurant.id, "name": restaurant.name, "is_active": restaurant.is_active}
 
 
 

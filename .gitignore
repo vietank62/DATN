@@ -64,3 +64,5 @@ yarn-error.log*
 .cache/
 .tmp/
 *.temp
+BAO_CAO_DO_AN_TableNow.md
+QUICK_START_GUIDE.md

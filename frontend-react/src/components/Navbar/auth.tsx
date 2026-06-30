@@ -72,6 +72,10 @@ export const Auth = () => {
         toast.success("Đăng nhập Admin thành công!");
         window.location.href = "/admin";
         return;
+      } else if (userRes.data.role === "manager") {
+        toast.success("Đăng nhập Manager thành công!");
+        window.location.href = "/manager";
+        return;
       }
       toast.success(`Đăng nhập thành công! Xin chào ${userRes.data.name}`);
     } catch (error) {
