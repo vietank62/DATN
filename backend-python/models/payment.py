@@ -2,7 +2,7 @@ from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship  # type: ignore
 
 if TYPE_CHECKING:
-    from .resModel import Restaurant
+    from .restaurant import Restaurant
 
 
 class Payment(SQLModel, table=True):

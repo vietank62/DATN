@@ -3,7 +3,7 @@ from sqlmodel import SQLModel, Field, Relationship  # type: ignore
 
 if TYPE_CHECKING:
     from .user import User
-    from .resModel import Restaurant
+    from .restaurant import Restaurant
 
 
 class Review(SQLModel, table=True):

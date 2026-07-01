@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from typing import Annotated
 from database import SessionDep
 from models import Notification, User, Booking, Restaurant
-from sqlmodel import select, Session
+from sqlmodel import select, Session # type: ignore
 from routers.authentication import get_current_user
 import asyncio
 from datetime import datetime

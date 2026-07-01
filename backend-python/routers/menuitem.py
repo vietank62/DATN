@@ -4,8 +4,8 @@ from database import SessionDep
 from models import MenuItem, User, Restaurant
 from schemas.reviewMenuSchema import MenuItemCreate, MenuItemUpdate
 from routers.authentication import get_current_user
-from sqlmodel import select
-from sqlalchemy import func
+from sqlmodel import select # type: ignore
+from sqlalchemy import func # type: ignore
 
 router = APIRouter()
 

@@ -5,7 +5,7 @@ from database import SessionDep
 from models import Booking, Restaurant, User, Notification
 from schemas.bookingSchema import BookingCreate, BookingUpdate
 from routers.authentication import get_current_user
-from sqlmodel import select
+from sqlmodel import select # type: ignore
 
 import os
 import smtplib

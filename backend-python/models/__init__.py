@@ -1,5 +1,5 @@
 from .user import User
-from .resModel import Restaurant
+from .restaurant import Restaurant
 from .resDetail import RestaurantDetail
 from .menuItem import RestaurantMenuList
 from .menu import MenuItem
