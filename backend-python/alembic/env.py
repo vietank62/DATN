@@ -1,13 +1,16 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config # type: ignore
+from sqlalchemy import pool # type: ignore
 
 from alembic import context
-from sqlmodel import SQLModel
-import models
+from sqlmodel import SQLModel # type: ignore
 import os
 from dotenv import load_dotenv
+from models.menuItem import RestaurantMenuList
+from models.resDetail import RestaurantDetail
+from models.restaurant import Restaurant
+from models.user import User
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

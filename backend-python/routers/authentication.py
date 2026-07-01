@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from database import SessionDep
 from models.user import User
-from schemas.userSchema import UserRegister, UserOut
-from schemas.tokenSchema import Token
+from schemas.user import UserRegister, UserOut
+from schemas.token import Token
 from core import security
 from core.config import settings
 from sqlmodel import select # type: ignore

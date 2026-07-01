@@ -42,7 +42,7 @@ export const SearchBar = () => {
 
           {/* Custom Options Menu */}
           {isOpen && (
-            <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl z-[60] py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl z-60 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
               {locations.map((loc) => (
                 <div
                   key={loc}

@@ -2,7 +2,7 @@ from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel, Column, ARRAY, Text # type: ignore
 
 if TYPE_CHECKING:
-    from .resModel import Restaurant
+    from .restaurant import Restaurant
 
 class RestaurantMenuList(SQLModel, table=True):
     __tablename__ = "restaurant_menu_lists"

@@ -35,3 +35,18 @@ class RestaurantBase(BaseModel):
     capacity: int = 0
     is_active: bool
     created_at: datetime
+    
+class RestaurantUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    image_url: Optional[List[str]] = None
+    address: Optional[str] = None
+    district: Optional[str] = None
+    city: Optional[str] = None
+    price_avg: Optional[int] = None
+    category: Optional[List[str]] = None
+    suitable_for: Optional[List[str]] = None
+    service_types: Optional[List[str]] = None
+    capacity: Optional[int] = None
+    has_exclusive: Optional[bool] = None
+    is_active: Optional[bool] = None

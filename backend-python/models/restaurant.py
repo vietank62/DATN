@@ -11,7 +11,7 @@ class Restaurant(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
     name: str = Field(max_length=255, nullable=False)
     slug: str = Field(max_length=255, unique=True, nullable=False)
-    image_url: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
+    image_url: str = Field(default=None, sa_column=Column(Text))
     address: str = Field(max_length=500, nullable=False)
     district: str = Field(max_length=100, nullable=False, index=True)
     city: Optional[str] = Field(default=None, max_length=100, nullable=True)

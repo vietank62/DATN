@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlmodel import select # type: ignore
 from database import SessionDep
 from models.user import User
-from schemas.userSchema import UserOut, UserUpdate, UserRegister
+from schemas.user import UserOut, UserUpdate, UserRegister
 from routers.deps import get_current_user
 from core import security
 from datetime import datetime, timezone

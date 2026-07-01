@@ -1,12 +1,14 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Splide, SplideSlide } from "@splidejs/react-splide";
 import "@splidejs/react-splide/css/core";
 import { Splide as SplideType } from "@splidejs/splide";
 import axios from "axios";
 import type { RestaurantCard } from "../../types/restaurant";
+import { useNavigate } from "react-router-dom";
+import { useLocation } from "../../hooks/useLocation";
 
-const BASE_URL = import.meta.env.VITE_API_BASE + "/v1/restaurants";
+const BASE_URL = import.meta.env.VITE_API_BASE + "/v1/restaurants/";
 
 const fetchRestaurants = async (queryString: string): Promise<RestaurantCard[]> => {
     const { data } = await axios.get<RestaurantCard[]>(`${BASE_URL}${queryString}`);
@@ -14,12 +16,19 @@ const fetchRestaurants = async (queryString: string): Promise<RestaurantCard[]> 
 };
 
 export const Home = () => {
+    const navigate = useNavigate();
+    const { city } = useLocation(); 
     const recommendedRef = useRef<SplideType>(null);
     const hotDealsRef = useRef<SplideType>(null);
     const topRatedRef = useRef<SplideType>(null);
     const newArrivalsRef = useRef<SplideType>(null);
 
-    // Cấu hình đồng bộ thời gian Cache: staleTime (3p) và gcTime (5p) trùng khớp với Backend TTL
+    // Các state quản lý ẩn/hiển thị nút bấm cho từng Section độc lập
+    const [recArrows, setRecArrows] = useState({ prev: false, next: true });
+    const [dealsArrows, setDealsArrows] = useState({ prev: false, next: true });
+    const [ratedArrows, setRatedArrows] = useState({ prev: false, next: true });
+    const [newArrows, setNewArrows] = useState({ prev: false, next: true });
+
     const queryConfig = {
         staleTime: 1000 * 60 * 3,
         gcTime: 1000 * 60 * 5,
@@ -27,26 +36,26 @@ export const Home = () => {
     };
 
     const { data: recommendedData, isLoading: loadRec } = useQuery<RestaurantCard[]>({
-        queryKey: ["restaurants", { sort_by: "like_count", limit: 8 }],
-        queryFn: () => fetchRestaurants("?sort_by=like_count&limit=8"),
+        queryKey: ["restaurants", { sort_by: "like_count", limit: 8, city }],
+        queryFn: () => fetchRestaurants(`?sort_by=like_count&limit=8&city=${city}`),
         ...queryConfig,
     });
 
     const { data: hotDealsData, isLoading: loadDeals } = useQuery<RestaurantCard[]>({
-        queryKey: ["restaurants", { has_exclusive: true, limit: 8 }],
-        queryFn: () => fetchRestaurants("?has_exclusive=true&limit=8"),
+        queryKey: ["restaurants", { has_exclusive: true, limit: 8, city }],
+        queryFn: () => fetchRestaurants(`?has_exclusive=true&limit=8&city=${city}`),
         ...queryConfig,
     });
 
     const { data: topRatedData, isLoading: loadRated } = useQuery<RestaurantCard[]>({
-        queryKey: ["restaurants", { sort_by: "rating", limit: 8 }],
-        queryFn: () => fetchRestaurants("?sort_by=rating&limit=8"),
+        queryKey: ["restaurants", { sort_by: "rating", limit: 8, city }],
+        queryFn: () => fetchRestaurants(`?sort_by=rating&limit=8&city=${city}`),
         ...queryConfig,
     });
 
     const { data: newArrivalsData, isLoading: loadNew } = useQuery<RestaurantCard[]>({
-        queryKey: ["restaurants", { sort_by: "created_at", limit: 8 }],
-        queryFn: () => fetchRestaurants("?sort_by=created_at&limit=8"),
+        queryKey: ["restaurants", { sort_by: "created_at", limit: 8, city }],
+        queryFn: () => fetchRestaurants(`?sort_by=created_at&limit=8&city=${city}`),
         ...queryConfig,
     });
 
@@ -55,6 +64,8 @@ export const Home = () => {
         gap: "1.25rem",
         arrows: false,
         pagination: false,
+        rewind: false, 
+        updateOnMove: true,
         breakpoints: {
             1024: { perPage: 3 },
             768: { perPage: 2 },
@@ -62,15 +73,27 @@ export const Home = () => {
         },
     };
 
+    type ArrowState = { prev: boolean; next: boolean };
+    const handleNavigationVisibility = (
+        splide: SplideType,
+        setArrows: (state: ArrowState) => void,
+    ): void => {
+        const { index, Components } = splide;
+        const maxIndex = Components.Controller.getEnd(); // Lấy điểm slide cuối cùng dựa vào perPage
+        setArrows({
+            prev: index > 0,
+            next: index < maxIndex,
+        });
+    };
+
     const navBtnClass =
-        "absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 flex items-center justify-center bg-white rounded-full border border-gray-200 shadow-md text-gray-700 hover:border-red-500 hover:text-red-600 transition-all duration-200 cursor-pointer";
+        "absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 flex items-center justify-center bg-white rounded-full border border-gray-200 shadow-md text-gray-700 hover:border-red-500 hover:text-red-600 transition-all duration-200 cursor-pointer disabled:opacity-0 disabled:pointer-events-none";
 
     const getImageUrl = (urlSource: string | string[] | null | undefined): string => {
         if (Array.isArray(urlSource)) return urlSource[0] || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500";
         return urlSource || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500";
     };
 
-    // FIX VẤN ĐỀ 2 & 3: Tạo một khối Skeleton Loading nhỏ đại diện thay vì chặn toàn màn hình
     const renderSkeleton = () => (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 w-full">
             {[...Array(4)].map((_, i) => (
@@ -89,25 +112,70 @@ export const Home = () => {
 
                 {/* Section 1: Đề xuất */}
                 <div>
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Table Now đề xuất cho bạn</h2>
-                        <p className="text-sm text-gray-500 mt-1">Khám phá những Nhà hàng được yêu thích nhất</p>
+                    <div className="flex justify-between items-end mb-6">
+                        <div className="mb-6">
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Table Now đề xuất cho bạn</h2>
+                            <p className="text-sm text-gray-500 mt-1">Khám phá những Nhà hàng được yêu thích nhất</p>
+                        </div>
+                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">Xem tất cả &rarr;</a>
                     </div>
                     {loadRec ? renderSkeleton() : recommendedData && recommendedData.length > 0 && (
                         <div className="relative">
-                            <button className={`${navBtnClass} -left-4`} onClick={() => recommendedRef.current?.go("<")}>&larr;</button>
-                            <button className={`${navBtnClass} -right-4`} onClick={() => recommendedRef.current?.go(">")}>&rarr;</button>
-                            <Splide ref={recommendedRef} options={splideOptions}>
+                            <button className={`${navBtnClass} -left-4`} onClick={() => recommendedRef.current?.go("<")} disabled={!recArrows.prev}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-all rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <button className={`${navBtnClass} -right-4`} onClick={() => recommendedRef.current?.go(">")} disabled={!recArrows.next}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                            <Splide 
+                                ref={recommendedRef} 
+                                options={splideOptions}
+                                onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setRecArrows)}
+                                onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setRecArrows)}
+                            >
                                 {recommendedData.map((res) => (
                                     <SplideSlide key={res.id}>
-                                        <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
+                                        <div onClick={() => navigate(`/restaurants/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Được đề xuất</span>
+                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Được đề xuất</span>
                                                 <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
-                                            <div className="p-4 flex flex-col justify-between bg-white">
-                                                <h3 className="font-bold text-gray-800 text-sm md:text-base line-clamp-2 leading-snug group-hover:text-red-600 transition-colors">{res.name}</h3>
-                                                <p className="text-xs text-amber-500 font-medium mt-2">⭐ {res.rating} <span className="text-gray-400">({res.like_count} lượt thích)</span></p>
+                                            <div className="p-4 flex flex-col justify-between flex-1 bg-white">
+                                                <div>
+                                                    <h3 className="font-bold text-gray-800 text-sm md:text-base truncate group-hover:text-red-600 transition-colors" title={res.name}>
+                                                        {res.name}
+                                                    </h3>
+                                                </div>
+                                                <div className="mt-3 space-y-2">
+                                                    <div className="flex items-center text-xs md:text-sm font-medium text-amber-500 whitespace-nowrap">
+                                                        <span className="mr-1">⭐</span>
+                                                        <span>{res.rating || "0"}</span>
+                                                        <span className="text-gray-400 font-normal ml-1.5">
+                                                            ({res.like_count || 0} lượt thích)
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="text-gray-700 font-semibold">{res.district}</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 shrink-0">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="text-gray-500">{res.address}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </SplideSlide>
@@ -128,26 +196,61 @@ export const Home = () => {
                     </div>
                     {loadDeals ? renderSkeleton() : hotDealsData && hotDealsData.length > 0 && (
                         <div className="relative">
-                            <button className={`${navBtnClass} -left-4`} onClick={() => hotDealsRef.current?.go("<")}>&larr;</button>
-                            <button className={`${navBtnClass} -right-4`} onClick={() => hotDealsRef.current?.go(">")}>&rarr;</button>
-                            <Splide ref={hotDealsRef} options={splideOptions}>
-                                {hotDealsData.map((item) => (
-                                    <SplideSlide key={item.id}>
-                                        <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm transition-all duration-300 flex flex-col h-full">
-                                            <div className="relative pt-[65%] overflow-hidden bg-gray-100">
-                                                <div className="absolute top-3 left-3 z-10">
-                                                    <span className="bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow uppercase tracking-wider">Ưu đãi Hot</span>
-                                                </div>
-                                                <img src={getImageUrl(item.image_url)} alt={item.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            <button className={`${navBtnClass} -left-4`} onClick={() => hotDealsRef.current?.go("<")} disabled={!dealsArrows.prev}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-all rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <button className={`${navBtnClass} -right-4`} onClick={() => hotDealsRef.current?.go(">")} disabled={!dealsArrows.next}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                            <Splide 
+                                ref={hotDealsRef} 
+                                options={splideOptions}
+                                onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setDealsArrows)}
+                                onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setDealsArrows)}
+                            >
+                                {hotDealsData.map((res) => (
+                                    <SplideSlide key={res.id}>
+                                        <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
+                                            <div className="relative pt-[60%] overflow-hidden bg-gray-100">
+                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Ưu đãi</span>
+                                                <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
-                                            <div className="p-4 flex flex-col justify-between gap-4 bg-white flex-1">
+                                            <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
-                                                    <h3 className="font-bold text-gray-800 text-sm line-clamp-2 group-hover:text-red-600 transition-colors cursor-pointer">{item.name}</h3>
-                                                    <div className="flex items-baseline gap-1.5 mt-2 flex-wrap">
-                                                        
+                                                    <h3 className="font-bold text-gray-800 text-sm md:text-base truncate group-hover:text-red-600 transition-colors" title={res.name}>
+                                                        {res.name}
+                                                    </h3>
+                                                </div>
+                                                <div className="mt-3 space-y-2">
+                                                    <div className="flex items-center text-xs md:text-sm font-medium text-amber-500 whitespace-nowrap">
+                                                        <span className="mr-1">⭐</span>
+                                                        <span>{res.rating || "0"}</span>
+                                                        <span className="text-gray-400 font-normal ml-1.5">
+                                                            ({res.like_count || 0} lượt thích)
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="font-semibold text-gray-700">{res.district}</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 shrink-0">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="text-gray-500">{res.address}</span>
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                <button className="w-full bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs md:text-sm hover:bg-red-700 active:scale-[0.97] transition-all cursor-pointer">Chọn & Đặt chỗ</button>
                                             </div>
                                         </div>
                                     </SplideSlide>
@@ -156,7 +259,8 @@ export const Home = () => {
                         </div>
                     )}
                 </div>
-                {/* Section 3: Top Nhà hàng được đánh giá tốt (Sort theo rating) */}
+
+                {/* Section 3: Top Nhà hàng được đánh giá tốt */}
                 <div>
                     <div className="flex justify-between items-end mb-6">
                         <div>
@@ -167,23 +271,61 @@ export const Home = () => {
                     </div>
                     {loadRated ? renderSkeleton() : topRatedData && topRatedData.length > 0 && (
                         <div className="relative">
-                            <button className={`${navBtnClass} -left-4`} onClick={() => topRatedRef.current?.go("<")}>&larr;</button>
-                            <button className={`${navBtnClass} -right-4`} onClick={() => topRatedRef.current?.go(">")}>&rarr;</button>
-
-                            <Splide ref={topRatedRef} options={splideOptions}>
-                                {topRatedData.map((item) => (
-                                    <SplideSlide key={item.id}>
+                            <button className={`${navBtnClass} -left-4`} onClick={() => topRatedRef.current?.go("<")} disabled={!ratedArrows.prev}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-all rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <button className={`${navBtnClass} -right-4`} onClick={() => topRatedRef.current?.go(">")} disabled={!ratedArrows.next}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                            <Splide 
+                                ref={topRatedRef} 
+                                options={splideOptions}
+                                onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setRatedArrows)}
+                                onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setRatedArrows)}
+                            >
+                                {topRatedData.map((res) => (
+                                    <SplideSlide key={res.id}>
                                         <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
-                                            <div className="relative pt-[65%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded shadow z-10 uppercase">Top Đánh Giá</span>
-                                                <img src={getImageUrl(item.image_url)} alt={item.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            <div className="relative pt-[60%] overflow-hidden bg-gray-100">
+                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Đánh giá tốt</span>
+                                                <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
-                                            <div className="p-4 flex flex-col justify-between gap-4 bg-white flex-1">
+                                            <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
-                                                    <h3 className="font-bold text-gray-800 text-sm line-clamp-2 group-hover:text-red-600 transition-colors">{item.name}</h3>
-                                                    <p className="text-sm text-amber-500 font-black mt-2">⭐ {item.rating?.toFixed(1) || "5.0"} / 5.0 <span className="text-gray-400 font-normal text-xs">({item.review_count || 0} bài đánh giá)</span></p>
+                                                    <h3 className="font-bold text-gray-800 text-sm md:text-base truncate group-hover:text-red-600 transition-colors" title={res.name}>
+                                                        {res.name}
+                                                    </h3>
                                                 </div>
-                                                <button className="w-full bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs md:text-sm hover:bg-red-700 active:scale-[0.97] transition-all cursor-pointer">Chọn & Đặt chỗ</button>
+                                                <div className="mt-3 space-y-2">
+                                                    <div className="flex items-center text-xs md:text-sm font-medium text-amber-500 whitespace-nowrap">
+                                                        <span className="mr-1">⭐</span>
+                                                        <span>{res.rating || "0"}</span>
+                                                        <span className="text-gray-400 font-normal ml-1.5">
+                                                            ({res.like_count || 0} lượt thích)
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="font-semibold text-gray-700">{res.district}</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 shrink-0">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="text-gray-500">{res.address}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </SplideSlide>
@@ -193,7 +335,7 @@ export const Home = () => {
                     )}
                 </div>
 
-                {/* Section 4: Nhà hàng mới gia nhập Table Now (Sort theo created_at) */}
+                {/* Section 4: Nhà hàng mới gia nhập */}
                 <div>
                     <div className="flex justify-between items-end mb-6">
                         <div>
@@ -204,25 +346,61 @@ export const Home = () => {
                     </div>
                     {loadNew ? renderSkeleton() : newArrivalsData && newArrivalsData.length > 0 && (
                         <div className="relative">
-                            <button className={`${navBtnClass} -left-4`} onClick={() => newArrivalsRef.current?.go("<")}>&larr;</button>
-                            <button className={`${navBtnClass} -right-4`} onClick={() => newArrivalsRef.current?.go(">")}>&rarr;</button>
-
-                            <Splide ref={newArrivalsRef} options={splideOptions}>
-                                {newArrivalsData.map((item) => (
-                                    <SplideSlide key={item.id}>
+                            <button className={`${navBtnClass} -left-4`} onClick={() => newArrivalsRef.current?.go("<")} disabled={!newArrows.prev}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-all rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <button className={`${navBtnClass} -right-4`} onClick={() => newArrivalsRef.current?.go(">")} disabled={!newArrows.next}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                            <Splide 
+                                ref={newArrivalsRef} 
+                                options={splideOptions}
+                                onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setNewArrows)}
+                                onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setNewArrows)}
+                            >
+                                {newArrivalsData.map((res) => (
+                                    <SplideSlide key={res.id}>
                                         <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
-                                            <div className="relative pt-[65%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow z-10 uppercase">Mới Nhất</span>
-                                                <img src={getImageUrl(item.image_url)} alt={item.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            <div className="relative pt-[60%] overflow-hidden bg-gray-100">
+                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Mới</span>
+                                                <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
-                                            <div className="p-4 flex flex-col justify-between gap-4 bg-white flex-1">
+                                            <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
-                                                    <h3 className="font-bold text-gray-800 text-sm line-clamp-2 group-hover:text-red-600 transition-colors">{item.name}</h3>
-                                                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                                                        📅 Gia nhập: {item.created_at ? new Date(item.created_at).toLocaleDateString("vi-VN") : "Vừa xong"}
-                                                    </p>
+                                                    <h3 className="font-bold text-gray-800 text-sm md:text-base truncate group-hover:text-red-600 transition-colors" title={res.name}>
+                                                        {res.name}
+                                                    </h3>
                                                 </div>
-                                                <button className="w-full bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs md:text-sm hover:bg-red-700 active:scale-[0.97] transition-all cursor-pointer">Chọn & Đặt chỗ</button>
+                                                <div className="mt-3 space-y-2">
+                                                    <div className="flex items-center text-xs md:text-sm font-medium text-amber-500 whitespace-nowrap">
+                                                        <span className="mr-1">⭐</span>
+                                                        <span>{res.rating}</span>
+                                                        <span className="text-gray-400 font-normal ml-1.5">
+                                                            ({res.like_count} lượt thích)
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="font-semibold text-gray-700">{res.district}</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 shrink-0">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z" />
+                                                        </svg>
+                                                        <span className="truncate">
+                                                            <span className="text-gray-500">{res.address}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </SplideSlide>
@@ -230,6 +408,36 @@ export const Home = () => {
                             </Splide>
                         </div>
                     )}
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm relative overflow-hidden flex flex-col gap-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Table Now đề xuất cho riêng bạn</h2>
+                        <p className="text-sm text-gray-400 mt-1">Những địa điểm có thể bạn sẽ thích</p>
+                    </div>
+                    <div className="relative py-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 opacity-25 select-none pointer-events-none">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="bg-gray-50 rounded-2xl p-4 border border-gray-200 flex flex-col gap-4 h-48 relative">
+                                    <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                        <span className="text-xs text-gray-300">❤️</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 z-10">
+                            <h3 className="text-base md:text-lg font-bold text-gray-900 max-w-xl leading-snug">
+                                Table Now sẽ giới thiệu các quán phù hợp với tiêu chí của bạn
+                            </h3>
+                            <p className="text-xs md:text-sm text-gray-500 mt-2 max-w-xl font-medium">
+                                Please tell us what kind is your favorite food and what price range you prefer
+                            </p>
+                        </div>
+                    </div>
+                    <div className="w-full">
+                        <button className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors duration-200 text-sm shadow-md cursor-pointer">
+                            Chọn khẩu vị của bạn
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

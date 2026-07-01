@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import create_db_and_tables
+from database import create_db_and_tables, redis_client
 from routers import (
     user, 
     authentication, 
     restaurant, 
+    detail,
     menuitem, 
     booking, 
     statistical, 
@@ -19,6 +20,11 @@ from routers import (
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
+    try:
+        await redis_client.close()
+        print("Đã đóng kết nối Redis an toàn!")
+    except Exception as e:
+        print(f"Lỗi khi đóng Redis: {e}")
 
 app = FastAPI(lifespan=lifespan, title="DATN API")
 
