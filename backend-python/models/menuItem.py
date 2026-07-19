@@ -8,9 +8,10 @@ class RestaurantMenuList(SQLModel, table=True):
     __tablename__ = "restaurant_menu_lists"
 
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
-    restaurant_id: int = Field(foreign_key="restaurants.id", nullable=False)
-    dish_name: str = Field(max_length=255, nullable=False)
-    price: int = Field(default=0, index=True)
+    restaurant_id: int = Field(foreign_key="restaurants.id", nullable=False) 
+    name: str = Field(max_length=255, nullable=False)
+    category: str = Field(max_length=255, nullable=False)
+    price: float = Field(default=0, index=True)
     description: Optional[str] = Field(default=None, max_length=500)
     image_url: Optional[str] = Field(default=None, max_length=500)
     is_available: bool = Field(default=True, index=True) 

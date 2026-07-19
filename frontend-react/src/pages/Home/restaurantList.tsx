@@ -7,11 +7,14 @@ import axios from "axios";
 import type { RestaurantCard } from "../../types/restaurant";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "../../hooks/useLocation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { api } from "../../services/api";
 
 const BASE_URL = import.meta.env.VITE_API_BASE + "/v1/restaurants/";
 
 const fetchRestaurants = async (queryString: string): Promise<RestaurantCard[]> => {
-    const { data } = await axios.get<RestaurantCard[]>(`${BASE_URL}${queryString}`);
+    const { data } = await api.get<RestaurantCard[]>(`${BASE_URL}${queryString}`);
     return data;
 };
 
@@ -23,7 +26,6 @@ export const Home = () => {
     const topRatedRef = useRef<SplideType>(null);
     const newArrivalsRef = useRef<SplideType>(null);
 
-    // Các state quản lý ẩn/hiển thị nút bấm cho từng Section độc lập
     const [recArrows, setRecArrows] = useState({ prev: false, next: true });
     const [dealsArrows, setDealsArrows] = useState({ prev: false, next: true });
     const [ratedArrows, setRatedArrows] = useState({ prev: false, next: true });
@@ -79,7 +81,7 @@ export const Home = () => {
         setArrows: (state: ArrowState) => void,
     ): void => {
         const { index, Components } = splide;
-        const maxIndex = Components.Controller.getEnd(); // Lấy điểm slide cuối cùng dựa vào perPage
+        const maxIndex = Components.Controller.getEnd(); 
         setArrows({
             prev: index > 0,
             next: index < maxIndex,
@@ -88,11 +90,6 @@ export const Home = () => {
 
     const navBtnClass =
         "absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 flex items-center justify-center bg-white rounded-full border border-gray-200 shadow-md text-gray-700 hover:border-red-500 hover:text-red-600 transition-all duration-200 cursor-pointer disabled:opacity-0 disabled:pointer-events-none";
-
-    const getImageUrl = (urlSource: string | string[] | null | undefined): string => {
-        if (Array.isArray(urlSource)) return urlSource[0] || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500";
-        return urlSource || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500";
-    };
 
     const renderSkeleton = () => (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 w-full">
@@ -105,6 +102,55 @@ export const Home = () => {
             ))}
         </div>
     );
+
+    const queryClient = useQueryClient();
+    const toggleFavoriteMutation = useMutation({
+        mutationFn: async (restaurantId: number) => {
+            const token = localStorage.getItem("token"); 
+            return await axios.post(
+                `${import.meta.env.VITE_API_BASE}/v1/favorites/toggle`, 
+                { restaurantId },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+        },
+        onMutate: async (restaurantId: number) => {
+            await queryClient.cancelQueries({ queryKey: ["restaurants"] });
+            const previousQueries = queryClient.getQueriesData<{ id: number; is_favorite: boolean }[]>({ 
+                queryKey: ["restaurants"] 
+            });
+            queryClient.setQueriesData<RestaurantCard[]>({ queryKey: ["restaurants"] }, (oldData) => {
+                if (!oldData) return [];
+                return oldData.map((res) => 
+                    res.id === restaurantId ? { ...res, is_favorite: !res.is_favorite } : res
+                );
+            });
+            return { previousQueries };
+        },
+        onError: (error: unknown, _restaurantId, context) => {
+            if (context?.previousQueries) {
+                context.previousQueries.forEach(([queryKey, oldData]) => {
+                    queryClient.setQueryData(queryKey, oldData);
+                });
+            }
+
+            const axiosError = error as { response?: { data?: unknown; status?: number } };
+            console.error("Favorite Error Details:", axiosError.response?.data);
+            
+            if (axiosError.response?.status === 401) {
+                toast.error("Vui lòng đăng nhập để thực hiện chức năng này.");
+            } else {
+                toast.error("Có lỗi xảy ra, vui lòng thử lại sau.");
+            }
+        },
+        // 3. Luôn luôn đồng bộ lại dữ liệu chuẩn từ server sau khi xong (dù thành công hay thất bại)
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["restaurants"] });
+        }
+    });
 
     return (
         <div className="w-full bg-slate-50 min-h-screen py-10 flex justify-center">
@@ -139,10 +185,39 @@ export const Home = () => {
                             >
                                 {recommendedData.map((res) => (
                                     <SplideSlide key={res.id}>
-                                        <div onClick={() => navigate(`/restaurants/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
+                                        <div onClick={() => navigate(`/restaurant/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Được đề xuất</span>
-                                                <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">
+                                                    Được đề xuất
+                                                </span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Ngăn chặn chuyển hướng trang
+                                                        toggleFavoriteMutation.mutate(res.id);
+                                                    }}
+                                                    className={`absolute top-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer ${
+                                                        res.is_favorite 
+                                                            ? "bg-red-50 text-red-500" // Class khi ĐÃ YÊU THÍCH
+                                                            : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white" // Class khi CHƯA YÊU THÍCH
+                                                    }`}
+                                                >
+                                                    <svg 
+                                                        xmlns="http://www.w3.org/2000/svg" 
+                                                        fill={res.is_favorite ? "currentColor" : "none"} 
+                                                        viewBox="0 0 24 24" 
+                                                        strokeWidth={2} 
+                                                        stroke="currentColor" 
+                                                        className="w-5 h-5 transition-transform group-hover/heart:scale-110"
+                                                    >
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                                                    </svg>
+                                                </button>
+
+                                                <img 
+                                                    src={res.image_url} 
+                                                    alt={res.name} 
+                                                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                                />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
@@ -217,7 +292,7 @@ export const Home = () => {
                                         <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
                                                 <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Ưu đãi</span>
-                                                <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={res.image_url} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
@@ -292,7 +367,7 @@ export const Home = () => {
                                         <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
                                                 <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Đánh giá tốt</span>
-                                                <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={res.image_url} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
@@ -367,7 +442,7 @@ export const Home = () => {
                                         <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
                                                 <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Mới</span>
-                                                <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={res.image_url} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>

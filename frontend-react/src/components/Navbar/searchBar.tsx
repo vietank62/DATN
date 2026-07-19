@@ -1,14 +1,24 @@
 import { useRef, useState, useEffect } from "react";
 import { useLocation } from "../../hooks/useLocation";
+import { useNavigate, useSearchParams,  } from "react-router-dom";
 
 export const SearchBar = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { city, setCity } = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const locations = ["Hồ Chí Minh", "Hà Nội", "Đà Nẵng"];
 
-  // Close dropdown when clicking outside
+  const currentSearchParam = searchParams.get("search") || "";
+  
+  const [typedKeyword, setTypedKeyword] = useState(() => currentSearchParam);
+  const [prevSearchParam, setPrevSearchParam] = useState(currentSearchParam);
+  if (currentSearchParam !== prevSearchParam) {
+    setTypedKeyword(currentSearchParam);
+    setPrevSearchParam(currentSearchParam);
+  }
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -18,6 +28,23 @@ export const SearchBar = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleSearch = () => {
+    const queryParams = new URLSearchParams();
+    if (city) {
+      queryParams.set("city", city);
+    }
+    if (typedKeyword.trim()) {
+      queryParams.set("search", typedKeyword.trim());
+    }
+    navigate(`/search?${queryParams.toString()}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   return (
     <div className="w-full py-3 bg-white">
@@ -49,6 +76,10 @@ export const SearchBar = () => {
                   onClick={() => {
                     setCity(loc);
                     setIsOpen(false);
+                    const currentParams = new URLSearchParams(searchParams);
+                    currentParams.set("city", loc);
+                    if (typedKeyword.trim()) currentParams.set("search", typedKeyword.trim());
+                    navigate(`/search?${currentParams.toString()}`);
                   }}
                   className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center justify-between
                     ${city === loc ? "bg-red-50 text-red-600 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
@@ -70,9 +101,12 @@ export const SearchBar = () => {
           <input
             type="text"
             placeholder="Bạn muốn đặt chỗ đến đâu?"
+            value={typedKeyword}
+            onChange={(e) => setTypedKeyword(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent px-5 text-sm focus:outline-none text-gray-700 placeholder:text-gray-400"
           />
-          <button className="bg-red-500 text-white px-8 py-2 flex items-center gap-2 hover:bg-red-600 active:scale-95 transition-all font-medium rounded-md">
+          <button onClick={handleSearch} className="bg-red-500 text-white px-8 py-2 flex items-center gap-2 hover:bg-red-600 active:scale-95 transition-all font-medium rounded-md">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>

@@ -1,95 +1,54 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, HTTPException
 from database import SessionDep
-from models import MenuItem, User, Restaurant
-from schemas.reviewMenuSchema import MenuItemCreate, MenuItemUpdate
-from routers.authentication import get_current_user
-from sqlmodel import select # type: ignore
-from sqlalchemy import func # type: ignore
+from models.menuItem import RestaurantMenuList
+from models.restaurant import Restaurant
+from sqlmodel import select  # type: ignore
+from schemas.menuItems import MenuItemBase , MenuItemCreate
 
-router = APIRouter()
+router = APIRouter(prefix="/v1/menuitems", tags=["MenuItem"])
 
 
-def update_restaurant_price_range(restaurant_id: int, session: SessionDep):
-    restaurant = session.exec(select(Restaurant).where(Restaurant.id == restaurant_id)).first()
+@router.get("/restaurant/{restaurant_id}", response_model=list[MenuItemBase])
+def get_menu_items_by_restaurant(restaurant_id: int, session: SessionDep):  # type: ignore
+    restaurant = session.get(Restaurant, restaurant_id)
     if not restaurant:
-        return
+        raise HTTPException(status_code=404, detail="Restaurant not found")
 
-    price_res = session.exec(
-        select(
-            func.min(MenuItem.price),
-            func.max(MenuItem.price)
-        ).where(MenuItem.restaurantId == restaurant_id)
+    statement = (
+        select(RestaurantMenuList)
+        .where(RestaurantMenuList.restaurant_id == restaurant_id)
+        .order_by(RestaurantMenuList.category.asc(), RestaurantMenuList.name.asc(), RestaurantMenuList.id.asc())
     )
-    min_price, max_price = price_res.first()
-    if min_price is not None and max_price is not None:
-        if min_price == max_price:
-            restaurant.price_avg = int(min_price)
-        else:
-            restaurant.price_avg = int((min_price + max_price) / 2)
-    else:
-        restaurant.price_avg = 0
+    return session.exec(statement).all()
 
-    session.add(restaurant)
+@router.post("/restaurant/{restaurant_id}", response_model=MenuItemBase)
+def create_menu_item(restaurant_id: int, menu_item: MenuItemCreate, session: SessionDep):  # type: ignore
+    restaurant = session.get(Restaurant, restaurant_id)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    db_menu_item = RestaurantMenuList(**menu_item.model_dump(), restaurant_id=restaurant_id)
+
+    session.add(db_menu_item)
     session.commit()
 
+    session.refresh(db_menu_item)
 
-@router.post("/api/create-menuitem/", tags=["MenuItem"])
-def create_menu_item(
-    menu_item_data: MenuItemCreate,
-    session: SessionDep,
-    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
-):
-    menu_item = MenuItem(**menu_item_data.model_dump())
+    return db_menu_item
+
+@router.put("/restaurant/{restaurant_id}/menuitem/{menuitem_id}/availability", response_model=RestaurantMenuList)
+def update_menu_item_availability(restaurant_id: int, menuitem_id: int, session: SessionDep):  # type: ignore
+    restaurant = session.get(Restaurant, restaurant_id)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    menu_item = session.get(RestaurantMenuList, menuitem_id)
+    if not menu_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+
+    menu_item.is_available = not menu_item.is_available
     session.add(menu_item)
     session.commit()
     session.refresh(menu_item)
-    update_restaurant_price_range(menu_item.restaurantId, session)
+
     return menu_item
-
-
-@router.get("/api/get-menuitems-by-restaurant/{restaurant_id}", tags=["MenuItem"])
-def get_menu_items_by_restaurant(restaurant_id: int, session: SessionDep):
-    menu_items = session.exec(select(MenuItem).where(MenuItem.restaurantId == restaurant_id)).all()
-    return menu_items
-
-
-@router.get("/api/get-menuitem/{item_id}", tags=["MenuItem"])
-def get_menu_item_by_id(item_id: int, session: SessionDep):
-    menu_item = session.exec(select(MenuItem).where(MenuItem.itemId == item_id)).first()
-    return menu_item
-
-
-@router.delete("/api/delete-menuitem/{item_id}", tags=["MenuItem"])
-def delete_menu_item_by_id(
-    item_id: int,
-    session: SessionDep,
-    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
-):
-    menu_item = session.exec(select(MenuItem).where(MenuItem.itemId == item_id)).first()
-    if menu_item:
-        restaurant_id = menu_item.restaurantId
-        session.delete(menu_item)
-        session.commit()
-        update_restaurant_price_range(restaurant_id, session)
-        return {"message": "Menu item deleted successfully"}
-    return {"message": "Menu item not found"}
-
-
-@router.put("/api/update-menuitem/{item_id}", tags=["MenuItem"])
-def update_menu_item_by_id(
-    item_id: int,
-    updated_menu_item: MenuItemUpdate,
-    session: SessionDep,
-    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]
-):
-    menu_item = session.exec(select(MenuItem).where(MenuItem.itemId == item_id)).first()
-    if menu_item:
-        update_data = updated_menu_item.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(menu_item, field, value)
-        session.commit()
-        session.refresh(menu_item)
-        update_restaurant_price_range(menu_item.restaurantId, session)
-        return menu_item
-    return {"message": "Menu item not found"}

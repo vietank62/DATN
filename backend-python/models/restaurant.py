@@ -5,13 +5,14 @@ from sqlalchemy import text # type: ignore
 from .user import User
 from .menuItem import RestaurantMenuList
 from .resDetail import RestaurantDetail
+from .favorite import Favorite
 class Restaurant(SQLModel, table=True):
     __tablename__ = "restaurants"
 
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
     name: str = Field(max_length=255, nullable=False)
     slug: str = Field(max_length=255, unique=True, nullable=False)
-    image_url: str = Field(default=None, sa_column=Column(Text))
+    image_url: Optional[str] = Field(default=None, max_length=500, nullable=True)
     address: str = Field(max_length=500, nullable=False)
     district: str = Field(max_length=100, nullable=False, index=True)
     city: Optional[str] = Field(default=None, max_length=100, nullable=True)
@@ -37,4 +38,5 @@ class Restaurant(SQLModel, table=True):
     manager: Optional["User"] = Relationship(back_populates="restaurant")
     detail: Optional["RestaurantDetail"] = Relationship(back_populates="restaurant", sa_relationship_kwargs={"uselist": False})
     menus: List["RestaurantMenuList"] = Relationship(back_populates="restaurant")
+    favorite: List["Favorite"] = Relationship(back_populates="restaurant")
     

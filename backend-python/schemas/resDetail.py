@@ -11,3 +11,4 @@ class RestaurantDetailCreate(BaseModel):
     opening_time: Optional[List[str]] = None
     parking_info: Optional[str] = None
     utilities: Optional[List[int]] = None
+    regulations: Optional[str] = None

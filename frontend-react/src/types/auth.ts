@@ -19,3 +19,9 @@ export interface AuthContextType {
   logout: () => void;
   setUser: (user: User | null) => void;
 }
+
+export interface AuthRequestConfig {
+  _retry?: boolean;
+  headers?: Record<string, string>;
+  url?: string;
+};

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { api } from "../../services/api";
 import { toast } from "sonner";
@@ -6,6 +7,7 @@ import axios from "axios";
 
 export const Auth = () => {
   const { isAuthenticated, login, logout } = useAuth();
+  const queryClient = useQueryClient();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -27,7 +29,7 @@ export const Auth = () => {
 
   const closeLogin = () => {
     setIsLoginOpen(false);
-    setLoginData({ email: "", password: "" }); // Reset form khi đóng
+    setLoginData({ email: "", password: "" }); 
   };
 
   const openRegister = () => {
@@ -50,7 +52,10 @@ export const Auth = () => {
     if (e.target === e.currentTarget) closeRegister();
   };
 
-  // --- Xử lý Đăng Nhập ---
+  const handleAccountItemClick = (label: string) => {
+    toast.info(`${label} đang được phát triển.`);
+  };
+
   const onLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -67,6 +72,8 @@ export const Auth = () => {
       });
 
       login(access_token, userRes.data);
+      void queryClient.invalidateQueries({ queryKey: ["restaurants"] });
+      void queryClient.invalidateQueries({ queryKey: ["restaurant-base"] });
       closeLogin();
       if (userRes.data.role === "admin") {
         toast.success("Đăng nhập Admin thành công!");
@@ -89,11 +96,8 @@ export const Auth = () => {
     }
   };
 
-  // --- Xử lý Đăng Ký ---
   const onRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Đã chuyển validation từ onLoginSubmit về đúng vị trí ở đây!
     if (registerData.password !== confirmPassword) {
       toast.error("Mật khẩu nhập lại không khớp!");
       return;
@@ -146,7 +150,30 @@ export const Auth = () => {
                 </>
               ) : (
                 <>
-                  {<span className="hover:text-red-500 cursor-pointer"><a href="/account">Tài khoản</a></span>}
+                  <div className="relative group">
+                    <button type="button" className="hover:text-red-500 cursor-pointer flex items-center gap-1.5">
+                      <span>Tài khoản</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 transition-transform group-hover:rotate-180">
+                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-0 top-full pt-3 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
+                      <div className="min-w-64 rounded-2xl border border-gray-100 bg-white shadow-xl overflow-hidden py-2">
+                        <button onClick={() => handleAccountItemClick("Thông tin tài khoản")} className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors">
+                          Thông tin tài khoản
+                        </button>
+                        <button onClick={() => handleAccountItemClick("Thông tin đơn đặt bàn")} className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors">
+                          Thông tin đơn đặt bàn
+                        </button>
+                        <button onClick={() => handleAccountItemClick("Yêu thích")} className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors">
+                          Yêu thích
+                        </button>
+                        <button onClick={() => handleAccountItemClick("Quản lí cuộc trò chuyện")} className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors">
+                          Quản lí cuộc trò chuyện
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                   <span onClick={logout} className="hover:text-red-500 cursor-pointer">Đăng xuất</span>
                   <span className="hidden lg:inline hover:text-red-500 cursor-pointer"><a href="/contact">Liên hệ</a></span>
                 </>

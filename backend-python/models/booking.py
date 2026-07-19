@@ -4,6 +4,7 @@ from sqlmodel import SQLModel, Field, Relationship  # type: ignore
 if TYPE_CHECKING:
     from .user import User
     from .restaurant import Restaurant
+    from .bookingItem import BookingItem
 
 
 class Booking(SQLModel, table=True):
@@ -21,7 +22,7 @@ class Booking(SQLModel, table=True):
     contactPhone: str
     note: Optional[str] = None
     createdAt: Optional[str] = None
-    isPaid: bool = Field(default=False)
 
     user: Optional["User"] = Relationship()
     restaurant: Optional["Restaurant"] = Relationship()
+    booking_items: list["BookingItem"] = Relationship(back_populates="booking")

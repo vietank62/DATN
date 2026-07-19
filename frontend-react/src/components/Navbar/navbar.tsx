@@ -3,7 +3,7 @@ import { SearchBar } from "./searchBar";
 
 export const Navbar = () => {
     return (
-        <header className="flex flex-col w-full shadow-sm sticky top-0 z-1000">
+        <header className="flex flex-col w-full shadow-sm sticky top-0 z-50">
             <Auth />
 
             <main className="flex flex-col w-full bg-white">

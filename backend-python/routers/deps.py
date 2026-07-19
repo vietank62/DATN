@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Depends, HTTPException, status, Security
+from fastapi import Depends, HTTPException, status, Security, Header
 from fastapi.security import SecurityScopes
 from core.security import oauth2_scheme, decode_token
 from database import SessionDep
@@ -47,4 +47,31 @@ async def get_current_user(
                 detail="Not enough permissions",
                 headers={"WWW-Authenticate": authenticate_value},
             )
+    return user
+
+
+async def get_optional_current_user(
+    authorization: Annotated[str | None, Header()] = None,
+    session: SessionDep = None,  # type: ignore
+) -> User | None:
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        return None
+
+    payload = decode_token(token)
+    email: str = payload.get("email")
+    if email is None:
+        return None
+
+    user = session.exec(select(
+        User.userId,
+        User.email,
+        User.name,
+        User.phone,
+        User.role,
+        User.avatar,
+    ).where(User.email == email)).first()
     return user

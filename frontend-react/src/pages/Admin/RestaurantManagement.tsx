@@ -18,7 +18,7 @@ interface Restaurant {
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
   return (
-    <button role="switch" aria-checked={checked} onClick={onChange} disabled={disabled}
+    <button role="switch" aria-checked={checked ? 'true' : 'false'} onClick={onChange} disabled={disabled}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-40
         ${checked ? 'bg-violet-500' : 'bg-gray-300'}`}>
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200
@@ -114,7 +114,7 @@ export default function RestaurantManagement() {
                       <p className="font-semibold text-gray-800">{r.name}</p>
                       <p className="text-xs text-gray-400">{r.district}{r.city ? `, ${r.city}` : ''}</p>
                     </td>
-                    <td className="px-6 py-3.5 text-gray-500 max-w-[200px] truncate">{r.address}</td>
+                    <td className="px-6 py-3.5 text-gray-500 max-w-50 truncate">{r.address}</td>
                     <td className="px-6 py-3.5 text-center text-gray-600 font-medium">{r.capacity}</td>
                     <td className="px-6 py-3.5 text-center">
                       <span className="text-amber-500 font-semibold">{r.rating?.toFixed(1) ?? '—'}</span>

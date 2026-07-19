@@ -1,31 +1,7 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom"; 
 import { useLocation } from "../../hooks/useLocation";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-type FilterState = {
-  district: string;
-  restaurant: string;
-  price: string;
-  category: string;
-  suitableFor: string;
-  endow: string;
-  serviceType: string;
-  space: string;
-};
-
-const DEFAULT_LABELS: FilterState = {
-  district: "Khu vực",
-  restaurant: "Nhà hàng",
-  price: "Giá trung bình",
-  category: "Đồ ăn chính",
-  suitableFor: "Phù hợp",
-  endow: "Ưu đãi",
-  serviceType: "Kiểu phục vụ",
-  space: "Không gian riêng",
-};
-
-// ── Option data ────────────────────────────────────────────────────────────
-const RESTAURANT_OPTIONS = ["Nhà hàng"];
+import type { FilterState } from "../../types/search";
 
 const PRICE_OPTIONS = [
   "Dưới 100k",
@@ -38,18 +14,17 @@ const PRICE_OPTIONS = [
 const CATEGORY_OPTIONS = [
   "Lẩu", "Nướng", "Buffet", "Hải sản",
   "Món Nhật", "Món Hàn", "Món Âu", "Món Thái",
-  "Món Việt", "Món Trung", "Món miền Bắc",
-  "Món miền Trung", "Món miền Nam", "Món chay",
+  "Món Việt", "Món Trung", "Pizza",
+  "Steak", "Đặc sản", "Món chay",
 ];
 
 const SUITABLE_FOR_OPTIONS = [
   "Tiệc / Hội nghị", "Gia đình", "Hiện đại",
   "Truyền thống", "Sang trọng", "Cổ điển",
-  "Thiên nhiên", "Hẹn hò", "Sinh nhật",
+  "Thiên nhiên", "Hẹn hò", "Sinh nhật", "Bạn bè",
 ];
 
 const ENDOW_OPTIONS = ["Độc quyền"];
-
 
 const SERVICE_TYPE_OPTIONS = [
   "Phục vụ tại bàn", "Tự phục vụ",
@@ -61,12 +36,10 @@ const SPACE_OPTIONS = [
   "11-20 người", "21-50 người", "Trên 50 người",
 ];
 
-// ── Filter key → option list map ───────────────────────────────────────────
 type FilterKey = keyof FilterState;
 
 const FILTER_OPTIONS: Record<FilterKey, string[]> = {
-  district: [], // populated from context
-  restaurant: RESTAURANT_OPTIONS,
+  district: [], 
   price: PRICE_OPTIONS,
   category: CATEGORY_OPTIONS,
   suitableFor: SUITABLE_FOR_OPTIONS,
@@ -75,10 +48,8 @@ const FILTER_OPTIONS: Record<FilterKey, string[]> = {
   space: SPACE_OPTIONS,
 };
 
-// Map filter display label → state key
 const LABEL_TO_KEY: Record<string, FilterKey> = {
   "Khu vực": "district",
-  "Nhà hàng": "restaurant",
   "Giá trung bình": "price",
   "Đồ ăn chính": "category",
   "Phù hợp": "suitableFor",
@@ -87,7 +58,18 @@ const LABEL_TO_KEY: Record<string, FilterKey> = {
   "Không gian riêng": "space",
 };
 
-// ── Reusable Dropdown ──────────────────────────────────────────────────────
+const convertToSlug = (str: string): string => {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .replace(/([^a-z0-9\s/-])/g, "") 
+    .replace(/[\s/]+/g, "-")      
+    .replace(/-+/g, "-")          
+    .trim();
+};
+
 interface DropdownProps {
   title: string;
   options: string[];
@@ -109,12 +91,10 @@ const FilterDropdown = ({
 
   return (
     <div className="absolute top-full left-0 mt-2 w-60 bg-white border border-gray-100 rounded-xl shadow-2xl z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-200 overflow-visible">
-      {/* Header */}
       <div className="px-4 py-3 text-xs font-bold text-gray-400 uppercase bg-gray-50 border-b border-gray-100 mb-1">
         {title}
       </div>
 
-      {/* Options */}
       <div className="max-h-50 overflow-y-auto custom-scrollbar overscroll-contain py-1">
         {options.map((opt) => (
           <div
@@ -136,11 +116,10 @@ const FilterDropdown = ({
         ))}
       </div>
 
-      {/* Reset */}
       {isActive && (
         <div
           onClick={onReset}
-          className="border-t border-gray-100 mt-1 px-4 py-3 text-xs text-center text-red-500 hover:bg-red-50 cursor-pointer"
+          className="border-t border-gray-100 mt-1 px-4 py-3 text-sm font-semibold text-center text-red-500 hover:bg-red-50 cursor-pointer"
         >
           Xóa lựa chọn
         </div>
@@ -149,29 +128,21 @@ const FilterDropdown = ({
   );
 };
 
-// ── Main Component ─────────────────────────────────────────────────────────
 export const FilterBar = () => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const { city, district, setDistrict, getDistricts } = useLocation();
-
-  const [showLeft, setShowLeft] = useState(false);
-  const [showRight, setShowRight] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState<FilterKey | null>(null);
 
-  // Local state for every filter (except district which lives in context)
   const [selected, setSelected] = useState<Omit<FilterState, "district">>({
-    restaurant: DEFAULT_LABELS.restaurant,
-    price: DEFAULT_LABELS.price,
-    category: DEFAULT_LABELS.category,
-    suitableFor: DEFAULT_LABELS.suitableFor,
-    endow: DEFAULT_LABELS.endow,
-    serviceType: DEFAULT_LABELS.serviceType,
-    space: DEFAULT_LABELS.space,
+    price: "",
+    category: "",
+    suitableFor: "",
+    endow: "",
+    serviceType: "",
+    space: "",
   });
 
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
   const filters = Object.keys(LABEL_TO_KEY) as string[];
 
   const getSelectedValue = (key: FilterKey): string => {
@@ -192,7 +163,7 @@ export const FilterBar = () => {
     if (key === "district") {
       setDistrict("Khu vực");
     } else {
-      setSelected((prev) => ({ ...prev, [key]: DEFAULT_LABELS[key] }));
+      setSelected((prev) => ({ ...prev, [key]: "" }));
     }
     setActiveDropdown(null);
   };
@@ -200,12 +171,14 @@ export const FilterBar = () => {
   const getDisplayText = (label: string): string => {
     const key = LABEL_TO_KEY[label];
     const val = getSelectedValue(key);
-    return val !== DEFAULT_LABELS[key] ? val : label;
+    const defaultVal = key === "district" ? "Khu vực" : "";
+    return val !== defaultVal ? val : label;
   };
 
   const isFilterActive = (label: string): boolean => {
     const key = LABEL_TO_KEY[label];
-    return getSelectedValue(key) !== DEFAULT_LABELS[key];
+    const defaultVal = key === "district" ? "Khu vực" : "";
+    return getSelectedValue(key) !== defaultVal;
   };
 
   const getOptions = (label: string): string[] => {
@@ -214,74 +187,53 @@ export const FilterBar = () => {
     return FILTER_OPTIONS[key];
   };
 
-  // ── Scroll logic ─────────────────────────────────────────────────────────
-  const checkScroll = () => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setShowLeft(scrollLeft > 0);
-      setShowRight(scrollLeft < scrollWidth - clientWidth - 5);
+  const handleMainFilterSubmit = () => {
+    const params = new URLSearchParams();
+
+    if (district && district !== "Khu vực") {
+      params.append("district", district);
     }
-  };
 
-  useEffect(() => {
-    checkScroll();
-    const currentRef = scrollRef.current;
-    if (currentRef) currentRef.addEventListener("scroll", checkScroll);
-    window.addEventListener("resize", checkScroll);
-
-    const handleOutsideAction = (event: Event) => {
-      if (
-        dropdownContainerRef.current &&
-        !dropdownContainerRef.current.contains(event.target as Node)
-      ) {
-        setActiveDropdown(null);
+    if (selected.price) {
+      const priceIndex = PRICE_OPTIONS.indexOf(selected.price);
+      if (priceIndex !== -1) {
+        params.append("price", (priceIndex + 1).toString()); 
       }
-    };
-    document.addEventListener("mousedown", handleOutsideAction);
-    window.addEventListener("scroll", handleOutsideAction, true);
-
-    return () => {
-      if (currentRef) currentRef.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
-      document.removeEventListener("mousedown", handleOutsideAction);
-      window.removeEventListener("scroll", handleOutsideAction, true);
-    };
-  }, []);
-
-  const handleScroll = (dir: "left" | "right") => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({
-        left: dir === "left" ? -300 : 300,
-        behavior: "smooth",
-      });
     }
+
+    if (selected.category) {
+      params.append("category", convertToSlug(selected.category));
+    }
+
+    if (selected.suitableFor) {
+      params.append("suitable_for", convertToSlug(selected.suitableFor));
+    }
+
+    if (selected.serviceType) {
+      params.append("service_type", convertToSlug(selected.serviceType));
+    }
+
+    if (selected.endow === "Độc quyền") {
+      params.append("has_exclusive", "true");
+    }
+
+    if (selected.space) {
+      const spaceIndex = SPACE_OPTIONS.indexOf(selected.space);
+      if (spaceIndex !== -1) {
+        params.append("space_level", (spaceIndex + 1).toString()); 
+      }
+    }
+
+    navigate(`/search?${params.toString()}`);
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="w-full bg-white py-4 border-b border-gray-100 flex justify-center relative z-40 overflow-visible">
       <div
-        className="max-w-7xl w-full pl-20 pr-10 flex items-center gap-6 relative overflow-visible"
+        className="max-w-7xl w-full px-10 flex flex-col md:flex-row items-start md:items-center gap-4 relative overflow-visible"
         ref={dropdownContainerRef}
       >
-        {/* Smart Left Arrow */}
-        {showLeft && (
-          <button
-            onClick={() => handleScroll("left")}
-            className="absolute left-2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg hover:text-red-500 hover:border-red-500 transition-all ml-2"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-        )}
-
-        {/* Scrollable filter tags */}
-        <div
-          ref={scrollRef}
-          onScroll={checkScroll}
-          className="flex flex-1 items-center gap-3 overflow-x-auto overflow-y-hidden no-scrollbar scroll-smooth pb-87 -mb-87 pt-4 -mt-4 pointer-events-none"
-        >
+        <div className="flex flex-wrap flex-1 items-center gap-3 w-full justify-between">
           {filters.map((filterLabel) => {
             const key = LABEL_TO_KEY[filterLabel];
             const active = isFilterActive(filterLabel);
@@ -289,25 +241,18 @@ export const FilterBar = () => {
             const displayText = getDisplayText(filterLabel);
 
             return (
-              <div
-                key={filterLabel}
-                className="relative pointer-events-auto"
-              >
-                {/* Pill button */}
+              <div key={filterLabel} className="relative">
                 <div
                   onClick={() => setActiveDropdown(isOpen ? null : key)}
-                  className={`flex items-center justify-between border rounded-lg px-6 py-2 w-fit cursor-pointer transition-all group whitespace-nowrap
+                  className={`flex items-center justify-between border rounded-lg px-4 py-2 w-fit cursor-pointer transition-all group whitespace-nowrap
                     ${active
                       ? "border-red-500 bg-red-50 shadow-sm"
                       : "border-gray-200 hover:border-red-400 hover:bg-red-50/30"
                     }`}
                 >
                   <span
-                    className={`text-sm font-medium transition-colors
-                      ${active
-                        ? "text-red-600 font-bold"
-                        : "text-gray-700 group-hover:text-red-600"
-                      }`}
+                    className={`text-xs md:text-sm font-medium transition-colors
+                      ${active ? "text-red-600 font-bold" : "text-gray-700 group-hover:text-red-600"}`}
                   >
                     {displayText}
                   </span>
@@ -322,17 +267,12 @@ export const FilterBar = () => {
                   </svg>
                 </div>
 
-                {/* Dropdown */}
                 {isOpen && (
                   <FilterDropdown
-                    title={
-                      key === "district"
-                        ? `Khu vực tại ${city}`
-                        : filterLabel
-                    }
+                    title={key === "district" ? `Khu vực tại ${city}` : filterLabel}
                     options={getOptions(filterLabel)}
                     selected={getSelectedValue(key)}
-                    defaultLabel={DEFAULT_LABELS[key]}
+                    defaultLabel={key === "district" ? "Khu vực" : ""}
                     onSelect={(val) => handleSelect(key, val)}
                     onReset={() => handleReset(key)}
                   />
@@ -341,21 +281,10 @@ export const FilterBar = () => {
             );
           })}
         </div>
-
-        {/* Smart Right Arrow */}
-        {showRight && (
-          <button
-            onClick={() => handleScroll("right")}
-            className="absolute right-37 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg hover:text-red-500 hover:border-red-500 transition-all"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        )}
-
-        {/* Main Filter Button */}
-        <button className="flex items-center gap-2 border border-gray-200 rounded-lg px-5 py-2 hover:bg-gray-50 hover:border-red-500 transition-colors shrink-0 bg-white font-semibold text-gray-700 shadow-sm ml-12 z-10 cursor-pointer">
+        <button 
+          onClick={handleMainFilterSubmit}
+          className="flex items-center gap-2 border border-gray-200 rounded-lg px-5 py-2 hover:bg-gray-50 hover:border-red-500 transition-colors shrink-0 bg-white font-semibold text-gray-700 shadow-sm md:ml-4 z-10 cursor-pointer"
+        >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
           </svg>

@@ -6,7 +6,7 @@ from typing import Optional, List
 class RestaurantCreate(BaseModel):
     name: str
     slug: str
-    image_url: Optional[List[str]] = None
+    image_url: Optional[str] = None
     address: str
     district: str
     city: Optional[str] = None
@@ -21,7 +21,7 @@ class RestaurantBase(BaseModel):
     id: int
     name: str
     slug: str
-    image_url: Optional[List[str]] = None
+    image_url: Optional[str] = None
     address: str
     district: str
     city: Optional[str] = None
@@ -39,7 +39,7 @@ class RestaurantBase(BaseModel):
 class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
-    image_url: Optional[List[str]] = None
+    image_url: Optional[str] = None
     address: Optional[str] = None
     district: Optional[str] = None
     city: Optional[str] = None

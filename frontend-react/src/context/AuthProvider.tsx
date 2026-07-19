@@ -15,7 +15,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          const response = await axios.get('/v1/auth/active-user');
+          const response = await api.get('/v1/auth/active-user');
           setUser(response.data);
         } catch (error: unknown) {
           const message = axios.isAxiosError(error)
@@ -27,7 +27,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       setIsLoading(false);
     };
+
+    const handleAuthLogout = () => {
+      setUser(null);
+      localStorage.removeItem('token');
+    };
+
+    window.addEventListener('auth:logout', handleAuthLogout);
     initializeAuth();
+
+    return () => {
+      window.removeEventListener('auth:logout', handleAuthLogout);
+    };
   }, []);
 
   const login = (token: string, userData: User) => {

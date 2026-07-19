@@ -10,4 +10,5 @@ export interface RestaurantCard {
     review_count?: number | null;
     created_at: string;
     has_exclusive?: boolean | null;
+    is_favorite?: boolean | null; 
 }

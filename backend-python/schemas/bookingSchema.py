@@ -2,8 +2,42 @@ from typing import Optional
 from pydantic import BaseModel  # type: ignore
 
 
-class BookingCreate(BaseModel):
+class BookingItemCreate(BaseModel):
+    itemId: int
+    quantity: int = 1
+
+
+class BookingItemOut(BaseModel):
+    bookingItemId: int
+    itemId: int
+    quantity: int
+    price: float
+    name: str
+    category: str
+    image_url: Optional[str] = None
+    description: Optional[str] = None
+
+
+class BookingResponse(BaseModel):
+    bookingId: int
     userId: int
+    restaurantId: int
+    restaurantName: Optional[str] = None
+    date: str
+    time: str
+    guestCount: int
+    requestSeats: int
+    assignedSeats: int = 0
+    status: str
+    contactName: str
+    contactEmail: str
+    contactPhone: str
+    note: Optional[str] = None
+    createdAt: Optional[str] = None
+    booking_items: list[BookingItemOut] = []
+
+
+class BookingCreate(BaseModel):
     restaurantId: int
     date: str
     time: str
@@ -13,6 +47,7 @@ class BookingCreate(BaseModel):
     contactEmail: str
     contactPhone: str
     note: Optional[str] = None
+    items: list[BookingItemCreate] = []
 
 
 class BookingUpdate(BaseModel):
@@ -26,4 +61,3 @@ class BookingUpdate(BaseModel):
     contactEmail: Optional[str] = None
     contactPhone: Optional[str] = None
     note: Optional[str] = None
-    isPaid: Optional[bool] = None

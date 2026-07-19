@@ -17,5 +17,6 @@ class RestaurantDetail(SQLModel, table=True):
     opening_time: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
     parking_info: Optional[str] = Field(default=None, max_length=255)
     utilities: Optional[List[int]] = Field(default=None, sa_column=Column(ARRAY(Integer)))
+    regulations: Optional[str] = Field(default=None, sa_column=Column(Text))
     
     restaurant: "Restaurant" = Relationship(back_populates="detail")
