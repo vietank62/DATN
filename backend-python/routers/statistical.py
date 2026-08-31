@@ -159,11 +159,11 @@ def get_menu_distribution(
     # Dùng RestaurantMenuList thay vì MenuItem để đếm món ăn theo danh mục
     results = session.exec(
         select(
-            func.coalesce(RestaurantMenuList.dish_name, "Khác").label("category"),
+            func.coalesce(RestaurantMenuList.category, "Khác").label("category"),
             func.count(RestaurantMenuList.id).label("count")
         ).where(
             RestaurantMenuList.restaurant_id == restaurantId
-        ).group_by(func.coalesce(RestaurantMenuList.dish_name, "Khác"))
+        ).group_by(func.coalesce(RestaurantMenuList.category, "Khác"))
     ).all()
 
     total = sum(r[1] for r in results)

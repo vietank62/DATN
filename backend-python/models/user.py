@@ -17,6 +17,8 @@ class User(SQLModel, table=True):
     role: str = Field(default="customer")
     avatar: Optional[str] = None
     createdAt: Optional[str] = None
+    report_strikes: int = Field(default=0)
+    is_suspended: bool = Field(default=False)
     
     restaurant: Optional["Restaurant"] = Relationship(
         back_populates="manager",

@@ -26,6 +26,7 @@ class BookingResponse(BaseModel):
     date: str
     time: str
     guestCount: int
+    childCount: int = 0
     requestSeats: int
     assignedSeats: int = 0
     status: str
@@ -42,6 +43,7 @@ class BookingCreate(BaseModel):
     date: str
     time: str
     guestCount: int
+    childCount: int = 0
     requestSeats: int
     contactName: str
     contactEmail: str
@@ -54,6 +56,7 @@ class BookingUpdate(BaseModel):
     date: Optional[str] = None
     time: Optional[str] = None
     guestCount: Optional[int] = None
+    childCount: Optional[int] = None
     requestSeats: Optional[int] = None
     assignedSeats: Optional[int] = None
     status: Optional[str] = None

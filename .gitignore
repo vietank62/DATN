@@ -12,6 +12,7 @@ frontend-react/build/
 frontend-react/.vite/
 frontend-react/.DS_Store
 frontend-react/*.log
+.pnpm-store/
 
 # Backend (Python)
 backend-python/__pycache__/
@@ -22,6 +23,7 @@ backend-python/.Python
 backend-python/env/
 backend-python/venv/
 backend-python/.venv/
+backend-python/.venv-runtime/
 backend-python/ENV/
 backend-python/.egg-info/
 backend-python/dist/

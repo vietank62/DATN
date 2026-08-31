@@ -2,6 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 class MenuItemBase(BaseModel):
+    id: int
     restaurant_id: int
     name: str = Field(max_length=255)
     category: str = Field(max_length=255)

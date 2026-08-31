@@ -22,6 +22,7 @@ export interface BookingDetail {
   date: string;
   time: string;
   guestCount: number;
+  childCount: number;
   requestSeats: number;
   assignedSeats: number;
   status: string;
@@ -38,6 +39,7 @@ export interface BookingCreatePayload {
   date: string;
   time: string;
   guestCount: number;
+  childCount: number;
   requestSeats: number;
   contactName: string;
   contactEmail: string;

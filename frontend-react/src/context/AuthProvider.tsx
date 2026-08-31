@@ -6,8 +6,25 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { AuthContext } from './AuthContext';
 
+const AUTH_USER_STORAGE_KEY = 'auth:user';
+
+const getStoredUser = (): User | null => {
+  const rawUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+
+  if (!rawUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawUser) as User;
+  } catch {
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    return null;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(getStoredUser);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -17,13 +34,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           const response = await api.get('/v1/auth/active-user');
           setUser(response.data);
+          localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(response.data));
         } catch (error: unknown) {
           const message = axios.isAxiosError(error)
             ? error.response?.data?.detail
             : undefined;
           toast.error(message || "Phiên đăng nhập hết hạn hoặc lỗi xác thực");
           localStorage.removeItem('token');
+          localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+          setUser(null);
         }
+      } else {
+        localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+        setUser(null);
       }
       setIsLoading(false);
     };
@@ -31,6 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleAuthLogout = () => {
       setUser(null);
       localStorage.removeItem('token');
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     };
 
     window.addEventListener('auth:logout', handleAuthLogout);
@@ -43,6 +67,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = (token: string, userData: User) => {
     localStorage.setItem('token', token);
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(userData));
     setUser(userData);
   };
 
@@ -57,6 +82,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       toast.error(message || "Đăng xuất thất bại");
     } finally {
       localStorage.removeItem('token');
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
       setUser(null);
     }
   };

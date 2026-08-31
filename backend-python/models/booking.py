@@ -14,6 +14,7 @@ class Booking(SQLModel, table=True):
     date: str
     time: str
     guestCount: int
+    childCount: int = Field(default=0)
     requestSeats: int
     assignedSeats: int = Field(default=0)
     status: str = Field(default="pending")

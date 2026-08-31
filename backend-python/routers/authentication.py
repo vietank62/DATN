@@ -40,6 +40,20 @@ def register_user(user_data: UserRegister, session: SessionDep): #type: ignore
     session.refresh(new_user)
     return new_user
 
+
+@router.post("/partner-register", response_model=UserOut)
+def register_partner_manager(user_data: UserRegister, session: SessionDep): #type: ignore
+    """Đăng ký tài khoản đối tác; role manager không thể tự gán qua đăng ký khách thông thường."""
+    if session.exec(select(User).where(User.email == user_data.email)).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    new_user = User(
+        name=user_data.name, email=user_data.email, phone=user_data.phone,
+        password=security.get_password_hash(user_data.password), role="manager",
+        createdAt=str(datetime.now(timezone.utc)),
+    )
+    session.add(new_user); session.commit(); session.refresh(new_user)
+    return new_user
+
 @router.post("/login", response_model=Token)
 def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],

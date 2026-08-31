@@ -16,6 +16,17 @@ interface Restaurant {
   created_at: string;
 }
 
+interface RestaurantPage {
+  items: Restaurant[];
+  total: number;
+  active_total: number;
+  inactive_total: number | null;
+  limit: number;
+  offset: number;
+}
+
+const PAGE_SIZE = 10;
+
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
   return (
     <button role="switch" aria-checked={checked ? 'true' : 'false'} onClick={onChange} disabled={disabled}
@@ -30,11 +41,18 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 export default function RestaurantManagement() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  const restaurantsQ = useQuery<Restaurant[]>({
-    queryKey: ['admin-restaurants'],
-    queryFn: () => api.get('/v1/restaurants/all').then(r => r.data),
+  const restaurantsQ = useQuery<RestaurantPage>({
+    queryKey: ['admin-restaurants', page, search],
+    queryFn: () => api.get('/v1/restaurants/all', {
+      params: {
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+        search: search.trim() || undefined,
+      },
+    }).then(r => r.data),
   });
 
   const toggleMut = useMutation({
@@ -48,14 +66,8 @@ export default function RestaurantManagement() {
     onError: () => toast.error('Cập nhật thất bại'),
   });
 
-  const q = search.toLowerCase();
-  const filtered = (restaurantsQ.data ?? []).filter(r =>
-    r.name.toLowerCase().includes(q) ||
-    r.address.toLowerCase().includes(q) ||
-    (r.district ?? '').toLowerCase().includes(q)
-  );
-
-  const activeCount = (restaurantsQ.data ?? []).filter(r => r.is_active).length;
+  const restaurants = restaurantsQ.data?.items ?? [];
+  const totalPages = Math.max(1, Math.ceil((restaurantsQ.data?.total ?? 0) / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
@@ -68,24 +80,30 @@ export default function RestaurantManagement() {
       <div className="flex flex-wrap gap-3">
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-100 shadow-sm text-sm text-gray-600 font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
-          {activeCount} đang hoạt động
+          {restaurantsQ.data?.active_total ?? 0} đang hoạt động
         </span>
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-100 shadow-sm text-sm text-gray-600 font-medium">
           <span className="w-2 h-2 rounded-full bg-gray-300 inline-block"></span>
-          {(restaurantsQ.data?.length ?? 0) - activeCount} tạm đóng
+          {restaurantsQ.data?.inactive_total ?? '—'} tạm đóng
         </span>
       </div>
 
       <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
         {/* Toolbar */}
         <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-          <p className="text-sm font-medium text-gray-600">{filtered.length} nhà hàng</p>
+          <p className="text-sm font-medium text-gray-600">
+            {restaurantsQ.data?.total ?? 0} nhà hàng{search ? ' phù hợp' : ' tổng cộng'}
+          </p>
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
             </svg>
             <input type="text" placeholder="Tìm theo tên, quận, địa chỉ..."
-              value={search} onChange={e => setSearch(e.target.value)}
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-violet-400 focus:bg-white transition w-64"
             />
           </div>
@@ -107,7 +125,7 @@ export default function RestaurantManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(r => (
+                {restaurants.map(r => (
                   <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-3.5 font-mono text-gray-400 text-xs">#{r.id}</td>
                     <td className="px-6 py-3.5">
@@ -134,13 +152,36 @@ export default function RestaurantManagement() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {restaurants.length === 0 && (
                   <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400 text-sm">Không tìm thấy kết quả</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         )}
+        <div className="flex flex-col gap-3 border-t border-gray-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">
+            Trang {page} / {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page === 1 || restaurantsQ.isFetching}
+              onClick={() => setPage(current => current - 1)}
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              disabled={page >= totalPages || restaurantsQ.isFetching}
+              onClick={() => setPage(current => current + 1)}
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

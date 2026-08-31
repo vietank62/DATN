@@ -4,14 +4,30 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 import type { User } from '../../types/auth';
 
+interface UserPage {
+  items: User[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+const PAGE_SIZE = 10;
+
 export default function UserManagement() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const usersQ = useQuery<User[]>({
-    queryKey: ['admin-users'],
-    queryFn: () => api.get('/v1/users/').then(r => r.data),
+  const usersQ = useQuery<UserPage>({
+    queryKey: ['admin-users', page, search],
+    queryFn: () => api.get('/v1/users/', {
+      params: {
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+        search: search.trim() || undefined,
+      },
+    }).then(r => r.data),
   });
 
   const deleteUserMut = useMutation({
@@ -25,12 +41,8 @@ export default function UserManagement() {
     onError: () => toast.error('Xoá thất bại'),
   });
 
-  const q = search.toLowerCase();
-  const filtered = (usersQ.data ?? []).filter(u =>
-    u.name.toLowerCase().includes(q) ||
-    u.email.toLowerCase().includes(q) ||
-    (u.phone ?? '').includes(q)
-  );
+  const users = usersQ.data?.items ?? [];
+  const totalPages = Math.max(1, Math.ceil((usersQ.data?.total ?? 0) / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
@@ -43,14 +55,18 @@ export default function UserManagement() {
         {/* Toolbar */}
         <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
           <p className="text-sm font-medium text-gray-600">
-            {filtered.length} tài khoản{search ? ' phù hợp' : ' tổng cộng'}
+            {usersQ.data?.total ?? 0} tài khoản{search ? ' phù hợp' : ' tổng cộng'}
           </p>
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
             </svg>
             <input type="text" placeholder="Tìm theo tên, email, SĐT..."
-              value={search} onChange={e => setSearch(e.target.value)}
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-violet-400 focus:bg-white transition w-64"
             />
           </div>
@@ -72,7 +88,7 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(u => (
+                {users.map(u => (
                   <tr key={u.userId} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-3.5 font-mono text-gray-400 text-xs">#{u.userId}</td>
                     <td className="px-6 py-3.5">
@@ -111,13 +127,36 @@ export default function UserManagement() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {users.length === 0 && (
                   <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400 text-sm">Không tìm thấy kết quả nào</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         )}
+        <div className="flex flex-col gap-3 border-t border-gray-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">
+            Trang {page} / {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page === 1 || usersQ.isFetching}
+              onClick={() => setPage(current => current - 1)}
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              disabled={page >= totalPages || usersQ.isFetching}
+              onClick={() => setPage(current => current + 1)}
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

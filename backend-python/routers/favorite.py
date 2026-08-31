@@ -8,15 +8,17 @@ from datetime import datetime
 from pydantic import BaseModel # type: ignore
 
 router = APIRouter(prefix="/v1/favorites", tags=["Favorite"]) 
+CACHE_KEY_SET = "cache:restaurants:keys"
 
 class FavoriteToggle(BaseModel):
     restaurantId: int
 
 async def clear_restaurant_caches():
     try:
-        keys = await redis_client.keys("cache:restaurants:*")
+        keys = await redis_client.smembers(CACHE_KEY_SET)
         if keys:
             await redis_client.delete(*keys)
+        await redis_client.delete(CACHE_KEY_SET)
     except Exception as e:
         print(f"Redis Clear Cache Error: {e}")
 

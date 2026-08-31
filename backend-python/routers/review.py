@@ -1,20 +1,32 @@
 from typing import Annotated
-from fastapi import APIRouter, HTTPException, Security
-from database import SessionDep
-from models import Review, Restaurant, User
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Security
+from database import SessionDep, redis_client
+from models import Booking, Review, Restaurant, User
 from schemas.reviewMenuSchema import ReviewCreate, ReviewOut
 from routers.authentication import get_current_user
 from datetime import datetime
 from sqlmodel import select
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 
 router = APIRouter()
+CACHE_KEY_SET = "cache:restaurants:keys"
+
+
+async def clear_restaurant_caches() -> None:
+    try:
+        keys = await redis_client.smembers(CACHE_KEY_SET)
+        if keys:
+            await redis_client.delete(*keys)
+        await redis_client.delete(CACHE_KEY_SET)
+    except Exception as error:
+        print(f"Redis Clear Cache Error: {error}")
 
 
 @router.post("/api/create-review/", response_model=ReviewOut, tags=["Review"])
 def create_review(
     review_data: ReviewCreate,
     session: SessionDep,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Security(get_current_user, scopes=["customer"])]
 ):
     # Check if restaurant exists
@@ -25,6 +37,31 @@ def create_review(
     # Override userId with current_user.userId just to be safe, or validate it
     if current_user.userId != review_data.userId:
         raise HTTPException(status_code=403, detail="Not authorized to review for this user")
+
+    completed_booking = session.exec(
+        select(Booking.bookingId).where(
+            Booking.userId == current_user.userId,
+            Booking.restaurantId == review_data.restaurantId,
+            Booking.status == "completed",
+        )
+    ).first()
+    if completed_booking is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn chỉ có thể đánh giá sau khi đã dùng bữa tại nhà hàng.",
+        )
+
+    existing_review = session.exec(
+        select(Review.reviewId).where(
+            Review.userId == current_user.userId,
+            Review.restaurantId == review_data.restaurantId,
+        )
+    ).first()
+    if existing_review is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Bạn đã đánh giá nhà hàng này.",
+        )
 
     # Create the review
     review = Review(
@@ -51,13 +88,28 @@ def create_review(
     restaurant.rating = round(avg_val, 1) if avg_val else 0.0
     session.add(restaurant)
     session.commit()
+    background_tasks.add_task(clear_restaurant_caches)
 
     return review_dict
 
 
 @router.get("/api/get-restaurant-reviews/{restaurant_id}", response_model=list[ReviewOut], tags=["Review"])
-def get_restaurant_reviews(restaurant_id: int, session: SessionDep):
-    reviews = session.exec(select(Review).where(Review.restaurantId == restaurant_id)).all()
+def get_restaurant_reviews(
+    restaurant_id: int,
+    session: SessionDep,
+    sort: str = Query(default="recent", pattern="^(recent|best|worst)$"),
+    limit: int = Query(default=5, ge=1, le=20),
+):
+    statement = select(Review).where(Review.restaurantId == restaurant_id)
+
+    if sort == "best":
+        statement = statement.order_by(desc(Review.rating), desc(Review.createdAt))
+    elif sort == "worst":
+        statement = statement.order_by(asc(Review.rating), desc(Review.createdAt))
+    else:
+        statement = statement.order_by(desc(Review.createdAt))
+
+    reviews = session.exec(statement.limit(limit)).all()
     result = []
     for r in reviews:
         user = session.exec(select(User).where(User.userId == r.userId)).first()

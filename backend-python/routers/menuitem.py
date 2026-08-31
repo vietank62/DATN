@@ -52,3 +52,20 @@ def update_menu_item_availability(restaurant_id: int, menuitem_id: int, session:
     session.refresh(menu_item)
 
     return menu_item
+
+@router.put("/restaurant/{restaurant_id}/{menuitem_id}", response_model=RestaurantMenuList)
+def update_menu_item(restaurant_id: int, menuitem_id: int, menu_item: MenuItemCreate, session: SessionDep):
+    item = session.get(RestaurantMenuList, menuitem_id)
+    if not item or item.restaurant_id != restaurant_id:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    for key, value in menu_item.model_dump().items(): setattr(item, key, value)
+    session.add(item); session.commit(); session.refresh(item)
+    return item
+
+@router.delete("/restaurant/{restaurant_id}/{menuitem_id}")
+def delete_menu_item(restaurant_id: int, menuitem_id: int, session: SessionDep):
+    item = session.get(RestaurantMenuList, menuitem_id)
+    if not item or item.restaurant_id != restaurant_id:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    session.delete(item); session.commit()
+    return {"message": "Menu item deleted"}

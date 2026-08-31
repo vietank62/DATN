@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom"; 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RestaurantCard } from "../../types/restaurant";
 import { useLocation } from "../../hooks/useLocation";
 import { api } from "../../services/api";
+import { getCategoryLabel, RESTAURANT_CATEGORIES } from "../../utils/category";
 
 const BASE_URL = import.meta.env.VITE_API_BASE + "/v1/restaurants/";
 
@@ -11,7 +12,7 @@ const fetchFilteredRestaurants = async (searchParams: URLSearchParams): Promise<
     const params = new URLSearchParams(searchParams);
     
     if (!params.has("limit")) {
-        params.append("limit", "24");
+        params.append("limit", "20");
     }
     const { data } = await api.get<RestaurantCard[]>(`${BASE_URL}?${params.toString()}`);
     return data;
@@ -19,13 +20,7 @@ const fetchFilteredRestaurants = async (searchParams: URLSearchParams): Promise<
 
 const PRICE_LABELS = ["Dưới 100k", "100k - 200k", "200k - 500k", "500k - 1.000k", "Trên 1.000k"];
 const SPACE_LABELS = ["1-5 người", "6-10 người", "11-20 người", "21-50 người", "Trên 50 người"];
-const CATEGORIES = [
-  { slug: "lau", name: "Lẩu" }, { slug: "nuong", name: "Nướng" }, { slug: "buffet", name: "Buffet" },
-  { slug: "hai-san", name: "Hải sản" }, { slug: "mon-nhat", name: "Món Nhật" }, { slug: "mon-han", name: "Món Hàn" },
-  { slug: "mon-au", name: "Món Âu" }, { slug: "mon-thai", name: "Món Thái" }, { slug: "mon-viet", name: "Món Việt" },
-  { slug: "mon-trung", name: "Món Trung" }, { slug: "pizza", name: "Pizza" }, { slug: "steak", name: "Steak" },
-  { slug: "dac-san", name: "Đặc sản" }, { slug: "mon-chay", name: "Món chay" }
-];
+const CATEGORIES = RESTAURANT_CATEGORIES.map(({ slug, label: name }) => ({ slug, name }));
 
 const SUITABLE_FOR = [
   { slug: "tiec-hoi-nghi", name: "Tiệc / Hội nghị" }, { slug: "gia-dinh", name: "Gia đình" },
@@ -45,6 +40,7 @@ export const SearchRestaurants = () => {
     const { city, getDistricts } = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [tempFilters, setTempFilters] = useState({
@@ -72,7 +68,27 @@ export const SearchRestaurants = () => {
         queryFn: () => fetchFilteredRestaurants(searchParams),
         staleTime: 1000 * 60 * 2,
         refetchOnWindowFocus: false,
+        placeholderData: keepPreviousData,
     });
+
+    useEffect(() => {
+        if (!restaurants || restaurants.length < 20) {
+            return;
+        }
+
+        const nextPageParams = new URLSearchParams(searchParams);
+        nextPageParams.set("limit", "20");
+        nextPageParams.set(
+            "offset",
+            String(Number(nextPageParams.get("offset") ?? "0") + 20),
+        );
+
+        void queryClient.prefetchQuery({
+            queryKey: ["restaurants-search", nextPageParams.toString()],
+            queryFn: () => fetchFilteredRestaurants(nextPageParams),
+            staleTime: 1000 * 60 * 2,
+        });
+    }, [queryClient, restaurants, searchParams]);
 
     const updateParam = (key: string, value: string | null) => {
         const newParams = new URLSearchParams(searchParams);
@@ -85,8 +101,11 @@ export const SearchRestaurants = () => {
     };
 
     const getImageUrl = (urlSource: string | string[] | null | undefined): string => {
-        if (Array.isArray(urlSource)) return urlSource[0] || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500";
-        return urlSource || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500";
+        const url = Array.isArray(urlSource) ? urlSource[0] : urlSource;
+        if (!url) return "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800";
+        return url.includes("res.cloudinary.com")
+            ? url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
+            : url;
     };
 
     const currentCity = searchParams.get("city") || city || "";
@@ -204,7 +223,7 @@ export const SearchRestaurants = () => {
 
                     {currentCategory && (
                         <div className="flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-100 px-3 py-1 rounded-lg text-xs font-medium">
-                            <span>Danh mục: {currentCategory}</span>
+                            <span>Danh mục: {getCategoryLabel(currentCategory)}</span>
                             <button onClick={() => updateParam("category", null)} className="hover:bg-purple-200/60 p-0.5 rounded-full text-purple-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
@@ -269,7 +288,7 @@ export const SearchRestaurants = () => {
                             {restaurants.map((res) => (
                                 <div onClick={() => navigate(`/restaurant/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                     <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                        <img src={getImageUrl(res.image_url)} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        <img src={getImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     </div>
                                     <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                         <div>
