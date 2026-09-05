@@ -29,14 +29,9 @@ async def get_current_user(
     
     token_scopes = payload.get("scopes", [])
     
-    user = session.exec(select(
-        User.userId,
-        User.email,
-        User.name,
-        User.phone,
-        User.role,
-        User.avatar,
-    ).where(User.email == email)).first()
+    user = session.exec(
+        select(User).where(User.email == email)
+    ).first()
     if user is None:
         raise credentials_exception
         
@@ -66,12 +61,7 @@ async def get_optional_current_user(
     if email is None:
         return None
 
-    user = session.exec(select(
-        User.userId,
-        User.email,
-        User.name,
-        User.phone,
-        User.role,
-        User.avatar,
-    ).where(User.email == email)).first()
+    user = session.exec(
+        select(User).where(User.email == email)
+    ).first()
     return user

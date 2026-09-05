@@ -1,9 +1,14 @@
 import { useRef, useState, useEffect } from "react";
 import { useLocation } from "../../hooks/useLocation";
-import { useNavigate, useSearchParams,  } from "react-router-dom";
+import {
+  useLocation as useRouterLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 
 export const SearchBar = () => {
   const navigate = useNavigate();
+  const routerLocation = useRouterLocation();
   const [searchParams] = useSearchParams();
   const { city, setCity } = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -12,13 +17,9 @@ export const SearchBar = () => {
   const locations = ["Hồ Chí Minh", "Hà Nội", "Đà Nẵng"];
 
   const currentSearchParam = searchParams.get("search") || "";
-  
+
   const [typedKeyword, setTypedKeyword] = useState(() => currentSearchParam);
-  const [prevSearchParam, setPrevSearchParam] = useState(currentSearchParam);
-  if (currentSearchParam !== prevSearchParam) {
-    setTypedKeyword(currentSearchParam);
-    setPrevSearchParam(currentSearchParam);
-  }
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -29,6 +30,35 @@ export const SearchBar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (routerLocation.pathname !== "/search") {
+      return;
+    }
+
+    if (typedKeyword.trim() === currentSearchParam) {
+      return;
+    }
+
+    const debounceTimer = window.setTimeout(() => {
+      const queryParams = new URLSearchParams(searchParams);
+
+      if (city) {
+        queryParams.set("city", city);
+      }
+
+      if (typedKeyword.trim()) {
+        queryParams.set("search", typedKeyword.trim());
+      } else {
+        queryParams.delete("search");
+      }
+
+      queryParams.delete("offset");
+      navigate(`/search?${queryParams.toString()}`, { replace: true });
+    }, 400);
+
+    return () => window.clearTimeout(debounceTimer);
+  }, [city, currentSearchParam, navigate, routerLocation.pathname, searchParams, typedKeyword]);
+
   const handleSearch = () => {
     const queryParams = new URLSearchParams();
     if (city) {
@@ -38,6 +68,26 @@ export const SearchBar = () => {
       queryParams.set("search", typedKeyword.trim());
     }
     navigate(`/search?${queryParams.toString()}`);
+  };
+
+  const handleCityChange = (nextCity: string) => {
+    setCity(nextCity);
+    setIsOpen(false);
+
+    if (routerLocation.pathname !== "/search") {
+      return;
+    }
+
+    const currentParams = new URLSearchParams(searchParams);
+    currentParams.set("city", nextCity);
+
+    if (typedKeyword.trim()) {
+      currentParams.set("search", typedKeyword.trim());
+    } else {
+      currentParams.delete("search");
+    }
+
+    navigate(`/search?${currentParams.toString()}`, { replace: true });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -73,14 +123,7 @@ export const SearchBar = () => {
               {locations.map((loc) => (
                 <div
                   key={loc}
-                  onClick={() => {
-                    setCity(loc);
-                    setIsOpen(false);
-                    const currentParams = new URLSearchParams(searchParams);
-                    currentParams.set("city", loc);
-                    if (typedKeyword.trim()) currentParams.set("search", typedKeyword.trim());
-                    navigate(`/search?${currentParams.toString()}`);
-                  }}
+                  onClick={() => handleCityChange(loc)}
                   className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center justify-between
                     ${city === loc ? "bg-red-50 text-red-600 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
                 >

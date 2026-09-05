@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Splide, SplideSlide } from "@splidejs/react-splide";
 import "@splidejs/react-splide/css/core";
 import { Splide as SplideType } from "@splidejs/splide";
-import axios from "axios";
 import type { RestaurantCard } from "../../types/restaurant";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "../../hooks/useLocation";
@@ -16,6 +15,18 @@ const BASE_URL = import.meta.env.VITE_API_BASE + "/v1/restaurants/";
 const fetchRestaurants = async (queryString: string): Promise<RestaurantCard[]> => {
     const { data } = await api.get<RestaurantCard[]>(`${BASE_URL}${queryString}`);
     return data;
+};
+
+const getCardImageUrl = (url?: string | null): string => {
+    if (!url) {
+        return "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800";
+    }
+
+    if (!url.includes("res.cloudinary.com")) {
+        return url;
+    }
+
+    return url.replace("/upload/", "/upload/f_auto,q_auto,w_800/");
 };
 
 export const Home = () => {
@@ -32,9 +43,10 @@ export const Home = () => {
     const [newArrows, setNewArrows] = useState({ prev: false, next: true });
 
     const queryConfig = {
-        staleTime: 1000 * 60 * 3,
+        staleTime: 1000 * 60 * 2,
         gcTime: 1000 * 60 * 5,
         refetchOnWindowFocus: false,
+        refetchOnMount: false,
     };
 
     const { data: recommendedData, isLoading: loadRec } = useQuery<RestaurantCard[]>({
@@ -106,16 +118,11 @@ export const Home = () => {
     const queryClient = useQueryClient();
     const toggleFavoriteMutation = useMutation({
         mutationFn: async (restaurantId: number) => {
-            const token = localStorage.getItem("token"); 
-            return await axios.post(
-                `${import.meta.env.VITE_API_BASE}/v1/favorites/toggle`, 
-                { restaurantId },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }
+            const { data } = await api.post<{ action: "added" | "removed"; like_count: number }>(
+                "/v1/favorites/toggle",
+                { restaurantId }
             );
+            return data;
         },
         onMutate: async (restaurantId: number) => {
             await queryClient.cancelQueries({ queryKey: ["restaurants"] });
@@ -129,6 +136,17 @@ export const Home = () => {
                 );
             });
             return { previousQueries };
+        },
+        onSuccess: (result, restaurantId) => {
+            const isFavorite = result.action === "added";
+            queryClient.setQueriesData<RestaurantCard[]>({ queryKey: ["restaurants"] }, (oldData) => {
+                if (!oldData) return oldData;
+                return oldData.map((res) =>
+                    res.id === restaurantId
+                        ? { ...res, is_favorite: isFavorite, like_count: result.like_count }
+                        : res
+                );
+            });
         },
         onError: (error: unknown, _restaurantId, context) => {
             if (context?.previousQueries) {
@@ -146,11 +164,39 @@ export const Home = () => {
                 toast.error("Có lỗi xảy ra, vui lòng thử lại sau.");
             }
         },
-        // 3. Luôn luôn đồng bộ lại dữ liệu chuẩn từ server sau khi xong (dù thành công hay thất bại)
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ["restaurants"] });
-        }
     });
+
+    const renderFavoriteButton = (restaurant: RestaurantCard) => (
+        <button
+            type="button"
+            disabled={toggleFavoriteMutation.isPending}
+            onClick={(event) => {
+                event.stopPropagation();
+                toggleFavoriteMutation.mutate(restaurant.id);
+            }}
+            aria-label={restaurant.is_favorite ? "Hủy yêu thích" : "Yêu thích"}
+            className={`absolute top-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                restaurant.is_favorite
+                    ? "bg-red-50 text-red-500"
+                    : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white"
+            }`}
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill={restaurant.is_favorite ? "currentColor" : "none"}
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="w-5 h-5 transition-transform group-hover/heart:scale-110"
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"
+                />
+            </svg>
+        </button>
+    );
 
     return (
         <div className="w-full bg-slate-50 min-h-screen py-10 flex justify-center">
@@ -187,15 +233,16 @@ export const Home = () => {
                                     <SplideSlide key={res.id}>
                                         <div onClick={() => navigate(`/restaurant/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">
+                                                <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">
                                                     Được đề xuất
                                                 </span>
                                                 <button
+                                                    disabled={toggleFavoriteMutation.isPending}
                                                     onClick={(e) => {
                                                         e.stopPropagation(); // Ngăn chặn chuyển hướng trang
                                                         toggleFavoriteMutation.mutate(res.id);
                                                     }}
-                                                    className={`absolute top-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer ${
+                                                    className={`absolute top-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                                                         res.is_favorite 
                                                             ? "bg-red-50 text-red-500" // Class khi ĐÃ YÊU THÍCH
                                                             : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white" // Class khi CHƯA YÊU THÍCH
@@ -214,8 +261,9 @@ export const Home = () => {
                                                 </button>
 
                                                 <img 
-                                                    src={res.image_url} 
+                                                    src={getCardImageUrl(res.image_url)} 
                                                     alt={res.name} 
+                                                    loading="lazy"
                                                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                                                 />
                                             </div>
@@ -289,10 +337,14 @@ export const Home = () => {
                             >
                                 {hotDealsData.map((res) => (
                                     <SplideSlide key={res.id}>
-                                        <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
+                                        <div
+                                            onClick={() => navigate(`/restaurant/${res.id}`)}
+                                            className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
+                                        >
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Ưu đãi</span>
-                                                <img src={res.image_url} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Ưu đãi</span>
+                                                {renderFavoriteButton(res)}
+                                                <img src={getCardImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
@@ -364,10 +416,14 @@ export const Home = () => {
                             >
                                 {topRatedData.map((res) => (
                                     <SplideSlide key={res.id}>
-                                        <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
+                                        <div
+                                            onClick={() => navigate(`/restaurant/${res.id}`)}
+                                            className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
+                                        >
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Đánh giá tốt</span>
-                                                <img src={res.image_url} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Đánh giá tốt</span>
+                                                {renderFavoriteButton(res)}
+                                                <img src={getCardImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>
@@ -439,10 +495,14 @@ export const Home = () => {
                             >
                                 {newArrivalsData.map((res) => (
                                     <SplideSlide key={res.id}>
-                                        <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
+                                        <div
+                                            onClick={() => navigate(`/restaurant/${res.id}`)}
+                                            className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
+                                        >
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                                <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Mới</span>
-                                                <img src={res.image_url} alt={res.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Mới</span>
+                                                {renderFavoriteButton(res)}
+                                                <img src={getCardImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
                                                 <div>

@@ -12,3 +12,4 @@ class RestaurantDetailCreate(BaseModel):
     parking_info: Optional[str] = None
     utilities: Optional[List[int]] = None
     regulations: Optional[str] = None
+    requires_deposit: bool = False

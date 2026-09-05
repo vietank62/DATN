@@ -26,6 +26,20 @@ class Restaurant(SQLModel, table=True):
     service_types: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
     capacity: int = Field(default=0, index=True)
     is_active: bool = Field(default=True)
+    is_report_suspended: bool = Field(default=False)
+    approval_status: str = Field(default="approved", max_length=20, index=True)
+    pending_approval_fields: Optional[List[str]] = Field(
+        default=None,
+        sa_column=Column(ARRAY(Text)),
+    )
+    business_license_url: Optional[str] = Field(default=None, max_length=500)
+    business_license_urls: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
+    tax_code: Optional[str] = Field(default=None, max_length=50)
+    legal_documents_url: Optional[str] = Field(default=None, max_length=500)
+    legal_documents_urls: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
+    policy_accepted_at: Optional[datetime] = Field(default=None)
+    booking_opening_time: Optional[str] = Field(default=None, max_length=5)
+    booking_closing_time: Optional[str] = Field(default=None, max_length=5)
     created_at: datetime = Field(
         default_factory=datetime.utcnow, 
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
@@ -35,6 +49,7 @@ class Restaurant(SQLModel, table=True):
         sa_column_kwargs={"onupdate": text("CURRENT_TIMESTAMP")}
     )
     manager_id: Optional[int] = Field(default=None, foreign_key="user.userId", unique=True, nullable=True)
+    website_url: Optional[str] = Field(default=None, max_length=500, nullable=True)
     manager: Optional["User"] = Relationship(back_populates="restaurant")
     detail: Optional["RestaurantDetail"] = Relationship(back_populates="restaurant", sa_relationship_kwargs={"uselist": False})
     menus: List["RestaurantMenuList"] = Relationship(back_populates="restaurant")

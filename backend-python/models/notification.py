@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 class Notification(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     userId: int = Field(foreign_key="user.userId")
+    conversationId: Optional[int] = Field(default=None, index=True)
     title: str
     message: str
     isRead: bool = Field(default=False)

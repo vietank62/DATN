@@ -1,6 +1,7 @@
-from typing import Annotated, List
-from fastapi import APIRouter, Depends, HTTPException, Security
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from sqlmodel import select # type: ignore
+from sqlalchemy import func, or_  # type: ignore
 from database import SessionDep
 from models.user import User
 from schemas.user import UserOut, UserUpdate, UserRegister
@@ -9,6 +10,18 @@ from core import security
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/v1/users", tags=["User"])
+
+
+def _apply_user_update_fields(user: User, update_data: dict):
+    """Cập nhật từng field được gửi lên, không ảnh hưởng đến các field còn lại."""
+    for field, value in update_data.items():
+        if field == "password":
+            # Không bao giờ ghi mật khẩu thô hoặc ghi đè hash hiện có bằng chuỗi rỗng.
+            if value is None or not value.strip():
+                continue
+            value = security.get_password_hash(value)
+        setattr(user, field, value)
+
 
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: Annotated[User, Depends(get_current_user)]):
@@ -21,14 +34,10 @@ def update_me(
     current_user: Annotated[User, Depends(get_current_user)],
     session: SessionDep #type: ignore
 ):
-    """Cập nhật thông tin cá nhân."""
+    """Cập nhật thông tin cá nhân theo từng field được gửi lên."""
     update_data = user_data.model_dump(exclude_unset=True)
-    if "password" in update_data and update_data["password"]:
-        update_data["password"] = security.get_password_hash(update_data["password"])
-    
-    for field, value in update_data.items():
-        setattr(current_user, field, value)
-    
+    _apply_user_update_fields(current_user, update_data)
+
     session.add(current_user)
     session.commit()
     session.refresh(current_user)
@@ -36,15 +45,43 @@ def update_me(
 
 # --- ADMIN ROUTES ---
 
-@router.get("/", response_model=List[UserOut])
+@router.get("/", response_model=dict)
 def get_all_users(
     session: SessionDep, #type: ignore
-    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])]
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    search: str | None = Query(default=None, max_length=100),
 ):
-    users = session.exec(select(User)).all()
-    return users
+    statement = select(User)
+    count_statement = select(func.count(User.userId))
 
-@router.post("/", response_model=User)
+    if search and search.strip():
+        keyword = f"%{search.strip()}%"
+        filters = or_(
+            User.name.ilike(keyword),
+            User.email.ilike(keyword),
+            User.phone.ilike(keyword),
+        )
+        statement = statement.where(filters)
+        count_statement = count_statement.where(filters)
+
+    total = session.exec(count_statement).one()
+    users = session.exec(
+        statement
+        .order_by(User.userId.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+
+    return {
+        "items": users,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+@router.post("/", response_model=UserOut)
 def admin_create_user(
     user_data: UserRegister,
     session: SessionDep, #type: ignore
@@ -66,6 +103,26 @@ def admin_create_user(
     session.commit()
     session.refresh(new_user)
     return new_user
+
+@router.put("/{user_id}", response_model=UserOut)
+def admin_update_user(
+    user_id: int,
+    user_data: UserUpdate,
+    session: SessionDep, #type: ignore
+    # current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+):
+    """Admin cập nhật thông tin người dùng theo ID từng field."""
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = user_data.model_dump(exclude_unset=True)
+    _apply_user_update_fields(user, update_data)
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
 
 @router.delete("/{user_id}")
 def delete_user(

@@ -1,21 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
-import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'sonner';
 import { useState } from 'react';
-
-interface Booking {
-  bookingId: number;
-  restaurantId: number;
-  date: string;
-  time: string;
-  requestSeats: number;
-  status: string;
-  contactName: string;
-  contactPhone: string;
-  note?: string;
-  isPaid: boolean;
-}
+import axios from 'axios';
+import type { BookingDetail } from '../../types/booking';
+import { ViolationReportModal } from '../../components/ViolationReportModal';
 
 const STATUS_LABEL: Record<string, string> = {
   pending: 'Chờ duyệt', confirmed: 'Đã xác nhận', completed: 'Hoàn thành', cancelled: 'Đã huỷ',
@@ -27,39 +16,46 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-600',
 };
 
+const canCompleteBooking = (booking: BookingDetail) => {
+  const scheduledTime = new Date(`${booking.date}T${booking.time}`);
+
+  return !Number.isNaN(scheduledTime.getTime()) && scheduledTime <= new Date();
+};
+
 export default function BookingManagement() {
-  const { user } = useAuth();
   const qc = useQueryClient();
-  const restaurantId = (user as unknown as { restaurantId?: number })?.restaurantId;
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [reportBookingId, setReportBookingId] = useState<number | null>(null);
 
-  const bookingsQ = useQuery<Booking[]>({
-    queryKey: ['manager-bookings', restaurantId],
-    queryFn: () => api.get(`/api/get-bookings-by-restaurant/${restaurantId}`).then(r => r.data),
-    enabled: !!restaurantId,
+  const bookingsQ = useQuery<BookingDetail[]>({
+    queryKey: ['manager-bookings'],
+    queryFn: () => api.get('/v1/bookings/manager/me').then(r => r.data),
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['manager-bookings', restaurantId] });
-    qc.invalidateQueries({ queryKey: ['manager-stats', restaurantId] });
-    qc.invalidateQueries({ queryKey: ['manager-status-chart', restaurantId] });
+    qc.invalidateQueries({ queryKey: ['manager-bookings'] });
   };
 
   const confirmMut = useMutation({
-    mutationFn: (id: number) => api.put(`/api/bookings/${id}/confirm`),
+    mutationFn: (id: number) => api.put(`/v1/bookings/${id}/confirm`),
     onSuccess: () => { toast.success('Đã xác nhận đặt bàn'); invalidate(); },
     onError: () => toast.error('Lỗi xác nhận'),
   });
   const cancelMut = useMutation({
-    mutationFn: (id: number) => api.put(`/api/bookings/${id}/cancel`),
+    mutationFn: (id: number) => api.put(`/v1/bookings/${id}/cancel`),
     onSuccess: () => { toast.success('Đã huỷ đặt bàn'); invalidate(); },
     onError: () => toast.error('Lỗi huỷ'),
   });
   const completeMut = useMutation({
-    mutationFn: (id: number) => api.put(`/api/bookings/${id}/complete`),
+    mutationFn: (id: number) => api.put(`/v1/bookings/${id}/complete`),
     onSuccess: () => { toast.success('Đánh dấu hoàn thành'); invalidate(); },
-    onError: () => toast.error('Lỗi hoàn thành'),
+    onError: (error) => {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.detail
+        : null;
+      toast.error(message || 'Không thể hoàn thành đơn trước giờ dùng bữa.');
+    },
   });
 
   const allBookings = bookingsQ.data ?? [];
@@ -118,7 +114,6 @@ export default function BookingManagement() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/60">
-                  <th className="px-5 py-3 text-left">Mã đơn</th>
                   <th className="px-5 py-3 text-left">Khách hàng</th>
                   <th className="px-5 py-3 text-left">Thời gian</th>
                   <th className="px-5 py-3 text-center">Ghế</th>
@@ -129,7 +124,6 @@ export default function BookingManagement() {
               <tbody className="divide-y divide-gray-50">
                 {filtered.map(b => (
                   <tr key={b.bookingId} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="px-5 py-3.5 font-mono text-gray-400 text-xs">#{b.bookingId}</td>
                     <td className="px-5 py-3.5">
                       <p className="font-semibold text-gray-800">{b.contactName}</p>
                       <p className="text-xs text-gray-400">{b.contactPhone}</p>
@@ -156,12 +150,24 @@ export default function BookingManagement() {
                               className="px-3 py-1.5 rounded-lg border border-red-100 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium transition disabled:opacity-40">
                               ✕ Huỷ
                             </button>
+                            <button onClick={() => setReportBookingId(b.bookingId)} disabled={isBusy}
+                              className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-red-600 text-xs font-medium transition hover:bg-red-50 disabled:opacity-40">
+                              Báo cáo khách
+                            </button>
                           </>
                         )}
                         {b.status === 'confirmed' && (
                           <>
-                            <button onClick={() => completeMut.mutate(b.bookingId)} disabled={isBusy}
-                              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition disabled:opacity-40">
+                            <button
+                              onClick={() => completeMut.mutate(b.bookingId)}
+                              disabled={isBusy || !canCompleteBooking(b)}
+                              title={
+                                canCompleteBooking(b)
+                                  ? 'Đánh dấu đơn hoàn thành'
+                                  : 'Chỉ có thể hoàn thành sau giờ dùng bữa'
+                              }
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+                            >
                               ✓ Hoàn thành
                             </button>
                             <button onClick={() => cancelMut.mutate(b.bookingId)} disabled={isBusy}
@@ -179,6 +185,7 @@ export default function BookingManagement() {
           </div>
         )}
       </div>
+      {reportBookingId && <ViolationReportModal bookingId={reportBookingId} target="customer" onClose={() => setReportBookingId(null)} onSuccess={invalidate} />}
     </div>
   );
 }

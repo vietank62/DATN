@@ -4,11 +4,12 @@ export interface ResDetail {
     image_menu: string[];
     phone_number: string;
     price_range: string;  
-    opening_time: string;   
+    opening_time?: string[] | string | null;
     description?: string;
     parking_info?: string;
     utilities?: number[];
     regulations?: string;
+    requires_deposit?: boolean;
 }
 
 export interface RestaurantMenuItem {

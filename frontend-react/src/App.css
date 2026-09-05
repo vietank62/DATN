@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* Hot orange brand palette, shared by every existing Tailwind red-* utility. */
+@theme {
+  --color-red-50: #fff7ed;
+  --color-red-100: #ffedd5;
+  --color-red-200: #fed7aa;
+  --color-red-300: #fdba74;
+  --color-red-400: #fb923c;
+  --color-red-500: #f97316;
+  --color-red-600: #ea580c;
+  --color-red-700: #c2410c;
+  --color-red-800: #9a3412;
+  --color-red-900: #7c2d12;
+  --color-red-950: #431407;
+}
+
+.promo-badge {
+  background-color: #d94a4f;
+  color: #ffffff;
+}
+
+.promo-badge-soft {
+  background-color: #fff0f1;
+  color: #c63d43;
+}

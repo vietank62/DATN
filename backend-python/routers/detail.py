@@ -7,7 +7,7 @@ from models.resDetail import RestaurantDetail
 from schemas.resDetail import RestaurantDetailCreate
 import os
 
-CACHE_TTL = int(os.getenv("CACHE_TTL"))
+CACHE_TTL = int(os.getenv("RESTAURANT_DETAIL_CACHE_TTL", "900"))
 
 router = APIRouter(prefix="/v1/details", tags=["RestaurantDetails"])
 

@@ -15,8 +15,9 @@ class RestaurantDetail(SQLModel, table=True):
     phone_number: Optional[str] = Field(default=None, max_length=20)
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     opening_time: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
-    parking_info: Optional[str] = Field(default=None, max_length=255)
+    parking_info: Optional[str] = Field(default=None, sa_column=Column(Text))
     utilities: Optional[List[int]] = Field(default=None, sa_column=Column(ARRAY(Integer)))
     regulations: Optional[str] = Field(default=None, sa_column=Column(Text))
+    requires_deposit: bool = Field(default=False, nullable=False)
     
     restaurant: "Restaurant" = Relationship(back_populates="detail")
