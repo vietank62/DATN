@@ -1,3 +1,4 @@
+import { BOOKING_STATUS_LABEL as STATUS_LABEL, BOOKING_STATUS_COLOR as STATUS_COLOR } from "../../utils/status";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../../services/api";
@@ -28,23 +29,8 @@ interface MenuChartResponse {
   distribution: MenuStat[];
   totalItems: number;
 }
-interface FeeStats {
-  unpaidBookingsCount: number;
-  unpaidAmount: number;
-}
+interface FeeStats { availableBalance: number; completedBookings: number; }
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: "#f59e0b",
-  confirmed: "#3b82f6",
-  completed: "#10b981",
-  cancelled: "#f97316",
-};
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Chờ duyệt",
-  confirmed: "Xác nhận",
-  completed: "Hoàn thành",
-  cancelled: "Đã huỷ",
-};
 
 // ── Light KPI Card ─────────────────────────────────────────────────────────────
 function KpiCard({
@@ -84,7 +70,6 @@ function KpiCard({
 function DonutChart({ data, total }: { data: StatusStat[]; total: number }) {
   const R = 52,
     CIRC = 2 * Math.PI * R;
-  const colorArr = Object.values(STATUS_COLOR);
   const segments = data.map((d, i) => {
     const dash = (d.count / (total || 1)) * CIRC;
     const offset = data
@@ -97,7 +82,7 @@ function DonutChart({ data, total }: { data: StatusStat[]; total: number }) {
         cy="60"
         r={R}
         fill="none"
-        stroke={colorArr[i % 4]}
+        stroke={STATUS_COLOR[d.status] ?? "#9ca3af"}
         strokeWidth="18"
         strokeDasharray={`${dash} ${CIRC - dash}`}
         strokeDashoffset={-offset}
@@ -135,7 +120,7 @@ function DonutChart({ data, total }: { data: StatusStat[]; total: number }) {
           <li key={i} className="flex items-center gap-2">
             <span
               className="w-3 h-3 rounded-full shrink-0"
-              style={{ background: colorArr[i % 4] }}
+              style={{ background: STATUS_COLOR[d.status] ?? "#9ca3af" }}
             />
             <span className="text-gray-600">
               {STATUS_LABEL[d.status] ?? d.status}
@@ -230,9 +215,9 @@ export default function ManagerDashboard() {
     enabled: !!restaurantId,
   });
   const feeQ = useQuery<FeeStats>({
-    queryKey: ["manager-fees", restaurantId],
+    queryKey: ["manager-deposit-summary", restaurantId],
     queryFn: () =>
-      api.get(`/api/restaurants/${restaurantId}/fee-stats`).then((r) => r.data),
+      api.get("/v1/deposits/manager/summary").then((r) => r.data),
     enabled: !!restaurantId,
   });
 
@@ -388,9 +373,9 @@ export default function ManagerDashboard() {
           }
         />
         <KpiCard
-          label="Phí tích lũy"
-          value={fees ? `${fees.unpaidAmount.toLocaleString("vi-VN")}đ` : "—"}
-          sub={`${fees?.unpaidBookingsCount ?? 0} đơn chưa TT`}
+          label="Số dư đặt cọc có thể rút"
+          value={fees ? `${fees.availableBalance.toLocaleString("vi-VN")}đ` : "—"}
+          sub={`${fees?.completedBookings ?? 0} đơn hoàn thành có đặt cọc`}
           iconBg="bg-emerald-50"
           icon={
             <svg

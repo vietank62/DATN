@@ -1,3 +1,4 @@
+import { BOOKING_STATUS_LABEL as STATUS_LABEL, BOOKING_STATUS_COLOR as STATUS_COLOR } from "../../utils/status";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
@@ -24,22 +25,9 @@ interface StatusChartResponse {
   totalBookings: number;
 }
 
-interface FeeStats {
-  unpaidBookingsCount: number;
-  paidBookingsCount: number;
-  unpaidAmount: number;
-  paidAmount: number;
-  totalAmount: number;
-  completedBookings: number;
-}
+interface FeeStats { availableBalance: number; totalDeposit: number; paidOut: number; completedBookings: number; }
 
 // ── Colours ───────────────────────────────────────────────────────────────────
-const STATUS_COLOR: Record<string, string> = {
-  "Chờ xác nhận": "#f59e0b",
-  "Đã xác nhận": "#3b82f6",
-  "Hoàn thành": "#10b981",
-  "Đã huỷ": "#f97316",
-};
 const DONUT_FALLBACK = ["#f59e0b", "#3b82f6", "#10b981", "#f97316"];
 
 // ── Shared card ────────────────────────────────────────────────────────────────
@@ -305,7 +293,7 @@ function StatusDonut({ data, total }: { data: StatusStat[]; total: number }) {
                 className="w-3 h-3 rounded-full shrink-0"
                 style={{ background: color }}
               />
-              <span className="text-gray-600 flex-1">{d.status}</span>
+              <span className="text-gray-600 flex-1">{STATUS_LABEL[d.status] ?? d.status}</span>
               <span className="font-bold text-gray-800">{d.count}</span>
               <span className="text-gray-400 text-xs w-12 text-right">
                 ({d.percentage}%)
@@ -320,92 +308,16 @@ function StatusDonut({ data, total }: { data: StatusStat[]; total: number }) {
 
 // ── Fee table ─────────────────────────────────────────────────────────────────
 function FeeSummaryCard({ data }: { data: FeeStats }) {
-  const FEE_PER_BOOKING = 6000;
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {[
-          {
-            label: "Đơn hoàn thành",
-            value: data.completedBookings,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-          },
-          {
-            label: "Đã thanh toán",
-            value: data.paidBookingsCount,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
-          },
-          {
-            label: "Chưa thanh toán",
-            value: data.unpaidBookingsCount,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
-          },
-        ].map((m) => (
-          <div key={m.label} className={`${m.bg} rounded-xl p-4`}>
-            <p className="text-xs text-gray-500 mb-1">{m.label}</p>
-            <p className={`text-xl font-extrabold ${m.color}`}>{m.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {(m.value * FEE_PER_BOOKING).toLocaleString("vi-VN")}đ
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-xl border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50/70 text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
-              <th className="px-4 py-3 text-left">Hạng mục</th>
-              <th className="px-4 py-3 text-right">Số đơn</th>
-              <th className="px-4 py-3 text-right">Đơn giá</th>
-              <th className="px-4 py-3 text-right">Thành tiền</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            <tr className="hover:bg-gray-50 transition">
-              <td className="px-4 py-3 font-medium text-gray-700">
-                Phí đã thanh toán
-              </td>
-              <td className="px-4 py-3 text-right text-gray-600">
-                {data.paidBookingsCount}
-              </td>
-              <td className="px-4 py-3 text-right text-gray-400">
-                {FEE_PER_BOOKING.toLocaleString("vi-VN")}đ
-              </td>
-              <td className="px-4 py-3 text-right font-bold text-emerald-600">
-                {data.paidAmount.toLocaleString("vi-VN")}đ
-              </td>
-            </tr>
-            <tr className="hover:bg-gray-50 transition">
-              <td className="px-4 py-3 font-medium text-gray-700">
-                Phí chưa thanh toán
-              </td>
-              <td className="px-4 py-3 text-right text-gray-600">
-                {data.unpaidBookingsCount}
-              </td>
-              <td className="px-4 py-3 text-right text-gray-400">
-                {FEE_PER_BOOKING.toLocaleString("vi-VN")}đ
-              </td>
-              <td className="px-4 py-3 text-right font-bold text-amber-600">
-                {data.unpaidAmount.toLocaleString("vi-VN")}đ
-              </td>
-            </tr>
-            <tr className="bg-gray-50/70">
-              <td className="px-4 py-3 font-bold text-gray-800" colSpan={3}>
-                Tổng phí dịch vụ tích lũy
-              </td>
-              <td className="px-4 py-3 text-right font-extrabold text-gray-900">
-                {data.totalAmount.toLocaleString("vi-VN")}đ
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  return <div className="grid gap-4 sm:grid-cols-3">
+    {[{ label: "Tổng cọc đơn hoàn thành", amount: data.totalDeposit },
+      { label: "Đã rút", amount: data.paidOut },
+      { label: "Có thể rút", amount: data.availableBalance }].map(item => (
+        <div key={item.label} className="rounded-xl bg-emerald-50 p-4">
+          <p className="text-sm text-gray-600">{item.label}</p>
+          <p className="text-lg font-bold text-emerald-700">{item.amount.toLocaleString("vi-VN")}đ</p>
+        </div>
+      ))}
+  </div>;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -435,9 +347,9 @@ export default function ManagerStats() {
   });
 
   const feeQ = useQuery<FeeStats>({
-    queryKey: ["manager-fees", restaurantId],
+    queryKey: ["manager-deposit-summary", restaurantId],
     queryFn: () =>
-      api.get(`/api/restaurants/${restaurantId}/fee-stats`).then((r) => r.data),
+      api.get("/v1/deposits/manager/summary").then((r) => r.data),
     enabled: !!restaurantId,
   });
 
@@ -523,13 +435,13 @@ export default function ManagerStats() {
       </Card>
 
       {/* Fee summary */}
-      <Card title="💰 Tổng kết phí dịch vụ" subtitle="6.000đ / đơn hoàn thành">
+      <Card title="Tiền đặt cọc" subtitle="Tổng hợp các đơn hoàn thành">
         {feeQ.isLoading ? (
           <Loading />
         ) : feeQ.data ? (
           <FeeSummaryCard data={feeQ.data} />
         ) : (
-          <p className="text-gray-400 text-sm">Chưa có dữ liệu phí dịch vụ</p>
+          <p className="text-gray-400 text-sm">Chưa có dữ liệu đặt cọc</p>
         )}
       </Card>
     </div>

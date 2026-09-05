@@ -69,14 +69,9 @@ def create_review(
         createdAt=datetime.now().isoformat()
     )
     session.add(review)
-    session.commit()
-    session.refresh(review)
+    session.flush()
 
-    review_dict = review.model_dump()
-    review_dict["userName"] = current_user.name
-    review_dict["userAvatar"] = current_user.avatar
-
-    # Recalculate and update restaurant rating stats (denormalization)
+    # Recalculate and update restaurant rating stats in the same transaction.
     review_stats_res = session.exec(
         select(
             func.count(Review.reviewId),
@@ -88,6 +83,11 @@ def create_review(
     restaurant.rating = round(avg_val, 1) if avg_val else 0.0
     session.add(restaurant)
     session.commit()
+    session.refresh(review)
+
+    review_dict = review.model_dump()
+    review_dict["userName"] = current_user.name
+    review_dict["userAvatar"] = current_user.avatar
     background_tasks.add_task(clear_restaurant_caches)
 
     return review_dict
@@ -100,7 +100,11 @@ def get_restaurant_reviews(
     sort: str = Query(default="recent", pattern="^(recent|best|worst)$"),
     limit: int = Query(default=5, ge=1, le=20),
 ):
-    statement = select(Review).where(Review.restaurantId == restaurant_id)
+    statement = (
+        select(Review, User)
+        .outerjoin(User, User.userId == Review.userId)
+        .where(Review.restaurantId == restaurant_id)
+    )
 
     if sort == "best":
         statement = statement.order_by(desc(Review.rating), desc(Review.createdAt))
@@ -109,32 +113,36 @@ def get_restaurant_reviews(
     else:
         statement = statement.order_by(desc(Review.createdAt))
 
-    reviews = session.exec(statement.limit(limit)).all()
-    result = []
-    for r in reviews:
-        user = session.exec(select(User).where(User.userId == r.userId)).first()
-        r_dict = r.model_dump()
-        r_dict["userName"] = user.name if user else "Khách"
-        r_dict["userAvatar"] = user.avatar if user else None
-        result.append(r_dict)
-    return result
-
+    rows = session.exec(statement.limit(limit)).all()
+    return [
+        {
+            **review.model_dump(),
+            "userName": user.name if user else "Khách",
+            "userAvatar": user.avatar if user else None,
+        }
+        for review, user in rows
+    ]
 
 @router.get("/api/get-user-reviews/{user_id}", response_model=list[ReviewOut], tags=["Review"])
-def get_user_reviews(user_id: int, session: SessionDep, current_user: Annotated[User, Security(get_current_user)]):
+def get_user_reviews(
+    user_id: int,
+    session: SessionDep,
+    current_user: Annotated[User, Security(get_current_user)],
+):
     if current_user.userId != user_id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to view these reviews")
 
-    reviews = session.exec(select(Review).where(Review.userId == user_id)).all()
-    result = []
-    for r in reviews:
-        r_dict = r.model_dump()
-        r_dict["userName"] = current_user.name
-        r_dict["userAvatar"] = current_user.avatar
-
-        restaurant = session.exec(select(Restaurant).where(Restaurant.id == r.restaurantId)).first()
-        if restaurant:
-            r_dict["restaurantName"] = restaurant.name
-
-        result.append(r_dict)
-    return result
+    rows = session.exec(
+        select(Review, Restaurant)
+        .outerjoin(Restaurant, Restaurant.id == Review.restaurantId)
+        .where(Review.userId == user_id)
+    ).all()
+    return [
+        {
+            **review.model_dump(),
+            "userName": current_user.name,
+            "userAvatar": current_user.avatar,
+            "restaurantName": restaurant.name if restaurant else None,
+        }
+        for review, restaurant in rows
+    ]

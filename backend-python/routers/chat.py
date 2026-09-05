@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Security
-from sqlalchemy import func
+from sqlalchemy import func, tuple_, update
 from sqlmodel import select  # type: ignore
 
 from database import SessionDep
@@ -57,97 +57,160 @@ def ensure_conversation_access(
     raise HTTPException(status_code=403, detail="You do not have access to this conversation")
 
 
-def related_bookings(session: SessionDep, conversation: Conversation) -> list[dict]:
-    rows = session.exec(
-        select(Booking)
-        .where(
-            Booking.userId == conversation.customer_id,
-            Booking.restaurantId == conversation.restaurant_id,
-        )
-        .order_by(Booking.bookingId.desc())
-        .limit(5)
-    ).all()
-    return [
-        {
-            "bookingId": booking.bookingId,
-            "date": booking.date,
-            "time": booking.time,
-            "status": booking.status,
-        }
-        for booking in rows
+def serialize_conversations(
+    session: SessionDep,
+    conversations: list[Conversation],
+    current_user: User,
+) -> list[dict]:
+    """Serialize a conversation list with fixed query count instead of N+1 queries."""
+    if not conversations:
+        return []
+
+    conversation_ids = [conversation.id for conversation in conversations if conversation.id]
+    restaurant_ids = {conversation.restaurant_id for conversation in conversations}
+    customer_ids = {conversation.customer_id for conversation in conversations}
+    conversation_pairs = [
+        (conversation.customer_id, conversation.restaurant_id)
+        for conversation in conversations
     ]
 
+    restaurants_by_id = {
+        restaurant.id: restaurant
+        for restaurant in session.exec(
+            select(Restaurant).where(Restaurant.id.in_(restaurant_ids))
+        ).all()
+    }
+    customers_by_id = {
+        customer.userId: customer
+        for customer in session.exec(
+            select(User).where(User.userId.in_(customer_ids))
+        ).all()
+    }
 
-def create_chat_notification(
-    session: SessionDep,
-    conversation: Conversation,
-    restaurant: Restaurant,
-    sender: User,
-    content: str,
-) -> None:
-    if sender.role == "customer":
-        recipient_id = restaurant.manager_id
-        title = f"Tin nhắn mới từ {sender.name}"
-    elif sender.role == "manager":
-        recipient_id = conversation.customer_id
-        title = f"{restaurant.name} đã gửi tin nhắn"
-    else:
-        return
-
-    if not recipient_id or recipient_id == sender.userId:
-        return
-
-    session.add(
-        Notification(
-            userId=recipient_id,
-            conversationId=conversation.id,
-            title=title,
-            message=content[:180],
-            type="chat_message",
-            createdAt=datetime.now(timezone.utc).isoformat(),
+    unread_rows = session.exec(
+        select(
+            ChatMessage.conversation_id,
+            func.count(ChatMessage.id),
         )
-    )
-
-
-def serialize_conversation(
-    session: SessionDep,
-    conversation: Conversation,
-    current_user: User,
-) -> dict:
-    restaurant = session.get(Restaurant, conversation.restaurant_id)
-    customer = session.get(User, conversation.customer_id)
-    unread_count = session.exec(
-        select(func.count(ChatMessage.id)).where(
-            ChatMessage.conversation_id == conversation.id,
+        .where(
+            ChatMessage.conversation_id.in_(conversation_ids),
             ChatMessage.sender_id != current_user.userId,
             ChatMessage.is_read == False,
         )
-    ).one()
-    last_message = session.exec(
-        select(ChatMessage)
-        .where(ChatMessage.conversation_id == conversation.id)
-        .order_by(ChatMessage.created_at.desc())
-        .limit(1)
-    ).first()
-
-    return {
-        "id": conversation.id,
-        "restaurant": {
-            "id": restaurant.id,
-            "name": restaurant.name,
-            "image_url": restaurant.image_url,
-        } if restaurant else None,
-        "customer": {
-            "id": customer.userId,
-            "name": customer.name,
-            "avatar": customer.avatar,
-        } if customer else None,
-        "last_message": last_message.content if last_message else None,
-        "last_message_at": conversation.last_message_at,
-        "unread_count": unread_count,
-        "related_bookings": related_bookings(session, conversation),
+        .group_by(ChatMessage.conversation_id)
+    ).all()
+    unread_by_conversation_id = {
+        conversation_id: count
+        for conversation_id, count in unread_rows
     }
 
+    latest_messages = (
+        select(
+            ChatMessage.conversation_id.label("conversation_id"),
+            ChatMessage.content.label("content"),
+            func.row_number()
+            .over(
+                partition_by=ChatMessage.conversation_id,
+                order_by=ChatMessage.created_at.desc(),
+            )
+            .label("position"),
+        )
+        .where(ChatMessage.conversation_id.in_(conversation_ids))
+        .subquery()
+    )
+    latest_message_rows = session.execute(
+        select(
+            latest_messages.c.conversation_id,
+            latest_messages.c.content,
+        ).where(latest_messages.c.position == 1)
+    ).all()
+    last_message_by_conversation_id = {
+        conversation_id: content
+        for conversation_id, content in latest_message_rows
+    }
+
+    ranked_bookings = (
+        select(
+            Booking.userId.label("customer_id"),
+            Booking.restaurantId.label("restaurant_id"),
+            Booking.bookingId.label("booking_id"),
+            Booking.date.label("date"),
+            Booking.time.label("time"),
+            Booking.status.label("status"),
+            func.row_number()
+            .over(
+                partition_by=(Booking.userId, Booking.restaurantId),
+                order_by=Booking.bookingId.desc(),
+            )
+            .label("position"),
+        )
+        .where(
+            tuple_(Booking.userId, Booking.restaurantId).in_(conversation_pairs)
+        )
+        .subquery()
+    )
+    booking_rows = session.execute(
+        select(
+            ranked_bookings.c.customer_id,
+            ranked_bookings.c.restaurant_id,
+            ranked_bookings.c.booking_id,
+            ranked_bookings.c.date,
+            ranked_bookings.c.time,
+            ranked_bookings.c.status,
+        )
+        .where(ranked_bookings.c.position <= 5)
+        .order_by(
+            ranked_bookings.c.customer_id,
+            ranked_bookings.c.restaurant_id,
+            ranked_bookings.c.booking_id.desc(),
+        )
+    ).all()
+    bookings_by_conversation_pair: dict[tuple[int, int], list[dict]] = {}
+    for customer_id, restaurant_id, booking_id, date, time, status in booking_rows:
+        bookings_by_conversation_pair.setdefault(
+            (customer_id, restaurant_id),
+            [],
+        ).append(
+            {
+                "bookingId": booking_id,
+                "date": date,
+                "time": time,
+                "status": status,
+            }
+        )
+
+    result: list[dict] = []
+    for conversation in conversations:
+        restaurant = restaurants_by_id.get(conversation.restaurant_id)
+        customer = customers_by_id.get(conversation.customer_id)
+        result.append(
+            {
+                "id": conversation.id,
+                "restaurant": {
+                    "id": restaurant.id,
+                    "name": restaurant.name,
+                    "image_url": restaurant.image_url,
+                }
+                if restaurant
+                else None,
+                "customer": {
+                    "id": customer.userId,
+                    "name": customer.name,
+                    "avatar": customer.avatar,
+                }
+                if customer
+                else None,
+                "last_message": last_message_by_conversation_id.get(conversation.id),
+                "last_message_at": conversation.last_message_at,
+                "unread_count": unread_by_conversation_id.get(conversation.id, 0),
+                "related_bookings": bookings_by_conversation_pair.get(
+                    (conversation.customer_id, conversation.restaurant_id),
+                    [],
+                ),
+            }
+        )
+
+    return result
 
 @router.post("/conversations", response_model=dict)
 def create_or_get_conversation(
@@ -218,10 +281,7 @@ def get_my_conversations(
     conversations = session.exec(
         statement.order_by(Conversation.last_message_at.desc())
     ).all()
-    return [
-        serialize_conversation(session, conversation, current_user)
-        for conversation in conversations
-    ]
+    return serialize_conversations(session, conversations, current_user)
 
 
 @router.get("/conversations/{conversation_id}/messages", response_model=list[dict])
@@ -300,28 +360,28 @@ def mark_messages_read(
 ):
     conversation = get_conversation_or_404(session, conversation_id)
     ensure_conversation_access(session, conversation, current_user)
-    messages = session.exec(
-        select(ChatMessage).where(
+    updated_messages = session.execute(
+        update(ChatMessage)
+        .where(
             ChatMessage.conversation_id == conversation_id,
             ChatMessage.sender_id != current_user.userId,
             ChatMessage.is_read == False,
         )
-    ).all()
-    for message in messages:
-        message.is_read = True
-        session.add(message)
-
-    notifications = session.exec(
-        select(Notification).where(
+        .values(is_read=True)
+    )
+    updated_notifications = session.execute(
+        update(Notification)
+        .where(
             Notification.userId == current_user.userId,
             Notification.conversationId == conversation_id,
             Notification.type == "chat_message",
             Notification.isRead == False,
         )
-    ).all()
-    for notification in notifications:
-        notification.isRead = True
-        session.add(notification)
-
+        .values(isRead=True)
+    )
     session.commit()
-    return {"updated": len(messages), "notifications_updated": len(notifications)}
+
+    return {
+        "updated": updated_messages.rowcount or 0,
+        "notifications_updated": updated_notifications.rowcount or 0,
+    }

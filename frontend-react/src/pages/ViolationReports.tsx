@@ -228,7 +228,7 @@ export default function ViolationReports() {
             <h2 className="text-lg font-bold">Giải trình báo cáo</h2>
             <textarea value={appealReason} onChange={(event) => setAppealReason(event.target.value)} minLength={10} rows={5} className="mt-4 w-full rounded-xl border p-3" placeholder="Lý do và minh chứng giải trình..." />
             <input id="appeal-evidence-files" type="file" multiple accept="image/*" onChange={(event) => handleAppealFilesChange(event.target.files)} className="sr-only" />
-            <label htmlFor="appeal-evidence-files" className="mt-3 inline-flex cursor-pointer rounded-xl border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-red-50">
+            <label htmlFor="appeal-evidence-files" className="mt-3 inline-flex cursor-pointer items-center rounded-xl border-2 border-amber-600 bg-amber-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200">
               Chọn ảnh minh chứng
             </label>
             {appealFiles?.length ? <p className="mt-2 text-xs text-gray-500">Đã chọn {appealFiles.length} ảnh.</p> : null}

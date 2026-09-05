@@ -43,6 +43,9 @@ class PartnerOperationalUpdate(BaseModel):
     parking_info: Optional[str] = None
     utilities: Optional[list[int]] = None
     regulations: Optional[str] = None
+    requires_deposit: Optional[bool] = None
+    deposit_amount: Optional[int] = Field(default=None, ge=0)
+    deposit_min_guests: Optional[int] = Field(default=None, ge=1)
 
 
 class PartnerRejectRequest(BaseModel):

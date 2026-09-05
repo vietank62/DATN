@@ -6,10 +6,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE;
 const refreshClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+let refreshAccessTokenPromise: Promise<string> | null = null;
 
 export const refreshAccessToken = async (): Promise<string> => {
   const { data } = await refreshClient.post<{ access_token: string; token_type: string }>('/v1/auth/refresh');
@@ -17,9 +20,20 @@ export const refreshAccessToken = async (): Promise<string> => {
   return data.access_token;
 };
 
+const refreshAccessTokenOnce = (): Promise<string> => {
+  if (!refreshAccessTokenPromise) {
+    refreshAccessTokenPromise = refreshAccessToken().finally(() => {
+      refreshAccessTokenPromise = null;
+    });
+  }
+
+  return refreshAccessTokenPromise;
+};
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -47,7 +61,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const newToken = await refreshAccessToken();
+        const newToken = await refreshAccessTokenOnce();
         originalRequest.headers = originalRequest.headers ?? {};
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest as never);

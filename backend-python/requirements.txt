@@ -1,11 +1,12 @@
-fastapi[standard]
-sqlmodel
-psycopg2-binary
-pyjwt
-pwdlib
-alembic
-passlib[argon2]
-python-dotenv
-cloudinary
-upstash-redis
-mcp[cli]>=2.0.0
+# Direct dependencies verified by the deployment test suite.
+fastapi[standard]==0.141.1
+sqlmodel==0.0.39
+psycopg2-binary==2.9.12
+pyjwt==2.13.0
+pwdlib==0.3.0
+alembic==1.19.1
+passlib[argon2]==1.7.4
+python-dotenv==1.2.2
+cloudinary==1.45.0
+upstash-redis==1.7.0
+httpx==0.28.1

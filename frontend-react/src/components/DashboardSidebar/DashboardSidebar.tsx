@@ -90,7 +90,7 @@ export default function DashboardSidebar({
     navigate("/");
   };
 
-  const SidebarContent = () => (
+  const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Brand */}
       <div
@@ -191,7 +191,7 @@ export default function DashboardSidebar({
         className={`hidden lg:flex flex-col flex-shrink-0 h-screen bg-white border-r border-gray-200 sticky top-0
         transition-all duration-300 ease-in-out ${collapsed ? "w-[68px]" : "w-64"}`}
       >
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Mobile Overlay */}
@@ -208,7 +208,7 @@ export default function DashboardSidebar({
         flex flex-col lg:hidden transform transition-transform duration-300 ease-in-out
         ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Mobile hamburger */}

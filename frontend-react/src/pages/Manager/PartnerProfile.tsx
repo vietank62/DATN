@@ -289,7 +289,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor={`partner-${key}`}
-        className="mt-3 inline-flex cursor-pointer rounded-lg bg-gray-900 px-3 py-2 text-xs font-bold text-white"
+        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-amber-600 bg-amber-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
       >
         {uploadingField === key ? "Đang tải ảnh..." : "Chọn nhiều ảnh từ máy"}
       </label>
@@ -349,7 +349,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor="partner-restaurant-images"
-        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gray-900 px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-gray-800"
+        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-amber-600 bg-amber-500 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
       >
         <ImagePlus size={16} />
         {uploadingField === "image_urls" ? "Đang tải ảnh..." : "Chọn nhiều ảnh từ máy"}
@@ -416,7 +416,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor="partner-restaurant-cover"
-        className="mt-3 inline-flex cursor-pointer rounded-lg bg-gray-900 px-3 py-2 text-xs font-bold text-white"
+        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-amber-600 bg-amber-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
       >
         {uploadingField === "image_url" ? "Đang tải ảnh..." : "Chọn ảnh đại diện từ máy"}
       </label>

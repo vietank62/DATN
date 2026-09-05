@@ -27,6 +27,7 @@ class Restaurant(SQLModel, table=True):
     capacity: int = Field(default=0, index=True)
     is_active: bool = Field(default=True)
     is_report_suspended: bool = Field(default=False)
+    late_response_strikes: int = Field(default=0)
     approval_status: str = Field(default="approved", max_length=20, index=True)
     pending_approval_fields: Optional[List[str]] = Field(
         default=None,

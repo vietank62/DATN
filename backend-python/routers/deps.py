@@ -6,7 +6,7 @@ from database import SessionDep
 from models.user import User
 from sqlmodel import select # type: ignore
 
-async def get_current_user(
+def get_current_user(
     security_scopes: SecurityScopes,
     token: Annotated[str, Depends(oauth2_scheme)],
     session: SessionDep #type: ignore
@@ -23,6 +23,8 @@ async def get_current_user(
     )
     
     payload = decode_token(token)
+    if payload.get("type") == "refresh":
+        raise HTTPException(401, "Refresh token không được dùng để truy cập API")
     email: str = payload.get("email")
     if email is None:
         raise credentials_exception
@@ -35,7 +37,14 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
         
+    allowed_scopes = {"customer"}
+    if user.role == "admin":
+        allowed_scopes.update({"admin", "manager"})
+    elif user.role == "manager":
+        allowed_scopes.add("manager")
     for scope in security_scopes.scopes:
+        if scope not in allowed_scopes:
+            raise HTTPException(403, "Bạn không có quyền thực hiện thao tác này")
         if scope not in token_scopes:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,7 +54,7 @@ async def get_current_user(
     return user
 
 
-async def get_optional_current_user(
+def get_optional_current_user(
     authorization: Annotated[str | None, Header()] = None,
     session: SessionDep = None,  # type: ignore
 ) -> User | None:
@@ -57,6 +66,8 @@ async def get_optional_current_user(
         return None
 
     payload = decode_token(token)
+    if payload.get("type") == "refresh":
+        raise HTTPException(401, "Refresh token không được dùng để truy cập API")
     email: str = payload.get("email")
     if email is None:
         return None
@@ -65,3 +76,13 @@ async def get_optional_current_user(
         select(User).where(User.email == email)
     ).first()
     return user
+
+
+def require_restaurant_owner(session, restaurant_id: int, user: User):
+    from models.restaurant import Restaurant
+    restaurant = session.get(Restaurant, restaurant_id)
+    if not restaurant:
+        raise HTTPException(404, "Không tìm thấy nhà hàng")
+    if user.role != "admin" and restaurant.manager_id != user.userId:
+        raise HTTPException(403, "Bạn không có quyền quản lý nhà hàng này")
+    return restaurant

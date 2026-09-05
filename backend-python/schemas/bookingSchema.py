@@ -1,10 +1,11 @@
 from typing import Optional
-from pydantic import BaseModel  # type: ignore
+from datetime import datetime
+from pydantic import BaseModel, Field, field_validator  # type: ignore
 
 
 class BookingItemCreate(BaseModel):
     itemId: int
-    quantity: int = 1
+    quantity: int = Field(default=1, ge=1)
 
 
 class BookingItemOut(BaseModel):
@@ -30,6 +31,10 @@ class BookingResponse(BaseModel):
     requestSeats: int
     assignedSeats: int = 0
     status: str
+    depositAmount: int = 0
+    depositStatus: str = "not_required"
+    depositPaidAt: Optional[str] = None
+    depositExpiresAt: Optional[str] = None
     contactName: str
     contactEmail: str
     contactPhone: str
@@ -42,14 +47,25 @@ class BookingCreate(BaseModel):
     restaurantId: int
     date: str
     time: str
-    guestCount: int
-    childCount: int = 0
-    requestSeats: int
+    guestCount: int = Field(ge=1)
+    childCount: int = Field(default=0, ge=0)
+    requestSeats: int = Field(ge=1)
     contactName: str
     contactEmail: str
     contactPhone: str
     note: Optional[str] = None
     items: list[BookingItemCreate] = []
+
+
+    @field_validator("date")
+    @classmethod
+    def valid_date(cls, value: str) -> str:
+        return datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d")
+
+    @field_validator("time")
+    @classmethod
+    def valid_time(cls, value: str) -> str:
+        return datetime.strptime(value, "%H:%M").strftime("%H:%M")
 
 
 class BookingUpdate(BaseModel):

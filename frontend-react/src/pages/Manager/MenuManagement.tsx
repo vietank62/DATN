@@ -291,7 +291,7 @@ export default function MenuManagement() {
                       }
                     }}
                   />
-                  <label htmlFor="menu-item-image-file" className="cursor-pointer rounded-lg bg-gray-900 px-3 py-2 text-xs font-bold text-white">
+                  <label htmlFor="menu-item-image-file" className="cursor-pointer rounded-lg border-2 border-amber-600 bg-amber-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200">
                     Chọn tệp
                   </label>
                 </div>

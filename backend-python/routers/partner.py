@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import re
 from typing import Annotated, Any
 import unicodedata
-from fastapi import APIRouter, HTTPException, Query, Security
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Security
 from sqlmodel import select # type: ignore
 from sqlalchemy import func  # type: ignore
 
@@ -198,7 +198,11 @@ def my_application(current_user: Annotated[User, Security(get_current_user, scop
 
 
 @router.put("/application/me/operational", response_model=Restaurant)
-async def update_operational(data: PartnerOperationalUpdate, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])], session: SessionDep):
+def update_operational(
+    data: PartnerOperationalUpdate,
+    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    session: SessionDep,
+):
     restaurant = session.exec(select(Restaurant).where(Restaurant.manager_id == current_user.userId)).first()
     if not restaurant:
         raise HTTPException(404, "Restaurant application not found")
@@ -244,6 +248,12 @@ async def update_operational(data: PartnerOperationalUpdate, current_user: Annot
         detail.utilities = data.utilities
     if data.regulations is not None:
         detail.regulations = data.regulations
+    if "requires_deposit" in data.model_fields_set:
+        detail.requires_deposit = bool(data.requires_deposit)
+    if "deposit_amount" in data.model_fields_set:
+        detail.deposit_amount = data.deposit_amount or 0
+    if "deposit_min_guests" in data.model_fields_set:
+        detail.deposit_min_guests = data.deposit_min_guests or 1
 
     if changed_approval_fields:
         pending_fields = set(restaurant.pending_approval_fields or [])
@@ -259,10 +269,6 @@ async def update_operational(data: PartnerOperationalUpdate, current_user: Annot
     session.add(detail)
     session.commit()
     session.refresh(restaurant)
-    try:
-        await redis_client.delete(f"cache:details:{restaurant.id}")
-    except Exception as error:
-        print(f"Redis Clear Detail Cache Error: {error}")
     return restaurant
 
 
@@ -312,9 +318,10 @@ def pending_applications(current_user: Annotated[User, Security(get_current_user
 
 
 @router.delete("/application/me/pending-approval", response_model=Restaurant)
-async def cancel_pending_approval(
+def cancel_pending_approval(
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
     session: SessionDep,
+    background_tasks: BackgroundTasks,
 ):
     restaurant = session.exec(
         select(Restaurant).where(Restaurant.manager_id == current_user.userId)
@@ -346,12 +353,17 @@ async def cancel_pending_approval(
     session.add(restaurant)
     session.commit()
     session.refresh(restaurant)
-    await clear_restaurant_caches()
+    background_tasks.add_task(clear_restaurant_caches)
     return restaurant
 
 
 @router.put("/applications/{restaurant_id}/approve", response_model=Restaurant)
-async def approve_application(restaurant_id: int, current_user: Annotated[User, Security(get_current_user, scopes=["admin"])], session: SessionDep):
+def approve_application(
+    restaurant_id: int,
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+):
     restaurant = session.get(Restaurant, restaurant_id)
     if not restaurant:
         raise HTTPException(404, "Application not found")
@@ -382,16 +394,17 @@ async def approve_application(restaurant_id: int, current_user: Annotated[User, 
     session.add(restaurant)
     session.commit()
     session.refresh(restaurant)
-    await clear_restaurant_caches()
+    background_tasks.add_task(clear_restaurant_caches)
     return restaurant
 
 
 @router.put("/applications/{restaurant_id}/reject", response_model=Restaurant)
-async def reject_application(
+def reject_application(
     restaurant_id: int,
     current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
     session: SessionDep,
     data: PartnerRejectRequest,
+    background_tasks: BackgroundTasks,
 ):
     restaurant = session.get(Restaurant, restaurant_id)
     if not restaurant:
@@ -424,9 +437,8 @@ async def reject_application(
     session.add(restaurant)
     session.commit()
     session.refresh(restaurant)
-    await clear_restaurant_caches()
+    background_tasks.add_task(clear_restaurant_caches)
     return restaurant
-
 
 def serialize_approval_history(
     row: ApprovalHistory,

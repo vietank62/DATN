@@ -26,6 +26,10 @@ export interface BookingDetail {
   requestSeats: number;
   assignedSeats: number;
   status: string;
+  depositAmount: number;
+  depositStatus: string;
+  depositPaidAt?: string | null;
+  depositExpiresAt?: string | null;
   contactName: string;
   contactEmail: string;
   contactPhone: string;

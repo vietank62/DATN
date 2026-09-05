@@ -13,6 +13,7 @@ const ADMIN_NAV: NavItem[] = [
   },
   { label: "Lịch sử duyệt", to: "/admin/approval-history", icon: "stats" },
   { label: "Báo cáo vi phạm", to: "/admin/violation-reports", icon: "users" },
+  { label: "Rút tiền", to: "/admin/withdrawals", icon: "stats" },
   { label: "Thống kê", to: "/admin/stats", icon: "stats" },
 ];
 
@@ -23,6 +24,7 @@ const BREADCRUMB: Record<string, string> = {
   "/admin/partner-applications": "Duyệt đối tác",
   "/admin/approval-history": "Lịch sử duyệt",
   "/admin/violation-reports": "Báo cáo vi phạm",
+  "/admin/withdrawals": "Duyệt rút tiền",
   "/admin/stats": "Thống kê",
 };
 

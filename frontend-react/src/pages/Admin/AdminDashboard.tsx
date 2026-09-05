@@ -1,3 +1,4 @@
+import { ROLE_LABEL } from "../../utils/status";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { toast } from 'sonner';
@@ -128,7 +129,7 @@ export default function AdminDashboard() {
                       ${u.role === 'admin' ? 'bg-violet-100 text-violet-700'
                         : u.role === 'manager' ? 'bg-blue-100 text-blue-700'
                         : 'bg-gray-100 text-gray-500'}`}>
-                      {u.role}
+                      {ROLE_LABEL[u.role] ?? u.role}
                     </span>
                   </td>
                   <td className="px-6 py-3 text-right">
