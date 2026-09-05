@@ -1,0 +1,19 @@
+{
+  "postgres_select1_ms": [
+    334.4,
+    175.8,
+    204.9
+  ],
+  "migration": "fd1e4a6c8b93",
+  "retry_columns_present": true,
+  "status_query_postgres": "passed (nonexistent booking -> 404)",
+  "python": "3.12.0",
+  "env_present": {
+    "SEPAY_ENV": true,
+    "SEPAY_MERCHANT_ID": true,
+    "SEPAY_SECRET_KEY": true,
+    "SEPAY_IPN_SECRET_KEY": true,
+    "FRONTEND_URL": true,
+    "CRON_SECRET": false
+  }
+}

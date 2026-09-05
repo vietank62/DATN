@@ -120,7 +120,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
                     {avatarLetter}
                   </div>
                 )}
-                <label className="absolute bottom-0 right-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white shadow-md transition hover:bg-amber-700">
+                <label className="absolute bottom-0 right-0 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-amber-500 text-white shadow-lg ring-2 ring-amber-200 transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-300">
                   <Camera size={17} />
                   <input
                     type="file"

@@ -36,6 +36,8 @@ def update_me(
 ):
     """Cập nhật thông tin cá nhân theo từng field được gửi lên."""
     update_data = user_data.model_dump(exclude_unset=True)
+    if "role" in update_data:
+        raise HTTPException(403, "Không thể tự thay đổi vai trò tài khoản")
     _apply_user_update_fields(current_user, update_data)
 
     session.add(current_user)
@@ -75,7 +77,7 @@ def get_all_users(
     ).all()
 
     return {
-        "items": users,
+        "items": [UserOut.model_validate(user, from_attributes=True) for user in users],
         "total": total,
         "limit": limit,
         "offset": offset,
@@ -109,7 +111,7 @@ def admin_update_user(
     user_id: int,
     user_data: UserUpdate,
     session: SessionDep, #type: ignore
-    # current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
 ):
     """Admin cập nhật thông tin người dùng theo ID từng field."""
     user = session.get(User, user_id)

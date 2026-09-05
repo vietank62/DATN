@@ -11,8 +11,18 @@ const MANAGER_NAV: NavItem[] = [
   { label: "Đặt bàn", to: "/manager/bookings", icon: "booking" },
   { label: "Tin nhắn", to: "/manager/chat", icon: "message" },
   { label: "Thực đơn", to: "/manager/menu", icon: "menu" },
+  { label: "Tiền đặt cọc", to: "/manager/finance", icon: "stats" },
+  {
+    label: "Cài đặt nhà hàng",
+    to: "/manager/restaurant-settings",
+    icon: "restaurant",
+  },
   { label: "Hồ sơ đối tác", to: "/manager/partner", icon: "partner" },
-  { label: "Trạng thái xét duyệt", to: "/manager/approval-status", icon: "stats" },
+  {
+    label: "Trạng thái xét duyệt",
+    to: "/manager/approval-status",
+    icon: "stats",
+  },
   { label: "Cờ vi phạm", to: "/manager/violation-reports", icon: "stats" },
 ];
 
@@ -21,6 +31,8 @@ const BREADCRUMB: Record<string, string> = {
   "/manager/bookings": "Quản lý đặt bàn",
   "/manager/chat": "Tin nhắn",
   "/manager/menu": "Quản lý thực đơn",
+  "/manager/finance": "Tiền đặt cọc & rút tiền",
+  "/manager/restaurant-settings": "Cài đặt nhà hàng",
   "/manager/partner": "Hồ sơ đối tác",
   "/manager/approval-status": "Trạng thái xét duyệt",
   "/manager/violation-reports": "Cờ vi phạm",
@@ -49,12 +61,17 @@ export default function ManagerLayout() {
   });
   const notificationsQuery = useQuery<ManagerNotification[]>({
     queryKey: ["manager-notifications"],
-    queryFn: () => api.get("/v1/notifications/me?limit=10").then((response) => response.data),
+    queryFn: () =>
+      api
+        .get("/v1/notifications/me?limit=10")
+        .then((response) => response.data),
     refetchInterval: 30_000,
   });
   const isRestaurantActive = restaurantQuery.data?.is_active === true;
   const notifications = notificationsQuery.data ?? [];
-  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const unreadCount = notifications.filter(
+    (notification) => !notification.isRead,
+  ).length;
 
   useEffect(() => {
     if (!isNotificationOpen) {
@@ -84,7 +101,9 @@ export default function ManagerLayout() {
     navigate(
       notification.type === "chat_message"
         ? `/manager/chat?conversation=${notification.conversationId ?? ""}`
-        : "/manager/approval-status",
+        : notification.type.startsWith("withdrawal_")
+          ? "/manager/finance"
+          : "/manager/approval-status",
     );
   };
 
@@ -126,7 +145,10 @@ export default function ManagerLayout() {
             </svg>
             <span className="font-semibold text-gray-800">{crumb}</span>
           </div>
-          <div ref={notificationRef} className="relative ml-auto flex items-center gap-2">
+          <div
+            ref={notificationRef}
+            className="relative ml-auto flex items-center gap-2"
+          >
             <button
               type="button"
               onClick={() => setIsNotificationOpen((current) => !current)}
@@ -155,7 +177,7 @@ export default function ManagerLayout() {
               {isRestaurantActive
                 ? "Nhà hàng đang hoạt động"
                 : "Nhà hàng không hoạt động"}
-              </span>
+            </span>
             {isNotificationOpen && (
               <div className="absolute right-0 top-12 z-50 w-88 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
@@ -184,7 +206,9 @@ export default function ManagerLayout() {
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   {!notifications.length && (
-                    <p className="p-5 text-center text-sm text-gray-400">Chưa có thông báo.</p>
+                    <p className="p-5 text-center text-sm text-gray-400">
+                      Chưa có thông báo.
+                    </p>
                   )}
                   {notifications.map((notification) => (
                     <button
@@ -195,8 +219,12 @@ export default function ManagerLayout() {
                         notification.isRead ? "bg-white" : "bg-amber-50/70"
                       } hover:bg-gray-50`}
                     >
-                      <p className="text-sm font-bold text-gray-800">{notification.title}</p>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-600">{notification.message}</p>
+                      <p className="text-sm font-bold text-gray-800">
+                        {notification.title}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-600">
+                        {notification.message}
+                      </p>
                     </button>
                   ))}
                 </div>

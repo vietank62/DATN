@@ -19,5 +19,7 @@ class RestaurantDetail(SQLModel, table=True):
     utilities: Optional[List[int]] = Field(default=None, sa_column=Column(ARRAY(Integer)))
     regulations: Optional[str] = Field(default=None, sa_column=Column(Text))
     requires_deposit: bool = Field(default=False, nullable=False)
+    deposit_amount: int = Field(default=0, nullable=False)
+    deposit_min_guests: int = Field(default=1, nullable=False)
     
     restaurant: "Restaurant" = Relationship(back_populates="detail")

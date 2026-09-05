@@ -31,24 +31,19 @@ def get_manager_stats(
 
     today_str = date.today().isoformat()
 
-    total_bookings = session.exec(
-        select(func.count(Booking.bookingId)).where(Booking.restaurantId == restaurantId)
-    ).first() or 0
-
-    today_bookings = session.exec(
-        select(func.count(Booking.bookingId))
-        .where(Booking.restaurantId == restaurantId, Booking.date == today_str)
-    ).first() or 0
-
-    pending_bookings = session.exec(
-        select(func.count(Booking.bookingId))
-        .where(Booking.restaurantId == restaurantId, Booking.status == "pending")
-    ).first() or 0
-
-    confirmed_bookings = session.exec(
-        select(func.count(Booking.bookingId))
-        .where(Booking.restaurantId == restaurantId, Booking.status == "confirmed")
-    ).first() or 0
+    (
+        total_bookings,
+        today_bookings,
+        pending_bookings,
+        confirmed_bookings,
+    ) = session.exec(
+        select(
+            func.count(Booking.bookingId),
+            func.count(Booking.bookingId).filter(Booking.date == today_str),
+            func.count(Booking.bookingId).filter(Booking.status == "pending"),
+            func.count(Booking.bookingId).filter(Booking.status == "confirmed"),
+        ).where(Booking.restaurantId == restaurantId)
+    ).one()
 
     avg_rating_result = session.exec(
         select(func.avg(Review.rating)).where(Review.restaurantId == restaurantId)

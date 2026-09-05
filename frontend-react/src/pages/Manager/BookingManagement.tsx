@@ -1,3 +1,4 @@
+import { BOOKING_STATUS_LABEL as STATUS_LABEL } from "../../utils/status";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { toast } from 'sonner';
@@ -6,14 +7,14 @@ import axios from 'axios';
 import type { BookingDetail } from '../../types/booking';
 import { ViolationReportModal } from '../../components/ViolationReportModal';
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Chờ duyệt', confirmed: 'Đã xác nhận', completed: 'Hoàn thành', cancelled: 'Đã huỷ',
-};
 const STATUS_BADGE: Record<string, string> = {
+  payment_expired: "bg-red-100 text-red-700",
+  awaiting_payment: "bg-violet-100 text-violet-700",
   pending:   'bg-amber-100 text-amber-700',
   confirmed: 'bg-blue-100 text-blue-700',
   completed: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-red-100 text-red-600',
+  expired: 'bg-red-100 text-red-700',
 };
 
 const canCompleteBooking = (booking: BookingDetail) => {

@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta, datetime, timezone
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
@@ -12,6 +13,14 @@ from sqlmodel import select # type: ignore
 from routers.deps import get_current_user
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
+
+def refresh_cookie_options():
+    secure = os.getenv("AUTH_COOKIE_SECURE", "true" if os.getenv("VERCEL") == "1" or os.getenv("FRONTEND_URL", "").startswith("https://") else "false").lower() == "true"
+    same_site = os.getenv("AUTH_COOKIE_SAMESITE", "none" if secure else "lax").lower()
+    if same_site not in {"none", "lax", "strict"} or (same_site == "none" and not secure):
+        raise HTTPException(503, "Cấu hình cookie không hợp lệ")
+    return {"secure": secure, "samesite": same_site, "path": "/"}
+
 
 def authenticate_user(username: str, password: str, session: SessionDep): #type: ignore
     user = session.exec(select(User).where(User.email == username)).first()
@@ -82,8 +91,7 @@ def login_for_access_token(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
-        secure=False,
-        samesite="Lax",
+        **refresh_cookie_options(),
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -113,7 +121,7 @@ def refresh_access_token(request: Request, session: SessionDep): #type: ignore
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("refresh_token")
+    response.delete_cookie("refresh_token", **refresh_cookie_options())
     return {"message": "Đăng xuất thành công"}
 
 @router.get("/active-user", response_model=UserOut)

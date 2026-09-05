@@ -133,10 +133,10 @@ export default function ChatPage() {
   }, [createConversation, restaurantId, user?.role]);
 
   useEffect(() => {
-    if (activeConversationId && messagesQuery.data) {
-      void markConversationRead(activeConversationId);
+    if (activeConversationId && activeConversation?.unread_count) {
+      void markConversationRead(activeConversationId).catch(() => undefined);
     }
-  }, [activeConversationId, markConversationRead, messagesQuery.dataUpdatedAt]);
+  }, [activeConversation?.unread_count, activeConversationId, markConversationRead]);
 
   const handleSend = (event: React.FormEvent) => {
     event.preventDefault();

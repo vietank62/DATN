@@ -14,6 +14,7 @@ class ViolationReport(SQLModel, table=True):
     target_user_id: Optional[int] = Field(default=None, foreign_key="user.userId", index=True)
     target_restaurant_id: Optional[int] = Field(default=None, foreign_key="restaurants.id", index=True)
     target_type: str = Field(max_length=20, index=True)
+    source: str = Field(default="customer_report", max_length=30)
     reason: str = Field(sa_column=Column(Text, nullable=False))
     evidence_urls: Optional[list[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
     status: str = Field(default="open", max_length=30, index=True)

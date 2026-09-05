@@ -18,6 +18,9 @@ class Booking(SQLModel, table=True):
     requestSeats: int
     assignedSeats: int = Field(default=0)
     status: str = Field(default="pending")
+    depositAmount: int = Field(default=0)
+    depositStatus: str = Field(default="not_required", max_length=20)
+    depositPaidAt: Optional[str] = None
     contactName: str
     contactEmail: str
     contactPhone: str

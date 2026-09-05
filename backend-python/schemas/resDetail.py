@@ -13,3 +13,5 @@ class RestaurantDetailCreate(BaseModel):
     utilities: Optional[List[int]] = None
     regulations: Optional[str] = None
     requires_deposit: bool = False
+    deposit_amount: int = 0
+    deposit_min_guests: int = 1

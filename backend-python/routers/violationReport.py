@@ -68,7 +68,7 @@ def report_customer(
     report = ViolationReport(booking_id=booking.bookingId, reporter_id=current_user.userId, target_user_id=customer.userId, target_type="customer", reason=data.reason, evidence_urls=data.evidence_urls or None)
     session.add(customer)
     session.add(report)
-    add_warning(session, customer.userId, "Cảnh cáo vi phạm đặt bàn", f"Bạn nhận 1 cờ vi phạm vì không đến dùng bữa. Tổng cờ hiện tại: {customer.report_strikes}.")
+    add_warning(session, customer.userId, "Cảnh cáo vi phạm đặt bàn", f"Bạn nhận 1 cờ vi phạm vì không đến dùng bữa. Số lần vi phạm hiện tại: {customer.report_strikes}.")
     session.commit()
     session.refresh(report)
     return report
@@ -94,7 +94,7 @@ def report_restaurant(
         raise HTTPException(status_code=404, detail="Không tìm thấy nhà hàng")
     restaurant.is_report_suspended = True
     restaurant.is_active = False
-    report = ViolationReport(booking_id=booking.bookingId, reporter_id=current_user.userId, target_restaurant_id=restaurant.id, target_type="restaurant", reason=data.reason, evidence_urls=data.evidence_urls or None)
+    report = ViolationReport(booking_id=booking.bookingId, reporter_id=current_user.userId, target_restaurant_id=restaurant.id, target_type="restaurant", source="customer_report", reason=data.reason, evidence_urls=data.evidence_urls or None)
     session.add(restaurant)
     session.add(report)
     add_warning(session, restaurant.manager_id, "Nhà hàng bị tạm ngưng", "Nhà hàng nhận report từ khách và đã tạm ngưng hiển thị. Hãy gửi giải trình cùng minh chứng.")
@@ -153,5 +153,8 @@ def review_report(report_id: int, data: ViolationReviewCreate, current_user: Ann
             other_open = session.exec(select(ViolationReport).where(ViolationReport.target_restaurant_id == restaurant.id, ViolationReport.status.in_(["open", "appeal_pending"]), ViolationReport.id != report.id)).first()
             if not other_open:
                 restaurant.is_report_suspended = False; restaurant.is_active = True; session.add(restaurant)
+            if report.source == "late_response":
+                restaurant.late_response_strikes = 0
+                session.add(restaurant)
     session.add(report); session.commit(); session.refresh(report)
     return report

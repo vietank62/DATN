@@ -4,9 +4,11 @@ import re
 import time
 import unicodedata
 from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, Security
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, Security
 from fastapi.encoders import jsonable_encoder
+from starlette.concurrency import run_in_threadpool
 from models import Restaurant, User, Favorite
+from models.resDetail import RestaurantDetail
 from database import SessionDep, redis_client
 from sqlmodel import select  # type: ignore
 from schemas.restaurant import RestaurantCreate, RestaurantBase, RestaurantUpdate
@@ -14,9 +16,9 @@ from sqlalchemy import desc, func, or_  # type: ignore
 from sqlalchemy.dialects.postgresql import array
 from routers.deps import get_current_user, get_optional_current_user
 
-CACHE_TTL = int(os.getenv("RESTAURANT_LIST_CACHE_TTL", "180"))
+CACHE_TTL = int(os.getenv("RESTAURANT_LIST_CACHE_TTL", "300"))
 CACHE_KEY_SET = "cache:restaurants:keys"
-CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=120"
+CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=240"
 
 PRICE_RANGES: dict[int, tuple[Optional[int], Optional[int]]] = {
     1: (None, 100_000),
@@ -90,6 +92,15 @@ async def clear_restaurant_list_cache() -> None:
         print(f"Redis Clear Cache Error: {error}")
 
 
+async def cache_restaurant_list(cache_key: str, payload: str) -> None:
+    """Populate public restaurant-card cache after the HTTP response is sent."""
+    try:
+        await redis_client.set(cache_key, payload, ex=CACHE_TTL)
+        await redis_client.sadd(CACHE_KEY_SET, cache_key)
+        await redis_client.expire(CACHE_KEY_SET, CACHE_TTL)
+    except Exception as error:
+        print(f"Redis Error (Set): {error}")
+
 def card_columns():
     """The public list contract: no gallery, menu, detail, or relationship loading."""
     return (
@@ -97,6 +108,7 @@ def card_columns():
         Restaurant.name,
         Restaurant.slug,
         Restaurant.image_url,
+        Restaurant.address,
         Restaurant.district,
         Restaurant.city,
         Restaurant.price_avg,
@@ -111,7 +123,7 @@ router = APIRouter(prefix="/v1/restaurants", tags=["Restaurant"])
 
 
 @router.get("/all", response_model=dict)
-async def get_all_restaurants_for_admin(
+def get_all_restaurants_for_admin(
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
     limit: int = Query(default=10, ge=1, le=100),
@@ -152,12 +164,12 @@ async def get_all_restaurants_for_admin(
         "offset": offset,
     }
 
-
 @router.patch("/{id}/toggle-active", response_model=Restaurant)
-async def toggle_restaurant_active(
+def toggle_restaurant_active(
     id: int,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+    background_tasks: BackgroundTasks,
 ):
     restaurant = session.get(Restaurant, id)
 
@@ -169,14 +181,14 @@ async def toggle_restaurant_active(
     session.commit()
     session.refresh(restaurant)
 
-    await clear_restaurant_list_cache()
-
+    background_tasks.add_task(clear_restaurant_list_cache)
     return restaurant
 
 @router.get("/", response_model=List[dict]) 
 async def get_restaurants(
     session: SessionDep, # type: ignore
     response: Response,
+    background_tasks: BackgroundTasks,
     sort_by: Optional[str] = Query(None, description="like_count, rating, created_at"),
     has_exclusive: Optional[bool] = Query(None, description="True/False"),
     limit: int = Query(16, ge=1, le=20),
@@ -196,19 +208,20 @@ async def get_restaurants(
     normalized_suitable_for = normalize_search_value(suitable_for) if suitable_for else None
     normalized_service_type = normalize_search_value(service_type) if service_type else None
     normalized_search = search.strip() if search else None
-    cache_key = f"cache:restaurants:v5:{sort_by}:{has_exclusive}:{limit}:{offset}:{city}:{district}:{price}:{normalized_category}:{normalized_suitable_for}:{normalized_service_type}:{space_level}:{normalized_search}:{rating}"
+    cache_key = f"cache:restaurants:v6:{sort_by}:{has_exclusive}:{limit}:{offset}:{city}:{district}:{price}:{normalized_category}:{normalized_suitable_for}:{normalized_service_type}:{space_level}:{normalized_search}:{rating}"
     request_started_at = time.perf_counter()
 
     try:
         cached_data = await redis_client.get(cache_key)
         if cached_data:
             response.headers["X-Cache"] = "HIT"
-            response.headers["Cache-Control"] = CACHE_CONTROL
+            response.headers["Cache-Control"] = "private, no-store" if current_user else CACHE_CONTROL
+            response.headers["Vary"] = "Authorization"
             results = json.loads(cached_data)
             response.headers["Server-Timing"] = (
                 f"redis;dur={(time.perf_counter() - request_started_at) * 1000:.1f}"
             )
-            return add_favorite_state(results, current_user, session)
+            return await run_in_threadpool(lambda: add_favorite_state(results, current_user, session))
     except Exception as e:
         print(f"Redis Error (Get): {e}")
 
@@ -297,25 +310,24 @@ async def get_restaurants(
 
     statement = statement.offset(offset).limit(limit)
     
-    results = session.execute(statement).mappings().all()
+    results = await run_in_threadpool(lambda: session.execute(statement).mappings().all())
     database_finished_at = time.perf_counter()
     formatted_results = [jsonable_encoder(dict(result)) for result in results]
     
-    try:
-        serialized_data = json.dumps(formatted_results)
-        await redis_client.set(cache_key, serialized_data, ex=CACHE_TTL)
-        await redis_client.sadd(CACHE_KEY_SET, cache_key)
-        await redis_client.expire(CACHE_KEY_SET, CACHE_TTL)
-    except Exception as e:
-        print(f"Redis Error (Set): {e}")
+    background_tasks.add_task(
+        cache_restaurant_list,
+        cache_key,
+        json.dumps(formatted_results),
+    )
         
     response.headers["X-Cache"] = "MISS"
-    response.headers["Cache-Control"] = CACHE_CONTROL
+    response.headers["Cache-Control"] = "private, no-store" if current_user else CACHE_CONTROL
+    response.headers["Vary"] = "Authorization"
     response.headers["Server-Timing"] = (
         f"db;dur={(database_finished_at - request_started_at) * 1000:.1f}, "
         f"serialize;dur={(time.perf_counter() - database_finished_at) * 1000:.1f}"
     )
-    return add_favorite_state(formatted_results, current_user, session)
+    return await run_in_threadpool(lambda: add_favorite_state(formatted_results, current_user, session))
 
 
 def add_favorite_state(
@@ -339,42 +351,86 @@ def add_favorite_state(
         for restaurant in restaurants
     ]
 
+@router.get("/{id}/overview", response_model=dict)
+def get_restaurant_overview(id: int, session: SessionDep):  # type: ignore
+    """Load the public base record and detail record in one database round trip."""
+    row = session.exec(
+        select(Restaurant, RestaurantDetail)
+        .outerjoin(
+            RestaurantDetail,
+            RestaurantDetail.restaurant_id == Restaurant.id,
+        )
+        .where(Restaurant.id == id)
+    ).first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    restaurant, detail = row
+    if not detail:
+        raise HTTPException(status_code=404, detail="Restaurant detail not found")
+
+    return {
+        "restaurant": restaurant,
+        "detail": detail,
+    }
+
+
 @router.get("/{id}", response_model=RestaurantBase)
 async def get_restaurant(id: int, session: SessionDep):  # type: ignore
-    restaurant = session.get(Restaurant, id)
+    restaurant = await run_in_threadpool(lambda: session.get(Restaurant, id))
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     return restaurant
 
 @router.post("/", response_model=Restaurant)
-async def create_restaurant(restaurant: RestaurantCreate, session: SessionDep):  # type: ignore
+def create_restaurant(
+    restaurant: RestaurantCreate,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+):  # type: ignore
     db_restaurant = Restaurant(**restaurant.model_dump())
     session.add(db_restaurant)
     session.commit()
     session.refresh(db_restaurant)
-    await clear_restaurant_list_cache()
+    background_tasks.add_task(clear_restaurant_list_cache)
     return db_restaurant
 
 @router.put("/{id}", response_model=Restaurant)
-async def update_restaurant(id: int, restaurant: RestaurantUpdate, session: SessionDep): # type: ignore
+def update_restaurant(
+    id: int,
+    restaurant: RestaurantUpdate,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+):  # type: ignore
     db_restaurant = session.get(Restaurant, id)
     if not db_restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+
     update_dict = restaurant.model_dump(exclude_unset=True)
     for key, value in update_dict.items():
         setattr(db_restaurant, key, value)
+
     session.add(db_restaurant)
     session.commit()
     session.refresh(db_restaurant)
-    await clear_restaurant_list_cache()
+    background_tasks.add_task(clear_restaurant_list_cache)
     return db_restaurant
 
 @router.delete("/{id}", response_model=dict)
-async def delete_restaurant(id: int, session: SessionDep): # type: ignore
+def delete_restaurant(
+    id: int,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+):  # type: ignore
     db_restaurant = session.get(Restaurant, id)
     if not db_restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+
     session.delete(db_restaurant)
     session.commit()
-    await clear_restaurant_list_cache()
+    background_tasks.add_task(clear_restaurant_list_cache)
     return {"message": "Restaurant deleted successfully"}

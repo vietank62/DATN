@@ -23,7 +23,7 @@ async def clear_restaurant_caches():
         print(f"Redis Clear Cache Error: {e}")
 
 @router.post("/toggle")
-async def toggle_favorite(
+def toggle_favorite(
     data: FavoriteToggle,
     session: SessionDep, # type: ignore
     current_user: Annotated[User, Depends(get_current_user)],

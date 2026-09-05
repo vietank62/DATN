@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Optional
 from fastapi import APIRouter, HTTPException, Depends, Security, Header, Request
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel  # type: ignore
+from pydantic import AliasChoices, BaseModel, Field  # type: ignore
 from database import SessionDep
 from models import Payment, Booking, Restaurant, User
 from routers.authentication import get_current_user
@@ -26,7 +26,7 @@ class SePayWebhookPayload(BaseModel):
     accountNumber: str
     transferType: str  # "in" or "out"
     transferAmount: float
-    accumulatedBalance: float
+    accumulatedBalance: float = Field(validation_alias=AliasChoices("accumulatedBalance", "accumulated"))
     code: str
     content: str
     referenceCode: Optional[str] = None
@@ -121,14 +121,17 @@ def sepay_webhook(
     session: SessionDep,
     authorization: Optional[str] = Header(None)
 ):
-    expected_token = os.getenv("SEPAY_WEBHOOK_TOKEN", "super-secret-sepay-token-123")
-    if authorization:
-        token = authorization.replace("Bearer ", "").strip()
-        if token != expected_token:
+    expected_token = os.getenv("SEPAY_WEBHOOK_TOKEN")
+    if expected_token:
+        token = (authorization or "").removeprefix("Apikey ").removeprefix("Bearer ").strip()
+        if not hmac.compare_digest(token, expected_token):
             raise HTTPException(status_code=401, detail="Unauthorized webhook request")
 
     if payload.transferType.lower() != "in":
         return {"success": True, "message": "Ignored transfer type"}
+
+    if re.search(r"TNBK\d+", payload.content, re.IGNORECASE):
+        return {"success": True, "message": "Booking deposits use the Payment Gateway IPN endpoint"}
 
     match = re.search(r"TNPAY\d+", payload.content, re.IGNORECASE)
     if not match:
