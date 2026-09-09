@@ -10,3 +10,4 @@ python-dotenv==1.2.2
 cloudinary==1.45.0
 upstash-redis==1.7.0
 httpx==0.28.1
+mcp==2.2.0

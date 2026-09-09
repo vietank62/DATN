@@ -8,7 +8,7 @@ const PRICE_OPTIONS = [
   "100k - 200k",
   "200k - 500k",
   "500k - 1.000k",
-  "Trên 1.000k",
+  "Từ 1.000k",
 ];
 
 const CATEGORY_OPTIONS = [
@@ -55,7 +55,7 @@ const LABEL_TO_KEY: Record<string, FilterKey> = {
   "Phù hợp": "suitableFor",
   "Ưu đãi": "endow",
   "Kiểu phục vụ": "serviceType",
-  "Không gian riêng": "space",
+  "Sức chứa": "space",
 };
 
 const convertToSlug = (str: string): string => {
@@ -189,6 +189,7 @@ export const FilterBar = () => {
 
   const handleMainFilterSubmit = () => {
     const params = new URLSearchParams();
+    params.set("city", city);
 
     if (district && district !== "Khu vực") {
       params.append("district", district);

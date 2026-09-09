@@ -1593,14 +1593,20 @@ export const RestaurantDetail = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-900">
-                      Thanh toán đặt cọc qua SePay
+                      Thanh toán đặt cọc
                     </h4>
                     <p className="text-sm text-gray-500 mt-2">
-                      Hệ thống sẽ tự xác nhận ngay khi SePay nhận được giao
-                      dịch.
+                      Vui lòng thanh toán tiền đặt cọc để tiếp tục đặt bàn.
                     </p>
                   </div>
-                  {createdBooking && <DepositCheckoutPanel bookingId={createdBooking.bookingId} />}
+                  {createdBooking && (
+                    <>
+                      <p className="text-sm text-gray-600">
+                        Số tiền đặt cọc: <strong className="text-gray-900">{createdBooking.depositAmount.toLocaleString("vi-VN")} đ</strong>
+                      </p>
+                      <DepositCheckoutPanel bookingId={createdBooking.bookingId} />
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={() =>

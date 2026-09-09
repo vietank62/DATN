@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Security
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Security
 from typing import Annotated
 from models.user import User
 from routers.deps import get_current_user, require_restaurant_owner
@@ -8,6 +8,7 @@ from database import SessionDep
 from models.menuItem import RestaurantMenuList
 from models.restaurant import Restaurant
 from schemas.menuItems import MenuItemBase, MenuItemCreate
+from routers.restaurant import clear_restaurant_list_cache
 
 
 router = APIRouter(prefix="/v1/menuitems", tags=["MenuItem"])
@@ -44,6 +45,7 @@ def create_menu_item(
     menu_item: MenuItemCreate,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    background_tasks: BackgroundTasks,
 ):  # type: ignore
     require_restaurant_owner(session, restaurant_id, current_user)
     restaurant = session.get(Restaurant, restaurant_id)
@@ -56,6 +58,7 @@ def create_menu_item(
     )
     session.add(db_menu_item)
     session.commit()
+    background_tasks.add_task(clear_restaurant_list_cache)
     session.refresh(db_menu_item)
     return db_menu_item
 
@@ -69,6 +72,7 @@ def update_menu_item_availability(
     menuitem_id: int,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    background_tasks: BackgroundTasks,
 ):  # type: ignore
     require_restaurant_owner(session, restaurant_id, current_user)
     restaurant = session.get(Restaurant, restaurant_id)
@@ -82,6 +86,7 @@ def update_menu_item_availability(
     menu_item.is_available = not menu_item.is_available
     session.add(menu_item)
     session.commit()
+    background_tasks.add_task(clear_restaurant_list_cache)
     session.refresh(menu_item)
     return menu_item
 
@@ -96,6 +101,7 @@ def update_menu_item(
     menu_item: MenuItemCreate,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    background_tasks: BackgroundTasks,
 ):
     require_restaurant_owner(session, restaurant_id, current_user)
     item = session.get(RestaurantMenuList, menuitem_id)
@@ -107,6 +113,7 @@ def update_menu_item(
 
     session.add(item)
     session.commit()
+    background_tasks.add_task(clear_restaurant_list_cache)
     session.refresh(item)
     return item
 
@@ -117,6 +124,7 @@ def delete_menu_item(
     menuitem_id: int,
     session: SessionDep,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    background_tasks: BackgroundTasks,
 ):
     require_restaurant_owner(session, restaurant_id, current_user)
     item = session.get(RestaurantMenuList, menuitem_id)
@@ -125,4 +133,5 @@ def delete_menu_item(
 
     session.delete(item)
     session.commit()
+    background_tasks.add_task(clear_restaurant_list_cache)
     return {"message": "Menu item deleted"}

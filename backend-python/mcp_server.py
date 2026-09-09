@@ -4,9 +4,11 @@ Only public, read-only data is exposed here. Booking, account, and manager
 operations remain behind the existing authenticated FastAPI endpoints.
 """
 
-from typing import Any
+from typing import Any, Annotated, Literal
+from pydantic import Field
 
-from sqlalchemy.dialects.postgresql import array
+from core.public_restaurants import find_public_restaurants, serialize_restaurant
+from core.restaurant_search import public_restaurant_conditions
 from sqlmodel import select  # type: ignore
 
 from database import engine
@@ -15,103 +17,59 @@ from models.resDetail import RestaurantDetail
 from models.restaurant import Restaurant
 from sqlmodel import Session  # type: ignore
 
-try:
-    from mcp.server import MCPServer
+import os
+from urllib.parse import urlsplit
+from mcp.server import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 
-    MCP_AVAILABLE = True
-except ModuleNotFoundError:
-    MCP_AVAILABLE = False
-
-    class MCPServer:  # type: ignore[no-redef]
-        """Keeps public chatbot search available when MCP is not installed."""
-
-        def __init__(self, name: str):
-            self.name = name
-
-        def tool(self):
-            return lambda function: function
-
-        def prompt(self):
-            return lambda function: function
-
-        def streamable_http_app(self, **_kwargs):
-            return None
+MCP_AVAILABLE = True
 
 
 table_now_mcp = MCPServer("TableNow Restaurant Assistant")
 
 
-def serialize_restaurant(restaurant: Restaurant) -> dict[str, Any]:
-    return {
-        "id": restaurant.id,
-        "name": restaurant.name,
-        "slug": restaurant.slug,
-        "image_url": restaurant.image_url,
-        "address": restaurant.address,
-        "district": restaurant.district,
-        "city": restaurant.city,
-        "price_avg": restaurant.price_avg,
-        "rating": restaurant.rating,
-        "review_count": restaurant.review_count,
-        "like_count": restaurant.like_count,
-        "category": restaurant.category or [],
-        "has_exclusive": restaurant.has_exclusive,
-    }
-
-
-def find_public_restaurants(
-    keyword: str = "",
-    city: str | None = None,
-    district: str | None = None,
-    category: str | None = None,
-    limit: int = 8,
-) -> list[dict[str, Any]]:
-    """Shared data function used by both the MCP server and website assistant."""
-    safe_limit = max(1, min(limit, 20))
-
-    with Session(engine) as session:
-        statement = select(Restaurant).where(Restaurant.is_active == True)
-
-        if city:
-            statement = statement.where(Restaurant.city == city.strip())
-        if district:
-            statement = statement.where(Restaurant.district == district.strip())
-        if category:
-            statement = statement.where(
-                Restaurant.category.op("@>")(array([category.strip()]))
-            )
-        if keyword.strip():
-            search_pattern = f"%{keyword.strip()}%"
-            statement = statement.where(
-                Restaurant.name.ilike(search_pattern)
-                | Restaurant.address.ilike(search_pattern)
-            )
-
-        restaurants = session.exec(
-            statement.order_by(Restaurant.rating.desc(), Restaurant.like_count.desc()).limit(safe_limit)
-        ).all()
-
-        return [serialize_restaurant(restaurant) for restaurant in restaurants]
-
-
-@table_now_mcp.tool()
+@table_now_mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False))
 def search_restaurants(
-    keyword: str = "",
-    city: str | None = None,
-    district: str | None = None,
-    category: str | None = None,
+    keyword: Annotated[str, Field(max_length=100)] = "",
+    city: Annotated[str | None, Field(max_length=100)] = None,
+    district: Annotated[str | None, Field(max_length=100)] = None,
+    category: Annotated[str | None, Field(max_length=100)] = None,
     limit: int = 8,
+    price: Annotated[int | None, Field(ge=1, le=5)] = None,
+    suitable_for: Annotated[str | None, Field(max_length=100)] = None,
+    service_type: Annotated[str | None, Field(max_length=100)] = None,
+    space_level: Annotated[int | None, Field(ge=1, le=5)] = None,
+    rating: Annotated[float | None, Field(ge=0, le=5)] = None,
+    has_exclusive: bool | None = None,
+    sort_by: Literal["relevance", "like_count", "rating", "created_at"] | None = None,
+    offset: Annotated[int, Field(ge=0)] = 0,
+    min_price: Annotated[int | None, Field(ge=0)] = None,
+    max_price: Annotated[int | None, Field(ge=0)] = None,
+    party_size: Annotated[int | None, Field(ge=1, le=1000)] = None,
 ) -> list[dict[str, Any]]:
-    """Find active TableNow restaurants by keyword and optional location/category."""
-    return find_public_restaurants(keyword, city, district, category, limit)
+    """Search approved, active restaurants using the same filters as the website.
+
+    Price bands: 1 below 100k, 2 below 200k, 3 below 500k, 4 below 1m, 5 from 1m VND.
+    Capacity bands: 1 for 1-5, 2 for 6-10, 3 for 11-20, 4 for 21-50, 5 for 51+ people.
+    min_price/max_price are inclusive VND per-person average-price bounds.
+    party_size filters total capacity, never guarantees available tables.
+    Rating is a minimum. Keyword search defaults to relevance; otherwise likes.
+    """
+    return find_public_restaurants(keyword, city, district, category, limit,
+        price=price, suitable_for=suitable_for, service_type=service_type,
+        space_level=space_level, rating=rating, has_exclusive=has_exclusive,
+        sort_by=sort_by, offset=offset, min_price=min_price, max_price=max_price, party_size=party_size)
 
 
-@table_now_mcp.tool()
+@table_now_mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False))
 def get_restaurant_profile(restaurant_id: int) -> dict[str, Any]:
     """Get public restaurant information, booking reception hours, and facilities."""
     with Session(engine) as session:
-        restaurant = session.get(Restaurant, restaurant_id)
-        if not restaurant or not restaurant.is_active:
+        restaurant = session.exec(select(Restaurant).where(
+            Restaurant.id == restaurant_id, *public_restaurant_conditions()
+        )).first()
+        if not restaurant:
             return {"found": False, "message": "Không tìm thấy nhà hàng đang hoạt động."}
 
         detail = session.exec(
@@ -133,19 +91,22 @@ def get_restaurant_profile(restaurant_id: int) -> dict[str, Any]:
         return profile
 
 
-@table_now_mcp.tool()
+@table_now_mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False))
 def get_restaurant_menu(restaurant_id: int, limit: int = 20) -> dict[str, Any]:
     """Get available dishes and prices for an active restaurant."""
     safe_limit = max(1, min(limit, 50))
 
     with Session(engine) as session:
-        restaurant = session.get(Restaurant, restaurant_id)
-        if not restaurant or not restaurant.is_active:
+        restaurant = session.exec(select(Restaurant).where(
+            Restaurant.id == restaurant_id, *public_restaurant_conditions()
+        )).first()
+        if not restaurant:
             return {"found": False, "message": "Không tìm thấy nhà hàng đang hoạt động."}
 
         dishes = session.exec(
             select(RestaurantMenuList)
-            .where(RestaurantMenuList.restaurant_id == restaurant_id)
+            .where(RestaurantMenuList.restaurant_id == restaurant_id, RestaurantMenuList.is_available == True)
+            .order_by(RestaurantMenuList.id)
             .limit(safe_limit)
         ).all()
 
@@ -179,4 +140,29 @@ def table_now_assistant() -> str:
     )
 
 
-mcp_asgi_app = table_now_mcp.streamable_http_app(streamable_http_path="/")
+def mcp_transport_security() -> TransportSecuritySettings:
+    hosts = {"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "[::1]", "[::1]:*"}
+    origins = {"http://localhost", "http://localhost:*", "http://127.0.0.1", "http://127.0.0.1:*"}
+    # Render supplies RENDER_EXTERNAL_URL automatically. MCP_PUBLIC_URL supports custom domains.
+    for value in (os.getenv("RENDER_EXTERNAL_URL", ""), os.getenv("MCP_PUBLIC_URL", "")):
+        if not value:
+            continue
+        url = urlsplit(value.strip())
+        if url.scheme not in {"http", "https"} or not url.netloc or url.username or url.password:
+            raise ValueError("MCP public URL must be an HTTP(S) URL without credentials")
+        hosts.add(url.netloc)
+        origins.add(f"{url.scheme}://{url.netloc}")
+    origins.add("https://datn-red.vercel.app")
+    frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if frontend:
+        origins.add(frontend)
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=sorted(hosts), allowed_origins=sorted(origins),
+    )
+
+
+mcp_asgi_app = table_now_mcp.streamable_http_app(
+    streamable_http_path="/", stateless_http=True, json_response=True,
+    max_request_body_size=65536, transport_security=mcp_transport_security(),
+)

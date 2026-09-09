@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useLocation } from "../../hooks/useLocation";
+import { normalizeKeyword, SEARCH_KEYWORD_MAX_LENGTH, updateSearchFilters } from "../../utils/searchParams";
 import {
   useLocation as useRouterLocation,
   useNavigate,
@@ -16,9 +17,16 @@ export const SearchBar = () => {
 
   const locations = ["Hồ Chí Minh", "Hà Nội", "Đà Nẵng"];
 
-  const currentSearchParam = searchParams.get("search") || "";
-
-  const [typedKeyword, setTypedKeyword] = useState(() => currentSearchParam);
+  const isSearchPage = routerLocation.pathname === "/search";
+  const currentCity = (isSearchPage ? searchParams.get("city") : null) || city;
+  const currentSearchParam = isSearchPage ? searchParams.get("search") || "" : "";
+  const [draft, setDraft] = useState({ locationKey: routerLocation.key, keyword: currentSearchParam });
+  // Reset on navigation so Back or modal filters cannot revive an unsubmitted old keyword.
+  if (draft.locationKey !== routerLocation.key) {
+    setDraft({ locationKey: routerLocation.key, keyword: currentSearchParam });
+  }
+  const typedKeyword = draft.locationKey === routerLocation.key ? draft.keyword : currentSearchParam;
+  const [isComposing, setIsComposing] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -31,67 +39,40 @@ export const SearchBar = () => {
   }, []);
 
   useEffect(() => {
-    if (routerLocation.pathname !== "/search") {
-      return;
-    }
-
-    if (typedKeyword.trim() === currentSearchParam) {
+    if (!isSearchPage || isComposing || normalizeKeyword(typedKeyword) === normalizeKeyword(currentSearchParam)) {
       return;
     }
 
     const debounceTimer = window.setTimeout(() => {
-      const queryParams = new URLSearchParams(searchParams);
-
-      if (city) {
-        queryParams.set("city", city);
-      }
-
-      if (typedKeyword.trim()) {
-        queryParams.set("search", typedKeyword.trim());
-      } else {
-        queryParams.delete("search");
-      }
-
-      queryParams.delete("offset");
-      navigate(`/search?${queryParams.toString()}`, { replace: true });
+      const params = new URLSearchParams(searchParams);
+      params.set("city", currentCity);
+      const nextParams = updateSearchFilters(params, { search: typedKeyword });
+      navigate(`/search?${nextParams.toString()}`, { replace: true });
     }, 400);
 
     return () => window.clearTimeout(debounceTimer);
-  }, [city, currentSearchParam, navigate, routerLocation.pathname, searchParams, typedKeyword]);
+  }, [currentCity, currentSearchParam, isComposing, isSearchPage, navigate, searchParams, typedKeyword]);
 
   const handleSearch = () => {
-    const queryParams = new URLSearchParams();
-    if (city) {
-      queryParams.set("city", city);
-    }
-    if (typedKeyword.trim()) {
-      queryParams.set("search", typedKeyword.trim());
-    }
-    navigate(`/search?${queryParams.toString()}`);
+    const params = new URLSearchParams(isSearchPage ? searchParams : undefined);
+    params.set("city", currentCity);
+    const nextParams = updateSearchFilters(params, { search: typedKeyword });
+    navigate(`/search?${nextParams.toString()}`);
   };
 
   const handleCityChange = (nextCity: string) => {
     setCity(nextCity);
     setIsOpen(false);
+    if (!isSearchPage) return;
 
-    if (routerLocation.pathname !== "/search") {
-      return;
-    }
-
-    const currentParams = new URLSearchParams(searchParams);
-    currentParams.set("city", nextCity);
-
-    if (typedKeyword.trim()) {
-      currentParams.set("search", typedKeyword.trim());
-    } else {
-      currentParams.delete("search");
-    }
-
-    navigate(`/search?${currentParams.toString()}`, { replace: true });
+    const params = new URLSearchParams(searchParams);
+    params.set("city", currentCity);
+    const nextParams = updateSearchFilters(params, { city: nextCity, search: typedKeyword });
+    navigate(`/search?${nextParams.toString()}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       handleSearch();
     }
   };
@@ -111,7 +92,7 @@ export const SearchBar = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-gray-700">{city}</span>
+            <span className="text-gray-700">{currentCity}</span>
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ml-auto text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -125,10 +106,10 @@ export const SearchBar = () => {
                   key={loc}
                   onClick={() => handleCityChange(loc)}
                   className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center justify-between
-                    ${city === loc ? "bg-red-50 text-red-600 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
+                    ${currentCity === loc ? "bg-red-50 text-red-600 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
                 >
                   {loc}
-                  {city === loc && (
+                  {currentCity === loc && (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -143,9 +124,13 @@ export const SearchBar = () => {
         <div className="flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-50/50 transition-all">
           <input
             type="text"
-            placeholder="Bạn muốn đặt chỗ đến đâu?"
+            placeholder="Tìm tên nhà hàng, món ăn, địa chỉ..."
+            maxLength={SEARCH_KEYWORD_MAX_LENGTH}
+            aria-label="Tìm nhà hàng"
             value={typedKeyword}
-            onChange={(e) => setTypedKeyword(e.target.value)}
+            onChange={(e) => setDraft({ locationKey: routerLocation.key, keyword: e.target.value })}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
             onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent px-5 text-sm focus:outline-none text-gray-700 placeholder:text-gray-400"
           />
