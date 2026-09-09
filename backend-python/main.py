@@ -9,8 +9,8 @@ from typing import Annotated
 import hmac
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-from sqlalchemy.exc import OperationalError, TimeoutError as SQLAlchemyTimeoutError
+from sqlalchemy import text  # type: ignore
+from sqlalchemy.exc import OperationalError, TimeoutError as SQLAlchemyTimeoutError  # type: ignore
 from starlette.concurrency import run_in_threadpool
 from sqlmodel import Session  # type: ignore
 from database import create_db_and_tables, engine, SessionDep
@@ -165,10 +165,6 @@ origins = [
     "http://localhost:3001",
     "http://localhost:3002",
     "http://localhost:5173",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:3002",
-    "http://127.0.0.1:5173",
     "https://datn-red.vercel.app",
 ]
 
@@ -182,6 +178,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Mcp-Session-Id", "MCP-Protocol-Version"],
 )
 
 if MCP_AVAILABLE and mcp_asgi_app is not None:
@@ -215,7 +212,7 @@ async def request_timing_log(request, call_next):
 
 @app.get("/health", tags=["System"])
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "mcp": {"enabled": MCP_AVAILABLE, "endpoint": "/mcp/", "transport": "streamable-http"}}
 
 app.include_router(authentication.router)
 app.include_router(user.router)
@@ -237,7 +234,7 @@ app.include_router(deposits.router)
 
 @app.get("/internal/maintenance", tags=["System"])
 def scheduled_maintenance(
-    session: SessionDep,
+    session: SessionDep, #type: ignore
     authorization: Annotated[str | None, Header()] = None,
 ):
     secret = os.getenv("CRON_SECRET", "")

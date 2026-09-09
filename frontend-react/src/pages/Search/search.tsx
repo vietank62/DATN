@@ -1,24 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom"; 
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { RestaurantCard } from "../../types/restaurant";
 import { useLocation } from "../../hooks/useLocation";
 import { api } from "../../services/api";
-import { getCategoryLabel, RESTAURANT_CATEGORIES } from "../../utils/category";
+import { getCategoryLabel, getServiceTypeLabel, getSuitableForLabel, RESTAURANT_CATEGORIES } from "../../utils/category";
+import { districtsMap } from "../../data/Location";
+import { normalizeSearchParams, SEARCH_KEYWORD_MAX_LENGTH, SEARCH_PAGE_SIZE, updateSearchFilters } from "../../utils/searchParams";
 
-const BASE_URL = import.meta.env.VITE_API_BASE + "/v1/restaurants/";
-
-const fetchFilteredRestaurants = async (searchParams: URLSearchParams): Promise<RestaurantCard[]> => {
-    const params = new URLSearchParams(searchParams);
-    
-    if (!params.has("limit")) {
-        params.append("limit", "20");
-    }
-    const { data } = await api.get<RestaurantCard[]>(`${BASE_URL}?${params.toString()}`);
+const fetchFilteredRestaurants = async (query: string, signal: AbortSignal): Promise<RestaurantCard[]> => {
+    const { data } = await api.get<RestaurantCard[]>(`/v1/restaurants/?${query}`, { signal });
     return data;
 };
 
-const PRICE_LABELS = ["Dưới 100k", "100k - 200k", "200k - 500k", "500k - 1.000k", "Trên 1.000k"];
+const PRICE_LABELS = ["Dưới 100k", "100k - 200k", "200k - 500k", "500k - 1.000k", "Từ 1.000k"];
 const SPACE_LABELS = ["1-5 người", "6-10 người", "11-20 người", "21-50 người", "Trên 50 người"];
 const CATEGORIES = RESTAURANT_CATEGORIES.map(({ slug, label: name }) => ({ slug, name }));
 
@@ -37,10 +32,9 @@ const SERVICE_TYPES = [
 ];
 
 export const SearchRestaurants = () => {
-    const { city, getDistricts } = useLocation();
+    const { city } = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [tempFilters, setTempFilters] = useState({
@@ -55,49 +49,36 @@ export const SearchRestaurants = () => {
         has_exclusive: false
     });
 
-    useEffect(() => {
-        if (city && !searchParams.get("city")) {
-            const newParams = new URLSearchParams(searchParams);
-            newParams.set("city", city);
-            setSearchParams(newParams);
-        }
-    }, [city, searchParams, setSearchParams]);
-
-    const { data: restaurants, isLoading, isFetching } = useQuery<RestaurantCard[]>({
-        queryKey: ["restaurants-search", searchParams.toString()],
-        queryFn: () => fetchFilteredRestaurants(searchParams),
+    const effectiveParams = normalizeSearchParams(searchParams, city);
+    const query = effectiveParams.toString();
+    const offset = Number(effectiveParams.get("offset"));
+    const { data, isLoading, isFetching, isError, refetch } = useQuery<RestaurantCard[]>({
+        queryKey: ["restaurants-search", query],
+        queryFn: ({ signal }) => fetchFilteredRestaurants(query, signal),
         staleTime: 1000 * 60 * 2,
         refetchOnWindowFocus: false,
-        placeholderData: keepPreviousData,
     });
-
-    useEffect(() => {
-        if (!restaurants || restaurants.length < 20) {
-            return;
-        }
-
-        const nextPageParams = new URLSearchParams(searchParams);
-        nextPageParams.set("limit", "20");
-        nextPageParams.set(
-            "offset",
-            String(Number(nextPageParams.get("offset") ?? "0") + 20),
-        );
-
-        void queryClient.prefetchQuery({
-            queryKey: ["restaurants-search", nextPageParams.toString()],
-            queryFn: () => fetchFilteredRestaurants(nextPageParams),
-            staleTime: 1000 * 60 * 2,
-        });
-    }, [queryClient, restaurants, searchParams]);
+    const restaurants = data?.slice(0, SEARCH_PAGE_SIZE);
+    const hasNextPage = (data?.length ?? 0) > SEARCH_PAGE_SIZE;
 
     const updateParam = (key: string, value: string | null) => {
-        const newParams = new URLSearchParams(searchParams);
-        if (value === null || value === "") {
-            newParams.delete(key);
-        } else {
-            newParams.set(key, value);
-        }
-        setSearchParams(newParams);
+        const params = new URLSearchParams(searchParams);
+        params.set("city", effectiveParams.get("city") || "");
+        setSearchParams(updateSearchFilters(params, { [key]: value }));
+    };
+
+    const goToPage = (nextOffset: number) => {
+        const params = new URLSearchParams(searchParams);
+        params.set("city", effectiveParams.get("city") || "");
+        if (nextOffset > 0) params.set("offset", String(nextOffset));
+        else params.delete("offset");
+        setSearchParams(params);
+    };
+
+    const clearFilters = () => {
+        const params = new URLSearchParams();
+        params.set("city", effectiveParams.get("city") || "");
+        setSearchParams(params);
     };
 
     const getImageUrl = (urlSource: string | string[] | null | undefined): string => {
@@ -108,17 +89,17 @@ export const SearchRestaurants = () => {
             : url;
     };
 
-    const currentCity = searchParams.get("city") || city || "";
-    const currentSearch = searchParams.get("search") || "";
-    const currentDistrict = searchParams.get("district") || "";
-    const currentRating = searchParams.get("rating") || "";
-    const currentSortBy = searchParams.get("sort_by") || "like_count";
-    const currentHasExclusive = searchParams.get("has_exclusive") === "true";
-    const currentPrice = searchParams.get("price") || "";
-    const currentCategory = searchParams.get("category") || "";
-    const currentSuitableFor = searchParams.get("suitable_for") || "";
-    const currentServiceType = searchParams.get("service_type") || "";
-    const currentSpaceLevel = searchParams.get("space_level") || "";
+    const currentCity = effectiveParams.get("city") || city || "";
+    const currentSearch = effectiveParams.get("search") || "";
+    const currentDistrict = effectiveParams.get("district") || "";
+    const currentRating = effectiveParams.get("rating") || "";
+    const currentSortBy = effectiveParams.get("sort_by") || "like_count";
+    const currentHasExclusive = effectiveParams.get("has_exclusive") === "true";
+    const currentPrice = effectiveParams.get("price") || "";
+    const currentCategory = effectiveParams.get("category") || "";
+    const currentSuitableFor = effectiveParams.get("suitable_for") || "";
+    const currentServiceType = effectiveParams.get("service_type") || "";
+    const currentSpaceLevel = effectiveParams.get("space_level") || "";
 
     const hasActiveFilters = 
         currentSearch.trim() || 
@@ -163,7 +144,8 @@ export const SearchRestaurants = () => {
             }
         });
 
-        setSearchParams(newParams);
+        newParams.set("city", currentCity);
+        setSearchParams(updateSearchFilters(newParams, {}));
         setIsModalOpen(false);
     };
 
@@ -176,7 +158,9 @@ export const SearchRestaurants = () => {
                             KẾT QUẢ TÌM KIẾM TẠI {currentCity}
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5">
-                            {isLoading ? "Đang tải dữ liệu..." : `Tìm thấy ${restaurants?.length || 0} nhà hàng`}
+                            {isLoading ? "Đang tìm nhà hàng..." : isError ? "Không tải được kết quả" : restaurants?.length
+                                ? `Đang hiển thị ${offset + 1}–${offset + restaurants.length} nhà hàng${hasNextPage ? ", còn kết quả ở trang tiếp theo" : ""}`
+                                : "Không có nhà hàng phù hợp"}
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -186,6 +170,7 @@ export const SearchRestaurants = () => {
                             onChange={(e) => updateParam("sort_by", e.target.value)}
                             className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
                         >
+                            {currentSearch && <option value="relevance">Phù hợp nhất</option>}
                             <option value="like_count">Yêu thích nhất</option>
                             <option value="rating">Đánh giá cao nhất</option>
                             <option value="created_at">Mới gia nhập</option>
@@ -197,7 +182,7 @@ export const SearchRestaurants = () => {
                     <span className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap mr-2">Bộ lọc:</span>
                     
                     {!hasActiveFilters && (
-                        <span className="text-xs text-gray-400 italic">Chưa áp dụng bộ lọc nào (Đang hiển thị toàn bộ {currentCity})</span>
+                        <span className="text-xs text-gray-400 italic">Chưa áp dụng bộ lọc nào</span>
                     )}
 
                     {currentSearch.trim() && (
@@ -230,14 +215,14 @@ export const SearchRestaurants = () => {
 
                     {currentSuitableFor && (
                         <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1 rounded-lg text-xs font-medium">
-                            <span>Phù hợp: {currentSuitableFor}</span>
+                            <span>Phù hợp: {getSuitableForLabel(currentSuitableFor)}</span>
                             <button onClick={() => updateParam("suitable_for", null)} className="hover:bg-indigo-200/60 p-0.5 rounded-full text-indigo-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
                     {currentServiceType && (
                         <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 border border-teal-100 px-3 py-1 rounded-lg text-xs font-medium">
-                            <span>Kiểu phục vụ: {currentServiceType}</span>
+                            <span>Kiểu phục vụ: {getServiceTypeLabel(currentServiceType)}</span>
                             <button onClick={() => updateParam("service_type", null)} className="hover:bg-teal-200/60 p-0.5 rounded-full text-teal-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
@@ -262,19 +247,29 @@ export const SearchRestaurants = () => {
                             <button onClick={() => updateParam("has_exclusive", null)} className="hover:bg-emerald-200/60 p-0.5 rounded-full text-emerald-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
+                    {hasActiveFilters && (
+                        <button onClick={clearFilters} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">
+                            Xóa bộ lọc
+                        </button>
+                    )}
                     <button 
                         onClick={handleOpenModal}
                         className="ml-auto flex items-center gap-1.5 bg-white border border-gray-300 hover:border-red-500 hover:text-red-600 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
                     >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
                     </svg>
                     Chỉnh sửa bộ lọc
                     </button>
                 </div>
 
                 <div className="p-6">
-                    {isLoading || isFetching ? (
+                    {isError ? (
+                        <div role="alert" className="py-12 text-center space-y-3">
+                            <p className="text-gray-600">Chưa thể tải nhà hàng. Vui lòng thử lại.</p>
+                            <button onClick={() => void refetch()} className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white cursor-pointer">Thử lại</button>
+                        </div>
+                    ) : isLoading ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 w-full">
                             {[...Array(4)].map((_, i) => (
                                 <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col gap-4 animate-pulse">
@@ -286,7 +281,7 @@ export const SearchRestaurants = () => {
                     ) : restaurants && restaurants.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 w-full">
                             {restaurants.map((res) => (
-                                <div onClick={() => navigate(`/restaurant/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
+                                <div key={res.id} onClick={() => navigate(`/restaurant/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                     <div className="relative pt-[60%] overflow-hidden bg-gray-100">
                                         <img src={getImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     </div>
@@ -305,9 +300,9 @@ export const SearchRestaurants = () => {
                                                 </span>
                                             </div>
                                             <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                                                 </svg>
                                                 <span className="truncate">
                                                     <span className="text-gray-700 font-semibold">{res.district}</span>
@@ -328,12 +323,25 @@ export const SearchRestaurants = () => {
                         </div>
                     ) : (
                         <div className="w-full py-16 flex flex-col items-center justify-center text-center gap-2 text-gray-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                             </svg>
                             <div className="font-semibold text-gray-700">Không tìm thấy kết quả phù hợp</div>
                             <p className="text-xs max-w-xs">Hãy thử thay đổi tiêu chí hoặc chọn thành phố khác.</p>
                         </div>
+                    )}
+                    {!isLoading && !isError && (offset > 0 || hasNextPage) && (
+                        <nav aria-label="Trang kết quả tìm kiếm" className="flex items-center justify-center gap-4 pt-6">
+                            <button disabled={offset === 0 || isFetching} onClick={() => goToPage(Math.max(0, offset - SEARCH_PAGE_SIZE))}
+                                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold disabled:opacity-40 cursor-pointer disabled:cursor-default">
+                                Trang trước
+                            </button>
+                            <span className="text-sm text-gray-500">Trang {offset / SEARCH_PAGE_SIZE + 1}</span>
+                            <button disabled={!hasNextPage || isFetching} onClick={() => goToPage(offset + SEARCH_PAGE_SIZE)}
+                                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold disabled:opacity-40 cursor-pointer disabled:cursor-default">
+                                Trang tiếp
+                            </button>
+                        </nav>
                     )}
                 </div>
             </div>
@@ -342,17 +350,18 @@ export const SearchRestaurants = () => {
                     <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl border border-gray-100 flex flex-col gap-5 my-10 max-h-[85vh]">
                         <div className="flex justify-between items-center pb-2 border-b border-gray-100 shrink-0">
                             <h3 className="font-semibold text-gray-900 text-base flex items-center gap-2">
-                            Cấu hình nâng cao bộ lọc tại {currentCity}
+                            Tìm nhà hàng tại {currentCity}
                             </h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-semibold text-xl leading-none p-1 cursor-pointer">&times;</button>
                         </div>
 
                         <div className="flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Tên nhà hàng</label>
+                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Từ khóa</label>
                                 <input
                                     type="text"
-                                    placeholder="Nhập từ khóa tìm kiếm..."
+                                    placeholder="Tên nhà hàng, món ăn hoặc địa chỉ..."
+                                    maxLength={SEARCH_KEYWORD_MAX_LENGTH}
                                     value={tempFilters.search}
                                     onChange={(e) => setTempFilters(p => ({ ...p, search: e.target.value }))}
                                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50"
@@ -367,7 +376,7 @@ export const SearchRestaurants = () => {
                                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
                                     >
                                         <option value="">Tất cả khu vực</option>
-                                        {getDistricts?.().map((d: string) => (
+                                        {(districtsMap[currentCity] || []).map((d: string) => (
                                             <option key={d} value={d}>{d}</option>
                                         ))}
                                     </select>
@@ -434,7 +443,7 @@ export const SearchRestaurants = () => {
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Sức chứa tối thiểu</label>
+                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Sức chứa nhà hàng</label>
                                     <select
                                         value={tempFilters.space_level}
                                         onChange={(e) => setTempFilters(p => ({ ...p, space_level: e.target.value }))}
@@ -457,7 +466,7 @@ export const SearchRestaurants = () => {
                                 >
                                     <option value="">Tất cả mức sao</option>
                                     <option value="4.5">⭐ 4.5 trở lên</option>
-                                    <option value="4.0">⭐ 4.0 trở lên</option>
+                                    <option value="4">⭐ 4.0 trở lên</option>
                                     <option value="3.5">⭐ 3.5 trở lên</option>
                                 </select>
                             </div>

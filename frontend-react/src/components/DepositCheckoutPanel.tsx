@@ -7,8 +7,6 @@ import { api } from "../services/api";
 type PaymentStatus = {
   depositStatus: string;
   bookingExpiresAt: string | null;
-  sessionStatus: string;
-  sessionExpiresAt: string | null;
   canCheckout: boolean;
   needsReview: boolean;
   serverNow: string;
@@ -17,7 +15,6 @@ type CheckoutForm = {
   checkoutUrl: string;
   fields: Record<string, string>;
 };
-const dateLabel = (date: string) => new Date(date).toLocaleString("vi-VN");
 const countdown = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
 export function DepositCheckoutPanel({ bookingId }: { bookingId: number }) {
@@ -60,7 +57,12 @@ export function DepositCheckoutPanel({ bookingId }: { bookingId: number }) {
       form.remove();
     },
     onError: error => {
-      toast.error(axios.isAxiosError(error) ? error.response?.data?.detail ?? "Không thể mở SePay." : "Không thể mở SePay.");
+      const code = axios.isAxiosError(error) ? error.response?.status : undefined;
+      toast.error(code === 401
+        ? "Vui lòng đăng nhập lại để thanh toán."
+        : code === 409
+          ? "Đơn đã thay đổi trạng thái. Vui lòng kiểm tra lại thông tin thanh toán."
+          : "Chưa thể mở trang thanh toán. Vui lòng thử lại sau.");
       void statusQ.refetch();
     },
   });
@@ -68,20 +70,15 @@ export function DepositCheckoutPanel({ bookingId }: { bookingId: number }) {
   if (statusQ.isError || !status) return <button onClick={() => void statusQ.refetch()} className="text-sm text-red-600">Không tải được trạng thái. Thử lại</button>;
   const now = new Date(status.serverNow).getTime() + Math.max(0, clock - statusQ.dataUpdatedAt);
   const secondsLeft = status.bookingExpiresAt ? Math.max(0, Math.ceil((Date.parse(status.bookingExpiresAt) - now) / 1000)) : 0;
-  const sessionLeft = status.sessionExpiresAt ? Math.max(0, Math.ceil((Date.parse(status.sessionExpiresAt) - now) / 1000)) : 0;
-  if (status.needsReview) return <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Giao dịch đang được đối soát. Vui lòng không thanh toán thêm; quản trị viên sẽ kiểm tra và hỗ trợ.</p>;
+  if (status.needsReview) return <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Thanh toán của bạn đang được kiểm tra. Vui lòng không thanh toán thêm. Chúng tôi sẽ hỗ trợ bạn.</p>;
   if (status.depositStatus === "refund_pending") return <p className="text-sm text-amber-700">Tiền đặt cọc đang được hoàn lại.</p>;
   if (status.depositStatus === "paid") return <p className="text-sm font-semibold text-emerald-700">Đã thanh toán đặt cọc thành công.</p>;
   if (!status.canCheckout || secondsLeft === 0) return <p className="text-sm text-red-600">Đơn không còn trong thời hạn thanh toán. Vui lòng tạo đơn mới nếu vẫn muốn đặt bàn.</p>;
   return (
     <div className="space-y-3 text-left">
-      <p className="text-sm text-gray-600">Đơn còn <b>{countdown(secondsLeft)}</b> để thanh toán.</p>
-      {status.bookingExpiresAt && <p className="text-xs text-gray-500">Hạn đơn: {dateLabel(status.bookingExpiresAt)}</p>}
-      <p className="text-sm text-gray-600">Mỗi phiên thanh toán có tối đa 10 phút và kết thúc khi đơn hết hạn.</p>
-      {status.sessionStatus === "pending" && sessionLeft > 0 && <p className="text-sm text-violet-700">Phiên hiện tại còn {countdown(sessionLeft)}.</p>}
-      {(status.sessionStatus === "expired" || (status.sessionStatus === "pending" && sessionLeft === 0)) && <p className="text-sm text-amber-700">Phiên cũ đã hết hạn. Bạn có thể tạo phiên thanh toán mới.</p>}
+      <p className="text-sm text-gray-600">Vui lòng thanh toán trong <b className="tabular-nums">{countdown(secondsLeft)}</b>.</p>
       <button type="button" disabled={checkout.isPending} onClick={() => checkout.mutate()} className="w-full rounded-xl bg-violet-600 py-3 text-sm font-bold text-white disabled:opacity-50">
-        {checkout.isPending ? "Đang chuyển đến SePay…" : status.sessionStatus === "pending" && sessionLeft > 0 ? "Tiếp tục thanh toán trên SePay" : status.sessionStatus === "not_created" ? "Thanh toán qua SePay" : "Tạo phiên thanh toán mới"}
+        {checkout.isPending ? "Đang mở trang thanh toán…" : "Thanh toán ngay"}
       </button>
     </div>
   );

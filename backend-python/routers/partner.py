@@ -202,6 +202,7 @@ def update_operational(
     data: PartnerOperationalUpdate,
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
     session: SessionDep,
+    background_tasks: BackgroundTasks,
 ):
     restaurant = session.exec(select(Restaurant).where(Restaurant.manager_id == current_user.userId)).first()
     if not restaurant:
@@ -268,6 +269,7 @@ def update_operational(
     session.add(restaurant)
     session.add(detail)
     session.commit()
+    background_tasks.add_task(clear_restaurant_caches)
     session.refresh(restaurant)
     return restaurant
 

@@ -160,7 +160,7 @@ export function TableNowChatbot() {
               ))}
             </div>
             <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void sendMessage(input); }}>
-              <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Nhập câu hỏi của bạn..." className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
+              <input maxLength={2000} aria-label="Câu hỏi cho trợ lý TableNow" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Nhập câu hỏi của bạn..." className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
               <button type="submit" disabled={isSending || !input.trim()} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Gửi tin nhắn">
                 <Send size={17} />
               </button>
