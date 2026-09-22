@@ -37,6 +37,8 @@ def get_current_user(
     if user is None:
         raise credentials_exception
         
+    if user.is_permanently_banned:
+        raise HTTPException(403, "Tài khoản đã bị cấm vĩnh viễn do vi phạm đặt bàn")
     allowed_scopes = {"customer"}
     if user.role == "admin":
         allowed_scopes.update({"admin", "manager"})

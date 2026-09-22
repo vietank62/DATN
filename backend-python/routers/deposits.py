@@ -5,7 +5,8 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, HTTPException, Security, Header
 from pydantic import BaseModel, Field
-from sqlalchemy import func  # type: ignore
+from core.booking_fees import fee_totals, settle_restaurant_fees
+from sqlalchemy import or_, func  # type: ignore
 from sqlmodel import select  # type: ignore
 
 from database import SessionDep
@@ -51,7 +52,7 @@ def _withdrawal_balance(session, restaurant_id: int) -> dict[str, int]:
         .where(
             DepositPayment.restaurant_id == restaurant_id,
             DepositPayment.status == "paid",
-            Booking.status == "completed",
+            or_(Booking.status == "completed", Booking.depositStatus == "forfeited"),
         )
         .subquery()
     )
@@ -91,11 +92,13 @@ def _withdrawal_balance(session, restaurant_id: int) -> dict[str, int]:
     reserved_withdrawal = int(reserved_withdrawal or 0)
     paid_out = int(paid_out or 0)
 
+    fees = fee_totals(session, restaurant_id)
     return {
+        **fees,
         "totalDeposit": total_deposit,
         "reservedWithdrawal": reserved_withdrawal,
         "paidOut": paid_out,
-        "availableBalance": max(0, total_deposit - reserved_withdrawal),
+        "availableBalance": max(0, total_deposit - reserved_withdrawal - fees["feesDeducted"]),
         "completedBookings": int(completed_bookings or 0),
     }
 
@@ -146,6 +149,9 @@ def manager_finance(
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
 ):
     restaurant = _manager_restaurant(session, current_user)
+    restaurant = session.exec(select(Restaurant).where(Restaurant.id == restaurant.id).with_for_update().execution_options(populate_existing=True)).one()
+    settle_restaurant_fees(session, restaurant)
+    session.commit()
     withdrawals = session.exec(
         select(WithdrawalRequest)
         .where(WithdrawalRequest.restaurant_id == restaurant.id)
@@ -177,6 +183,8 @@ def create_withdrawal(
     current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
 ):
     restaurant = _manager_restaurant(session, current_user)
+    restaurant = session.exec(select(Restaurant).where(Restaurant.id == restaurant.id).with_for_update().execution_options(populate_existing=True)).one()
+    settle_restaurant_fees(session, restaurant)
     balance = _withdrawal_balance(session, restaurant.id)
     if data.amount > balance["availableBalance"]:
         raise HTTPException(status_code=400, detail="Số tiền vượt quá số dư có thể rút")

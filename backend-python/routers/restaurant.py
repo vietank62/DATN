@@ -23,7 +23,7 @@ _cache_probe_in_flight = False
 
 CACHE_TTL = int(os.getenv("RESTAURANT_LIST_CACHE_TTL", "300"))
 CACHE_KEY_SET = "cache:restaurants:keys"
-CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=240"
+CACHE_CONTROL = "private, no-store"
 
 async def read_restaurant_cache(cache_key: str):
     """Bypass an unhealthy cache briefly; allow only one recovery probe per worker."""
@@ -127,6 +127,8 @@ def toggle_restaurant_active(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
 
+    if not restaurant.is_active and (restaurant.is_report_suspended or restaurant.approval_status != "approved"):
+        raise HTTPException(409, "Nhà hàng phải được duyệt thông tin và giải trình trước khi hoạt động lại")
     restaurant.is_active = not restaurant.is_active
     session.add(restaurant)
     session.commit()
@@ -167,7 +169,12 @@ async def get_restaurants(
             response.headers["X-Cache"] = "HIT"
             response.headers["Cache-Control"] = "private, no-store" if current_user else CACHE_CONTROL
             response.headers["Vary"] = "Authorization"
-            results = cached_data
+            active_ids = set(session.exec(select(Restaurant.id).where(
+                Restaurant.id.in_([row["id"] for row in cached_data]),
+                Restaurant.is_active == True, Restaurant.approval_status == "approved",
+                Restaurant.is_report_suspended == False,
+            )).all())
+            results = [row for row in cached_data if row["id"] in active_ids]
             response.headers["Server-Timing"] = (
                 f"redis;dur={(time.perf_counter() - request_started_at) * 1000:.1f}"
             )
@@ -218,6 +225,50 @@ def add_favorite_state(
         {**restaurant, "is_favorite": restaurant["id"] in favorite_ids}
         for restaurant in restaurants
     ]
+
+@router.get("/nearby", response_model=List[dict])
+async def get_nearby_restaurants(
+    session: SessionDep,
+    response: Response,
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(5, ge=0.5, le=50),
+    limit: int = Query(30, ge=1, le=50),
+    current_user: Annotated[User | None, Depends(get_optional_current_user)] = None,
+):
+    """Return active restaurants in a radius, ordered from the customer's position."""
+    latitude_radians = func.radians(latitude)
+    distance_km = 6371.0088 * func.acos(
+        func.least(
+            1.0,
+            func.greatest(
+                -1.0,
+                func.sin(latitude_radians) * func.sin(func.radians(Restaurant.latitude))
+                + func.cos(latitude_radians)
+                * func.cos(func.radians(Restaurant.latitude))
+                * func.cos(func.radians(Restaurant.longitude) - func.radians(longitude)),
+            ),
+        ),
+    )
+    statement = (
+        select(*card_columns(), distance_km.label("distance_km"))
+        .where(
+            Restaurant.is_active == True,
+            Restaurant.approval_status == "approved",
+            Restaurant.is_report_suspended == False,
+            Restaurant.latitude.isnot(None),
+            Restaurant.longitude.isnot(None),
+            distance_km <= radius_km,
+        )
+        .order_by(distance_km.asc(), desc(Restaurant.rating), Restaurant.id.asc())
+        .limit(limit)
+    )
+    rows = await run_in_threadpool(lambda: session.execute(statement).mappings().all())
+    results = [jsonable_encoder(dict(row)) for row in rows]
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vary"] = "Authorization"
+    return await run_in_threadpool(lambda: add_favorite_state(results, current_user, session))
+
 
 @router.get("/{id}/overview", response_model=dict)
 def get_restaurant_overview(id: int, session: SessionDep):  # type: ignore

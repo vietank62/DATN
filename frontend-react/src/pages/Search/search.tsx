@@ -248,8 +248,8 @@ export const SearchRestaurants = () => {
                         </div>
                     )}
                     {hasActiveFilters && (
-                        <button onClick={clearFilters} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">
-                            Xóa bộ lọc
+                        <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 shadow-sm transition hover:bg-red-50 cursor-pointer">
+                            <span aria-hidden="true">×</span> Xóa toàn bộ bộ lọc
                         </button>
                     )}
                     <button 

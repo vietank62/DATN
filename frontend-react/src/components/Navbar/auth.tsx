@@ -7,6 +7,7 @@ import { api } from "../../services/api";
 import { toast } from "sonner";
 import axios from "axios";
 import type { BookingDetail } from "../../types/booking";
+import { useTranslation } from "react-i18next";
 
 type ChatConversation = {
   unread_count: number;
@@ -18,11 +19,13 @@ type CustomerNotification = {
   message: string;
   isRead: boolean;
   type: string;
+  bookingId?: number | null;
   conversationId?: number | null;
 };
 
 export const Auth = () => {
   const { isAuthenticated, login, logout, user } = useAuth();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -106,7 +109,7 @@ export const Auth = () => {
 
   const closeLogin = () => {
     setIsLoginOpen(false);
-    setLoginData({ email: "", password: "" }); 
+    setLoginData({ email: "", password: "" });
   };
 
   const openRegister = () => {
@@ -137,8 +140,10 @@ export const Auth = () => {
 
   const openCustomerNotification = async (notification: CustomerNotification) => {
     if (!notification.isRead) {
-      await api.put(`/v1/notifications/${notification.id}/read`);
-      await notificationsQuery.refetch();
+      try {
+        await api.put(`/v1/notifications/${notification.id}/read`);
+        void notificationsQuery.refetch();
+      } catch { toast.error("Chưa thể đánh dấu thông báo đã đọc."); }
     }
 
     setIsNotificationOpen(false);
@@ -148,6 +153,10 @@ export const Auth = () => {
       return;
     }
 
+    if (notification.bookingId) {
+      navigate(`/account/bookings/${notification.bookingId}${notification.type === "refund_required" ? "/refund" : ""}`);
+      return;
+    }
     navigate("/account/bookings");
   };
 
@@ -261,11 +270,20 @@ export const Auth = () => {
         <div className="ml-auto col-auto lg:mr-20 md:mr-20 mr-2">
           <ul>
             <li className="flex gap-6">
+              <button
+                type="button"
+                onClick={() => void i18n.changeLanguage(i18n.language === "vi" ? "en" : "vi")}
+                className="order-4 rounded border border-white/40 px-2 py-0.5 text-xs font-semibold transition hover:border-red-400 hover:text-red-400"
+                aria-label={t("language.switch")}
+                title={t("language.switch")}
+              >
+                {i18n.language === "vi" ? "EN" : "VI"}
+              </button>
               {!isAuthenticated ? (
                 <>
-                  <span onClick={openRegister} className="order-2 hover:text-red-500 cursor-pointer">Đăng ký</span>
-                  <span onClick={openLogin} className="order-1 hover:text-red-500 cursor-pointer">Đăng nhập</span>
-                  <span className="order-3 hidden lg:inline hover:text-red-500 cursor-pointer"><a href="/contact">Liên hệ</a></span>
+                  <span onClick={openRegister} className="order-2 hover:text-red-500 cursor-pointer">{t("nav.signUp")}</span>
+                  <span onClick={openLogin} className="order-1 hover:text-red-500 cursor-pointer">{t("nav.signIn")}</span>
+                  <span className="order-3 hidden lg:inline hover:text-red-500 cursor-pointer"><a href="/contact">{t("nav.contact")}</a></span>
                 </>
               ) : (
                 <>

@@ -50,7 +50,7 @@ def restaurant_cache_key(filters: dict, limit: int, offset: int) -> str:
 
 
 def public_restaurant_conditions():
-    return (Restaurant.is_active == True, Restaurant.approval_status == "approved")
+    return (Restaurant.is_active == True, Restaurant.approval_status == "approved", Restaurant.is_report_suspended == False)
 
 
 def apply_restaurant_filters(statement, *, search=None, city=None, district=None, price=None,

@@ -9,6 +9,7 @@ import euroFoodIcon from "../../assets/pizza.png"
 import chinaFoodIcon from "../../assets/buns.png"
 import vegetablesFoodIcon from "../../assets/vegetables.png"
 import { useNavigate } from 'react-router-dom'; 
+import { useTranslation } from "react-i18next";
 
 const categoriesData = [
     { id: 1, name: 'Lẩu', icon: hotPotIcon, searchParam: 'lau' },
@@ -23,8 +24,16 @@ const categoriesData = [
     { id: 10, name: 'Món chay', icon: vegetablesFoodIcon, searchParam: 'mon-chay' },
 ];
 
+const categoryLabels = {
+    "Lẩu": "category.hotPot", "Nướng": "category.grill", Buffet: "category.buffet",
+    "Hải sản": "category.seafood", "Món Nhật": "category.japanese", "Món Hàn": "category.korean",
+    "Món Việt": "category.vietnamese", "Món Âu": "category.european", "Món Trung": "category.chinese",
+    "Món chay": "category.vegetarian",
+} as const;
+
 export const CategoryList = () => {
-    const navigate = useNavigate(); 
+    const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const handleCategoryClick = (categoryName: string) => {
         const category = categoriesData.find((cat) => cat.name === categoryName);
@@ -47,12 +56,12 @@ export const CategoryList = () => {
                                     width="44"
                                     height="44"
                                     src={category.icon}
-                                    alt={category.name}
+                                    alt={t(categoryLabels[category.name as keyof typeof categoryLabels])}
                                     className="object-contain"
                                 />
                             </div>
                             <span className="text-sm font-medium text-gray-800 group-hover:text-black transition-colors whitespace-nowrap">
-                                {category.name}
+                                {t(categoryLabels[category.name as keyof typeof categoryLabels])}
                             </span>
                         </div>
                     ))}

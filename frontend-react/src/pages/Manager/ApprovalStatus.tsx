@@ -1,6 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../../services/api";
-import { toast } from "sonner";
 
 type ApprovalHistoryItem = {
   id: number;
@@ -26,7 +25,6 @@ function formatDate(value: string) {
 }
 
 export default function ApprovalStatus() {
-  const queryClient = useQueryClient();
   const applicationQuery = useQuery<RestaurantApplication | null>({
     queryKey: ["partner-application"],
     queryFn: () => api.get("/v1/partners/application/me").then((response) => response.data),
@@ -36,22 +34,6 @@ export default function ApprovalStatus() {
     queryFn: () => api.get("/v1/partners/approval-history/me").then((response) => response.data),
   });
   const application = applicationQuery.data;
-  const canCancelPendingUpdate =
-    application?.approval_status === "pending"
-    && Boolean(application.pending_approval_fields?.length)
-    && !application.pending_approval_fields?.includes("__new__");
-  const cancelPendingApproval = useMutation({
-    mutationFn: () => api.delete("/v1/partners/application/me/pending-approval"),
-    onSuccess: () => {
-      toast.success("Đã hủy yêu cầu xét duyệt. Nhà hàng đã được đưa lại vào hoạt động.");
-      void queryClient.invalidateQueries({ queryKey: ["partner-application"] });
-      void queryClient.invalidateQueries({ queryKey: ["my-partner-approval-history"] });
-      void queryClient.invalidateQueries({ queryKey: ["manager-notifications"] });
-    },
-    onError: (error: { response?: { data?: { detail?: string } } }) => {
-      toast.error(error.response?.data?.detail || "Không thể hủy yêu cầu xét duyệt.");
-    },
-  });
   const statusLabel = application?.approval_status === "approved"
     ? "Đã được duyệt"
     : application?.approval_status === "rejected"
@@ -85,25 +67,7 @@ export default function ApprovalStatus() {
             {application?.is_active ? "Nhà hàng đang hoạt động" : "Nhà hàng không hoạt động"}
           </span>
         </div>
-        {canCancelPendingUpdate && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm leading-6 text-amber-900">
-              Nếu không muốn tiếp tục chờ xét duyệt bản chỉnh sửa này, bạn có thể hủy yêu cầu để nhà hàng trở lại hoạt động.
-            </p>
-            <button
-              type="button"
-              disabled={cancelPendingApproval.isPending}
-              onClick={() => {
-                if (window.confirm("Hủy yêu cầu xét duyệt này và đưa nhà hàng trở lại hoạt động?")) {
-                  cancelPendingApproval.mutate();
-                }
-              }}
-              className="mt-3 cursor-pointer rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {cancelPendingApproval.isPending ? "Đang hủy..." : "Hủy yêu cầu xét duyệt"}
-            </button>
-          </div>
-        )}
+        {application?.approval_status !== "approved" && <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm">Nhà hàng tạm ngưng cho đến khi admin duyệt hồ sơ. Nếu bị từ chối, hãy chỉnh sửa thông tin và gửi lại để xét duyệt.</p>}
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">

@@ -14,6 +14,8 @@ from sqlalchemy.exc import OperationalError, TimeoutError as SQLAlchemyTimeoutEr
 from starlette.concurrency import run_in_threadpool
 from sqlmodel import Session  # type: ignore
 from database import create_db_and_tables, engine, SessionDep
+from core.booking_email import deliver_booking_emails
+from core.booking_fees import maintain_booking_fees
 from core.deposit_expiry import expire_unpaid_bookings
 from core.deposit_checkout import maintain_checkout_sessions
 from mcp_server import MCP_AVAILABLE, mcp_asgi_app, table_now_mcp
@@ -23,7 +25,9 @@ from routers import (
     restaurant, 
     detail,
     menuitem, 
-    booking, 
+    booking,
+    booking_cancellation,
+    booking_fees,
     statistical, 
     upload, 
     review, 
@@ -34,6 +38,8 @@ from routers import (
     favorite,
     assistant,
     deposits,
+    refunds,
+    recommendations,
 )
 
 # Upstash uses httpx internally. Keep successful cache traffic out of the
@@ -56,6 +62,8 @@ def warm_database_connection() -> None:
 def run_booking_maintenance() -> tuple[int, int, int]:
     """Run synchronous database maintenance outside FastAPI's event loop."""
     with Session(engine) as session:
+        deliver_booking_emails(session)
+        maintain_booking_fees(session)
         return (
             expire_unpaid_bookings(session),
             booking.auto_complete_expired_confirmed_bookings(session),
@@ -165,6 +173,7 @@ origins = [
     "http://localhost:3001",
     "http://localhost:3002",
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "https://datn-red.vercel.app",
 ]
 
@@ -219,6 +228,8 @@ app.include_router(user.router)
 app.include_router(restaurant.router)
 app.include_router(menuitem.router)
 app.include_router(booking.router)
+app.include_router(booking_cancellation.router)
+app.include_router(booking_fees.router)
 app.include_router(statistical.router)
 app.include_router(upload.router)
 app.include_router(review.router)
@@ -230,6 +241,8 @@ app.include_router(detail.router)
 app.include_router(favorite.router)
 app.include_router(assistant.router)
 app.include_router(deposits.router)
+app.include_router(refunds.router)
+app.include_router(recommendations.router)
 
 
 @app.get("/internal/maintenance", tags=["System"])
@@ -242,6 +255,8 @@ def scheduled_maintenance(
         raise HTTPException(503, "Maintenance authentication is not configured")
     if not hmac.compare_digest((authorization or "").encode(), f"Bearer {secret}".encode()):
         raise HTTPException(401, "Unauthorized maintenance request")
+    deliver_booking_emails(session)
+    maintain_booking_fees(session)
     expired = expire_unpaid_bookings(session, limit=20)
     result = maintain_checkout_sessions(session)
     completed = booking.auto_complete_expired_confirmed_bookings(session, limit=20)

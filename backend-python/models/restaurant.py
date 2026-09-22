@@ -16,6 +16,8 @@ class Restaurant(SQLModel, table=True):
     address: str = Field(max_length=500, nullable=False)
     district: str = Field(max_length=100, nullable=False, index=True)
     city: Optional[str] = Field(default=None, max_length=100, nullable=True)
+    latitude: Optional[float] = Field(default=None, nullable=True)
+    longitude: Optional[float] = Field(default=None, nullable=True)
     price_avg: int = Field(default=0, index=True)
     rating: float = Field(default=0.0, index=True)
     review_count: int = Field(default=0, index=True)

@@ -6,7 +6,7 @@ Create Date: 2026-08-31
 """
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -17,7 +17,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    inspector = sa.inspect(op.get_bind())
+    if context.is_offline_mode():
+        # SQL preview has no inspectable connection; emit the fresh-schema path.
+        class OfflineInspector:
+            def get_columns(self, _name): return []
+            def has_table(self, _name): return False
+        inspector = OfflineInspector()
+    else:
+        inspector = sa.inspect(op.get_bind())
 
     restaurant_detail_columns = {
         column["name"] for column in inspector.get_columns("restaurant_details")

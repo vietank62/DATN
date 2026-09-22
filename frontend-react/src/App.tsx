@@ -6,11 +6,13 @@ import { Toaster } from "sonner";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrolltoTop/ScrolltoTop";
 import { LocationProvider } from "./context/LocationProvider";
+import { useTranslation } from "react-i18next";
 import AdminLayout from "./layouts/AdminLayout";
 import MainLayout from "./layouts/MainLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
 import "./App.css";
 
+const BookingFees = lazy(() => import("./components/BookingFees"));
 const HomePage = lazy(() => import("./pages/Home/HomePage"));
 const RestaurantDetail = lazy(() =>
   import("./pages/RestaurantDetail/resDetail").then(({ RestaurantDetail }) => ({
@@ -22,9 +24,11 @@ const SearchRestaurants = lazy(() =>
     default: SearchRestaurants,
   })),
 );
+const NearbyRestaurantsMap = lazy(() => import("./pages/Map/NearbyRestaurantsMap"));
 const PartnerRegister = lazy(() => import("./pages/Manager/PartnerRegister"));
 const PartnerPolicy = lazy(() => import("./pages/Manager/PartnerPolicy"));
 const AccountProfile = lazy(() => import("./pages/Account/AccountProfile"));
+const BookingRefund = lazy(() => import("./pages/Account/BookingRefund"));
 const BookingPage = lazy(() => import("./pages/Account/booking"));
 const ChatPage = lazy(() => import("./pages/Chat/ChatPage"));
 const ViolationReports = lazy(() => import("./pages/ViolationReports"));
@@ -50,12 +54,11 @@ const RestaurantSettings = lazy(() =>
   import("./pages/Manager/RestaurantSettings"),
 );
 const DepositFinance = lazy(() => import("./pages/Manager/DepositFinance"));
+const PublicInfo = lazy(() => import("./pages/PublicInfo"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Avoid treating every cached response as stale immediately. Individual
-      // real-time screens keep their own polling intervals.
       staleTime: 30_000,
       gcTime: 5 * 60_000,
       refetchOnWindowFocus: false,
@@ -74,9 +77,10 @@ const queryClient = new QueryClient({
 });
 
 function PageLoading() {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-gray-500">
-      Đang tải trang...
+      {t("page.loading")}
     </div>
   );
 }
@@ -84,7 +88,7 @@ function PageLoading() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <LocationProvider>
+        <LocationProvider>
         <Toaster
           position="top-right"
           offset="60px"
@@ -99,11 +103,17 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/restaurant/:id" element={<RestaurantDetail />} />
                 <Route path="/search" element={<SearchRestaurants />} />
+                <Route path="/map" element={<NearbyRestaurantsMap />} />
+                <Route path="/about" element={<PublicInfo />} />
+                <Route path="/policies/terms" element={<PublicInfo />} />
+                <Route path="/policies/privacy" element={<PublicInfo />} />
+                <Route path="/policies/payment-refund" element={<PublicInfo />} />
                 <Route path="/partner/register" element={<PartnerRegister />} />
                 <Route path="/partner/policy" element={<PartnerPolicy />} />
                 <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
                   <Route path="/account/profile" element={<AccountProfile />} />
                   <Route path="/account/bookings" element={<BookingPage />} />
+                  <Route path="/account/bookings/:bookingId/refund" element={<BookingRefund />} />
                   <Route
                     path="/account/bookings/:bookingId"
                     element={<BookingPage />}
@@ -129,6 +139,7 @@ function App() {
                     path="/admin/partner-applications"
                     element={<PartnerApprovals />}
                   />
+                  <Route path="/admin/booking-fees" element={<BookingFees admin />} />
                   <Route path="/admin/stats" element={<AdminStats />} />
                   <Route
                     path="/admin/approval-history"
@@ -174,7 +185,7 @@ function App() {
             </Routes>
           </Suspense>
         </Router>
-      </LocationProvider>
+        </LocationProvider>
     </QueryClientProvider>
   );
 }

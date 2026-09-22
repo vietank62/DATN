@@ -25,6 +25,7 @@ import {
   TreePine,
   Trophy,
   Trash2,
+  LocateFixed,
   Tv,
   UserRound,
   Video,
@@ -39,6 +40,8 @@ type Restaurant = {
   address: string;
   district: string;
   city: string;
+  latitude?: number | null;
+  longitude?: number | null;
   image_url?: string;
   business_license_url?: string;
   tax_code?: string;
@@ -64,6 +67,8 @@ const approvalFields = [
   "address",
   "district",
   "city",
+  "latitude",
+  "longitude",
   "tax_code",
   "image_url",
   "business_license_url",
@@ -263,6 +268,29 @@ export default function RestaurantSettings() {
     });
   };
 
+  const saveCoordinates = () => {
+    const latitude = Number(currentForm.latitude);
+    const longitude = Number(currentForm.longitude);
+
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      toast.error("Vui lòng nhập tọa độ hợp lệ.");
+      return;
+    }
+    save.mutate({ latitude, longitude });
+  };
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Thiết bị này không hỗ trợ xác định vị trí.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => setForm((current) => ({ ...current, latitude: coords.latitude, longitude: coords.longitude })),
+      () => toast.error("Không lấy được vị trí. Hãy kiểm tra quyền vị trí rồi thử lại."),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+
   const text = (key: keyof Restaurant, label: string) => (
     <label className="text-sm font-medium text-gray-700">
       {label}
@@ -460,6 +488,18 @@ export default function RestaurantSettings() {
           {text("address", "Địa chỉ")}
           {text("tax_code", "Mã số thuế")}
         </div>
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div><h3 className="font-semibold text-amber-950">Vị trí trên bản đồ</h3><p className="mt-1 text-xs leading-5 text-amber-800">Dùng vị trí hiện tại khi bạn đang ở nhà hàng, hoặc nhập tọa độ chính xác. Khách sẽ thấy nhà hàng trên bản đồ sau khi admin xét duyệt.</p></div>
+            <button type="button" onClick={useCurrentLocation} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"><LocateFixed size={16} />Dùng vị trí hiện tại</button>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium text-gray-700">Vĩ độ<input type="number" step="any" value={currentForm.latitude ?? ""} onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value === "" ? null : Number(event.target.value) }))} placeholder="Ví dụ: 10.7769" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" /></label>
+            <label className="text-sm font-medium text-gray-700">Kinh độ<input type="number" step="any" value={currentForm.longitude ?? ""} onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value === "" ? null : Number(event.target.value) }))} placeholder="Ví dụ: 106.7009" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" /></label>
+          </div>
+          <button type="button" onClick={saveCoordinates} disabled={save.isPending} className="mt-3 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-60">{save.isPending ? "Đang lưu..." : "Gửi vị trí để xét duyệt"}</button>
+        </div>
+
         <div className="mt-4 grid sm:grid-cols-2 gap-4">
           {uploadBox(
             "image_url",

@@ -9,6 +9,8 @@ import { useLocation } from "../../hooks/useLocation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../../services/api";
+import { useTranslation } from "react-i18next";
+import { PersonalizedRecommendations } from "../../components/PersonalizedRecommendations";
 
 const BASE_URL = import.meta.env.VITE_API_BASE + "/v1/restaurants/";
 
@@ -32,6 +34,7 @@ const getCardImageUrl = (url?: string | null): string => {
 export const Home = () => {
     const navigate = useNavigate();
     const { city } = useLocation(); 
+    const { t } = useTranslation();
     const recommendedRef = useRef<SplideType>(null);
     const hotDealsRef = useRef<SplideType>(null);
     const topRatedRef = useRef<SplideType>(null);
@@ -206,10 +209,10 @@ export const Home = () => {
                 <div>
                     <div className="flex justify-between items-end mb-6">
                         <div className="mb-6">
-                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Table Now đề xuất cho bạn</h2>
-                            <p className="text-sm text-gray-500 mt-1">Khám phá những Nhà hàng được yêu thích nhất</p>
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">{t("home.recommended")}</h2>
+                            <p className="text-sm text-gray-500 mt-1">{t("home.recommendedSubtitle")}</p>
                         </div>
-                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">Xem tất cả &rarr;</a>
+                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">{t("home.viewAll")} &rarr;</a>
                     </div>
                     {loadRec ? renderSkeleton() : recommendedData && recommendedData.length > 0 && (
                         <div className="relative">
@@ -312,10 +315,10 @@ export const Home = () => {
                 <div>
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Top Nhà hàng có ưu đãi Hot</h2>
-                            <p className="text-sm text-gray-500 mt-1">Khám phá những Nhà hàng đang có ưu đãi hấp dẫn ngay</p>
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">{t("home.hotDeals")}</h2>
+                            <p className="text-sm text-gray-500 mt-1">{t("home.hotDealsSubtitle")}</p>
                         </div>
-                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">Xem tất cả &rarr;</a>
+                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">{t("home.viewAll")} &rarr;</a>
                     </div>
                     {loadDeals ? renderSkeleton() : hotDealsData && hotDealsData.length > 0 && (
                         <div className="relative">
@@ -391,10 +394,10 @@ export const Home = () => {
                 <div>
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Top Nhà hàng được đánh giá tốt</h2>
-                            <p className="text-sm text-gray-500 mt-1">Khám phá những Nhà hàng có đánh giá cao từ khách hàng</p>
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">{t("home.topRated")}</h2>
+                            <p className="text-sm text-gray-500 mt-1">{t("home.topRatedSubtitle")}</p>
                         </div>
-                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">Xem tất cả &rarr;</a>
+                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">{t("home.viewAll")} &rarr;</a>
                     </div>
                     {loadRated ? renderSkeleton() : topRatedData && topRatedData.length > 0 && (
                         <div className="relative">
@@ -470,10 +473,10 @@ export const Home = () => {
                 <div>
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Nhà hàng mới gia nhập Table Now</h2>
-                            <p className="text-sm text-gray-500 mt-1">Khám phá những Nhà hàng mới nhất vừa gia nhập hệ thống</p>
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">{t("home.new")}</h2>
+                            <p className="text-sm text-gray-500 mt-1">{t("home.newSubtitle")}</p>
                         </div>
-                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">Xem tất cả &rarr;</a>
+                        <a href="/all-deals" className="text-xs md:text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">{t("home.viewAll")} &rarr;</a>
                     </div>
                     {loadNew ? renderSkeleton() : newArrivalsData && newArrivalsData.length > 0 && (
                         <div className="relative">
@@ -544,7 +547,8 @@ export const Home = () => {
                         </div>
                     )}
                 </div>
-                <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm relative overflow-hidden flex flex-col gap-6">
+                <PersonalizedRecommendations />
+                {/*<div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm relative overflow-hidden flex flex-col gap-6">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 tracking-tight">Table Now đề xuất cho riêng bạn</h2>
                         <p className="text-sm text-gray-400 mt-1">Những địa điểm có thể bạn sẽ thích</p>
@@ -573,7 +577,7 @@ export const Home = () => {
                             Chọn khẩu vị của bạn
                         </button>
                     </div>
-                </div>
+                </div>*/}
             </div>
         </div>
     );

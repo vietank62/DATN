@@ -6,8 +6,10 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export const SearchBar = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const routerLocation = useRouterLocation();
   const [searchParams] = useSearchParams();
@@ -120,13 +122,15 @@ export const SearchBar = () => {
           )}
         </div>
 
+        <button type="button" onClick={() => navigate("/map")} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21s7-5.4 7-12A7 7 0 105 9c0 6.6 7 12 7 12z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" /></svg>{t("search.map")}</button>
+
         {/* Search Input */}
         <div className="flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-50/50 transition-all">
           <input
             type="text"
-            placeholder="Tìm tên nhà hàng, món ăn, địa chỉ..."
+            placeholder={t("search.placeholder")}
             maxLength={SEARCH_KEYWORD_MAX_LENGTH}
-            aria-label="Tìm nhà hàng"
+            aria-label={t("search.label")}
             value={typedKeyword}
             onChange={(e) => setDraft({ locationKey: routerLocation.key, keyword: e.target.value })}
             onCompositionStart={() => setIsComposing(true)}
@@ -138,7 +142,7 @@ export const SearchBar = () => {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span>Tìm kiếm</span>
+            <span>{t("search.submit")}</span>
           </button>
         </div>
 

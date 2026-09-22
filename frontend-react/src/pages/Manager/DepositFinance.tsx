@@ -1,3 +1,4 @@
+import BookingFees from "../../components/BookingFees";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import axios from "axios";
@@ -87,7 +88,7 @@ export default function DepositFinance() {
           Tiền đặt cọc & rút tiền
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Chỉ tiền đặt cọc từ đơn đã hoàn thành mới được tính vào số dư có thể rút.
+          Số dư gồm cọc từ đơn hoàn thành và cọc bị giữ do vi phạm, sau khi trừ phí dịch vụ đến hạn và khoản rút đã đặt trước.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -110,6 +111,7 @@ export default function DepositFinance() {
           </div>
         ))}
       </div>
+      <BookingFees />
       <div className="grid gap-6 lg:grid-cols-5">
         <section className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm lg:col-span-2">
           <h2 className="font-bold text-gray-900">Tạo yêu cầu rút tiền</h2>

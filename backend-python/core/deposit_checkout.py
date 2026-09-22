@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlalchemy import func, or_
 from concurrent.futures import ThreadPoolExecutor
 
+from core.booking_email import queue_booking_email
 from core.deposit_expiry import deposit_deadline, expire_locked_deposit
 from core.sepay_gateway import checkout_form, gateway_config, cancel_gateway_order
 from models.booking import Booking
@@ -206,6 +207,7 @@ def process_gateway_ipn(session, data, supplied_secret):
         booking.status = "pending"
         booking.depositStatus = "paid"
         booking.depositPaidAt = attempt.paid_at
+        queue_booking_email(session, booking, "pending")
         session.add(payment)
         session.add(booking)
     session.add(attempt)

@@ -17,3 +17,9 @@ class DepositRefund(SQLModel, table=True):
     created_at: str
     refunded_at: Optional[str] = None
     proof_url: Optional[str] = None
+    bank_name: Optional[str] = Field(default=None, max_length=120)
+    account_name: Optional[str] = Field(default=None, max_length=120)
+    account_number: Optional[str] = Field(default=None, max_length=50)
+    qr_image_url: Optional[str] = Field(default=None, max_length=500)
+    submitted_at: Optional[str] = None
+    processed_by: Optional[int] = Field(default=None, foreign_key="user.userId")

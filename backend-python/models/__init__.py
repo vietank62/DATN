@@ -13,6 +13,7 @@ from .favorite import Favorite
 from .depositPayment import DepositPayment
 from .withdrawalRequest import WithdrawalRequest
 from .depositRefund import DepositRefund
+from .customerPreference import CustomerPreference
 
 
 __all__ = [
@@ -31,6 +32,11 @@ __all__ = [
     "DepositPayment",
     "WithdrawalRequest",
     "DepositRefund",
+    "CustomerPreference",
 ]
 
 from .depositCheckout import DepositCheckout
+
+from .bookingFee import BookingFee
+
+from .bookingEmail import BookingEmail

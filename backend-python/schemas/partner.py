@@ -7,6 +7,8 @@ class PartnerApplicationCreate(BaseModel):
     address: str = Field(min_length=5, max_length=500)
     district: str = Field(min_length=2, max_length=100)
     city: str = Field(min_length=2, max_length=100)
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     website_url: Optional[str] = Field(default=None, max_length=500)
     category: Optional[list[str]] = None
     image_url: Optional[str] = None
@@ -25,6 +27,8 @@ class PartnerOperationalUpdate(BaseModel):
     address: Optional[str] = None
     district: Optional[str] = None
     city: Optional[str] = None
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     website_url: Optional[str] = None
     category: Optional[list[str]] = None
     tax_code: Optional[str] = None

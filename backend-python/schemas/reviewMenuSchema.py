@@ -1,19 +1,21 @@
 from typing import Optional
-from pydantic import BaseModel  # type: ignore
+from pydantic import BaseModel, Field  # type: ignore
 
 
 class ReviewCreate(BaseModel):
+    bookingId: int
     userId: int
     restaurantId: int
-    rating: int
+    rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
 
 
 class ReviewOut(BaseModel):
+    bookingId: Optional[int] = None
     reviewId: int
     userId: int
     restaurantId: int
-    rating: int
+    rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
     createdAt: Optional[str] = None
     userName: Optional[str] = None

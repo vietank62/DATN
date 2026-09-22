@@ -77,6 +77,8 @@ def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    if user.is_permanently_banned:
+        raise HTTPException(403, "Tài khoản đã bị cấm vĩnh viễn do vi phạm đặt bàn")
     scopes = ["customer"]
     if user.role == "admin":
         scopes.extend(["admin", "manager"])
@@ -110,6 +112,8 @@ def refresh_access_token(request: Request, session: SessionDep): #type: ignore
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
+    if user.is_permanently_banned:
+        raise HTTPException(403, "Tài khoản đã bị cấm vĩnh viễn do vi phạm đặt bàn")
     scopes = ["customer"]
     if user.role == "admin":
         scopes.extend(["admin", "manager"])

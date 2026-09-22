@@ -120,6 +120,12 @@ export const RestaurantDetail = () => {
   });
   const [bookingTime, setBookingTime] = useState("18:30");
   const quickBookingTimes = ["11:30", "12:30", "18:00", "19:00", "20:00"];
+  const isBookingTimeAvailable = (time: string) => {
+    const selected = new Date(`${bookingDate}T${time}:00`);
+    const earliest = new Date();
+    earliest.setHours(earliest.getHours() + 2);
+    return selected >= earliest;
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState(1);
@@ -520,6 +526,11 @@ export const RestaurantDetail = () => {
   const createBooking = (afterCreate: (booking: BookingDetail) => void) => {
     const guestCount = adults + children;
 
+    if (!isBookingTimeAvailable(bookingTime)) {
+      toast.error("Khung giờ đặt bàn phải cách thời điểm hiện tại ít nhất 2 tiếng.");
+      return false;
+    }
+
     if (requestSeats < guestCount) {
       toast.error("Số chỗ ngồi phải đủ cho toàn bộ người lớn và trẻ em.");
       return false;
@@ -560,6 +571,10 @@ export const RestaurantDetail = () => {
   const handleStepOneNext = () => {
     if (!bookingDate || !bookingTime) {
       toast.error("Vui lòng chọn ngày và giờ đến.");
+      return;
+    }
+    if (!isBookingTimeAvailable(bookingTime)) {
+      toast.error("Khung giờ đặt bàn phải cách thời điểm hiện tại ít nhất 2 tiếng.");
       return;
     }
     setBookingStep(2);
@@ -1081,7 +1096,7 @@ export const RestaurantDetail = () => {
                   <Clock3 className="w-3.5 h-3.5 text-red-500" />
                 </div>
                 <div className="grid grid-cols-5 gap-1.5">
-                  {quickBookingTimes.map((time) => (
+                  {quickBookingTimes.filter(isBookingTimeAvailable).map((time) => (
                     <button
                       key={time}
                       type="button"
@@ -1336,7 +1351,7 @@ export const RestaurantDetail = () => {
                       Khung giờ gợi ý
                     </p>
                     <div className="grid grid-cols-5 gap-1.5">
-                      {quickBookingTimes.map((time) => (
+                  {quickBookingTimes.filter(isBookingTimeAvailable).map((time) => (
                         <button
                           key={time}
                           type="button"

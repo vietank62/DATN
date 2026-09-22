@@ -10,6 +10,7 @@ class Review(SQLModel, table=True):
     reviewId: Optional[int] = Field(default=None, primary_key=True)
     userId: int = Field(foreign_key="user.userId")
     restaurantId: int = Field(foreign_key="restaurants.id")
+    bookingId: Optional[int] = Field(default=None, foreign_key="booking.bookingId", unique=True)
     rating: int
     comment: Optional[str] = None
     createdAt: Optional[str] = None

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom"; 
 import { useLocation } from "../../hooks/useLocation";
 import type { FilterState } from "../../types/search";
@@ -87,6 +88,7 @@ const FilterDropdown = ({
   onSelect,
   onReset,
 }: DropdownProps) => {
+  const { t } = useTranslation();
   const isActive = selected !== defaultLabel;
 
   return (
@@ -106,7 +108,7 @@ const FilterDropdown = ({
                 : "text-gray-600 hover:bg-red-50"
               }`}
           >
-            {opt}
+            {t(`filter.value.${opt}`, { defaultValue: opt })}
             {selected === opt && (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -121,7 +123,7 @@ const FilterDropdown = ({
           onClick={onReset}
           className="border-t border-gray-100 mt-1 px-4 py-3 text-sm font-semibold text-center text-red-500 hover:bg-red-50 cursor-pointer"
         >
-          Xóa lựa chọn
+          {t("filter.clear")}
         </div>
       )}
     </div>
@@ -129,6 +131,7 @@ const FilterDropdown = ({
 };
 
 export const FilterBar = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { city, district, setDistrict, getDistricts } = useLocation();
   const [activeDropdown, setActiveDropdown] = useState<FilterKey | null>(null);
@@ -255,7 +258,7 @@ export const FilterBar = () => {
                     className={`text-xs md:text-sm font-medium transition-colors
                       ${active ? "text-red-600 font-bold" : "text-gray-700 group-hover:text-red-600"}`}
                   >
-                    {displayText}
+                    {t(`filter.value.${displayText}`, { defaultValue: displayText })}
                   </span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -270,7 +273,7 @@ export const FilterBar = () => {
 
                 {isOpen && (
                   <FilterDropdown
-                    title={key === "district" ? `Khu vực tại ${city}` : filterLabel}
+                    title={key === "district" ? t("filter.districts", { city }) : t(`filter.value.${filterLabel}`)}
                     options={getOptions(filterLabel)}
                     selected={getSelectedValue(key)}
                     defaultLabel={key === "district" ? "Khu vực" : ""}
@@ -289,7 +292,7 @@ export const FilterBar = () => {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
           </svg>
-          <span className="text-sm">Lọc</span>
+          <span className="text-sm">{t("filter.apply")}</span>
         </button>
       </div>
     </div>

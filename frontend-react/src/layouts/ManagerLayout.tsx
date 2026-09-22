@@ -23,7 +23,7 @@ const MANAGER_NAV: NavItem[] = [
     to: "/manager/approval-status",
     icon: "stats",
   },
-  { label: "Cờ vi phạm", to: "/manager/violation-reports", icon: "stats" },
+  { label: "Vi phạm", to: "/manager/violation-reports", icon: "stats" },
 ];
 
 const BREADCRUMB: Record<string, string> = {
@@ -35,7 +35,7 @@ const BREADCRUMB: Record<string, string> = {
   "/manager/restaurant-settings": "Cài đặt nhà hàng",
   "/manager/partner": "Hồ sơ đối tác",
   "/manager/approval-status": "Trạng thái xét duyệt",
-  "/manager/violation-reports": "Cờ vi phạm",
+  "/manager/violation-reports": "Vi phạm",
 };
 
 type ManagerNotification = {
@@ -45,6 +45,7 @@ type ManagerNotification = {
   isRead: boolean;
   createdAt: string;
   type: string;
+  bookingId?: number | null;
   conversationId?: number | null;
 };
 
@@ -91,20 +92,25 @@ export default function ManagerLayout() {
     };
   }, [isNotificationOpen]);
 
-  const openNotification = async (notification: ManagerNotification) => {
+  const openNotification = (notification: ManagerNotification) => {
     if (!notification.isRead) {
-      await api.put(`/v1/notifications/${notification.id}/read`);
-      await notificationsQuery.refetch();
+      void api.put(`/v1/notifications/${notification.id}/read`)
+        .then(() => notificationsQuery.refetch()).catch(() => undefined);
     }
-
     setIsNotificationOpen(false);
-    navigate(
-      notification.type === "chat_message"
-        ? `/manager/chat?conversation=${notification.conversationId ?? ""}`
-        : notification.type.startsWith("withdrawal_")
-          ? "/manager/finance"
-          : "/manager/approval-status",
-    );
+    if (notification.type === "chat_message") {
+      navigate(`/manager/chat?conversation=${notification.conversationId ?? ""}`);
+    } else if (notification.type.startsWith("withdrawal_") || notification.type === "booking_fee") {
+      navigate("/manager/finance");
+    } else if (notification.type.startsWith("approval_")) {
+      navigate("/manager/approval-status");
+    } else if (notification.type === "violation_warning") {
+      navigate("/manager/violation-reports");
+    } else {
+      navigate(notification.bookingId
+        ? `/manager/bookings?booking=${notification.bookingId}`
+        : "/manager/bookings?status=all");
+    }
   };
 
   const markAllNotificationsRead = async () => {

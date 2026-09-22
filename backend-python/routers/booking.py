@@ -6,6 +6,8 @@ from sqlalchemy import func
 from sqlmodel import select  # type: ignore
 
 from database import SessionDep
+from core.booking_email import queue_booking_email
+from core.booking_policy import AUTO_COMPLETE_DELAY, CONFIRMATION_LEAD, month_start
 from core.deposit_expiry import deposit_deadline, expire_unpaid_bookings
 from models.booking import Booking
 from models.bookingItem import BookingItem
@@ -41,13 +43,14 @@ def auto_complete_expired_confirmed_bookings(
 	now: datetime | None = None,
 	booking_id: int | None = None,
 	restaurant_id: int | None = None,
+	user_id: int | None = None,
 	limit: int | None = None,
 ) -> int:
 	current_time = now or datetime.now(APP_TIME_ZONE)
 	if current_time.tzinfo is None:
 		current_time = current_time.replace(tzinfo=APP_TIME_ZONE)
 
-	completion_deadline = current_time - timedelta(days=3)
+	completion_deadline = current_time - AUTO_COMPLETE_DELAY
 	query = select(Booking).where(Booking.status == "confirmed")
 	if booking_id is not None:
 		query = query.where(Booking.bookingId == booking_id)
@@ -56,6 +59,8 @@ def auto_complete_expired_confirmed_bookings(
 	query = query.where(Booking.date <= completion_deadline.date().isoformat()).order_by(Booking.date, Booking.time, Booking.bookingId)
 	if limit is not None:
 		query = query.limit(limit)
+	if user_id is not None:
+		query = query.where(Booking.userId == user_id)
 	confirmed_bookings = session.exec(query.with_for_update(skip_locked=True).execution_options(populate_existing=True)).all()
 	completed_count = 0
 
@@ -64,6 +69,8 @@ def auto_complete_expired_confirmed_bookings(
 
 		if meal_time and meal_time <= completion_deadline:
 			booking.status = "completed"
+			booking.completedAt = (meal_time + AUTO_COMPLETE_DELAY).astimezone(timezone.utc).isoformat()
+			queue_booking_email(session, booking, "completed")
 			session.add(booking)
 			completed_count += 1
 
@@ -73,19 +80,22 @@ def auto_complete_expired_confirmed_bookings(
 	return completed_count
 
 
-def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit: int | None = None) -> int:
-	"""Expire pending bookings one hour before the meal and apply the response SLA."""
+def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit: int | None = None, booking_id: int | None = None, user_id: int | None = None, restaurant_id: int | None = None) -> int:
+	"""Expire pending bookings two hours before the meal and apply the response SLA."""
 	current_time = now or datetime.now(APP_TIME_ZONE)
 	if current_time.tzinfo is None:
 		current_time = current_time.replace(tzinfo=APP_TIME_ZONE)
 
 	expired_count = 0
-	query = select(Booking).where(Booking.status == "pending", Booking.date <= (current_time + timedelta(hours=1)).date().isoformat()).order_by(Booking.date, Booking.time, Booking.bookingId)
+	query = select(Booking).where(Booking.status == "pending", Booking.date <= (current_time + CONFIRMATION_LEAD).date().isoformat()).order_by(Booking.date, Booking.time, Booking.bookingId)
 	if limit is not None:
 		query = query.limit(limit)
+	for field, value in ((Booking.bookingId, booking_id), (Booking.userId, user_id), (Booking.restaurantId, restaurant_id)):
+		if value is not None:
+			query = query.where(field == value)
 	for booking in session.exec(query.with_for_update(skip_locked=True).execution_options(populate_existing=True)).all():
 		meal_time = get_booking_meal_time(booking)
-		if not meal_time or meal_time - current_time > timedelta(hours=1):
+		if not meal_time or meal_time - current_time > CONFIRMATION_LEAD:
 			continue
 
 		restaurant = session.exec(select(Restaurant).where(Restaurant.id == booking.restaurantId).with_for_update().execution_options(populate_existing=True)).first()
@@ -93,12 +103,18 @@ def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit:
 			continue
 
 		booking.status = "expired"
-		restaurant.late_response_strikes += 1
+		booking.expiredAt = (meal_time - CONFIRMATION_LEAD).astimezone(timezone.utc).isoformat()
+		session.add(booking)
+		session.flush()
+		restaurant.late_response_strikes = session.exec(select(func.count(Booking.bookingId)).where(
+			Booking.restaurantId == restaurant.id, Booking.status == "expired",
+			Booking.expiredAt >= month_start(current_time).isoformat(),
+		)).one()
 		now_iso = datetime.now(timezone.utc).isoformat()
 		session.add(booking)
 		session.add(restaurant)
 
-		message = "Đơn đặt bàn đã quá hạn phản hồi; nhà hàng nhận 1 cờ phản hồi trễ."
+		message = "Đơn đặt bàn đã quá hạn phản hồi; nhà hàng nhận 1 vi phạm phản hồi trễ."
 		payment = session.exec(
 			select(DepositPayment).where(DepositPayment.booking_id == booking.bookingId)
 		).first()
@@ -116,20 +132,24 @@ def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit:
 				))
 			message += " Tiền đặt cọc đã được đưa vào hàng đợi hoàn cọc cho khách."
 
+		needs_refund = bool(payment and payment.status == "refund_pending")
 		session.add(Notification(
 			userId=booking.userId,
-			title="Đơn đặt bàn đã hết hạn phản hồi",
+			bookingId=booking.bookingId,
+			title="Bổ sung thông tin nhận hoàn cọc" if needs_refund else "Đơn đặt bàn đã hết hạn phản hồi",
 			message=(
-				"Nhà hàng không phản hồi trước thời hạn. "
-				+ ("Tiền đặt cọc của bạn đang được hoàn lại." if payment and payment.status == "refund_pending" else "Đơn đã được tự động hủy.")
+				f"Nhà hàng chưa phản hồi đơn #{booking.bookingId} đúng hạn. "
+				+ (f"Bạn được hoàn {payment.amount:,}đ tiền đặt cọc. Bấm để gửi thông tin tài khoản nhận tiền; ảnh QR không bắt buộc."
+				   if needs_refund else "Đơn đã hết hạn. Bạn có thể chọn nhà hàng khác để đặt bàn.")
 			),
-			type="booking_expired",
+			type="refund_required" if needs_refund else "booking_expired",
 			createdAt=now_iso,
 		))
 
 		if restaurant.manager_id:
 			session.add(Notification(
 				userId=restaurant.manager_id,
+				bookingId=booking.bookingId,
 				title="Cảnh cáo phản hồi trễ",
 				message=f"{message} Số lần vi phạm hiện tại: {restaurant.late_response_strikes}.",
 				type="late_response_warning",
@@ -150,7 +170,7 @@ def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit:
 					target_restaurant_id=restaurant.id,
 					target_type="restaurant",
 					source="late_response",
-					reason="Hệ thống ghi nhận nhà hàng có từ 3 cờ phản hồi trễ và tạm ngưng hoạt động. Vui lòng gửi giải trình.",
+					reason="Hệ thống ghi nhận nhà hàng có từ 3 vi phạm phản hồi trễ và tạm ngưng hoạt động. Vui lòng gửi giải trình.",
 				))
 		expired_count += 1
 
@@ -202,6 +222,8 @@ def _serialize_booking(session: Any, booking: Booking) -> BookingResponse:
 		userId=booking.userId,
 		restaurantId=booking.restaurantId,
 		restaurantName=restaurant.name if restaurant else None,
+		cancellationStatus=booking.cancellationStatus, cancellationReason=booking.cancellationReason,
+		cancellationEvidence=booking.cancellationEvidence, cancellationActor=booking.cancellationActor,
 		date=booking.date,
 		time=booking.time,
 		guestCount=booking.guestCount,
@@ -267,6 +289,8 @@ def _serialize_bookings(session: Any, bookings: list[Booking]) -> list[BookingRe
 			userId=booking.userId,
 			restaurantId=booking.restaurantId,
 			restaurantName=restaurant_names.get(booking.restaurantId),
+			cancellationStatus=booking.cancellationStatus, cancellationReason=booking.cancellationReason,
+			cancellationEvidence=booking.cancellationEvidence, cancellationActor=booking.cancellationActor,
 			date=booking.date,
 			time=booking.time,
 			guestCount=booking.guestCount,
@@ -290,6 +314,9 @@ def _serialize_bookings(session: Any, bookings: list[Booking]) -> list[BookingRe
 
 def _persist_booking_status(session: Any, booking: Booking, status: str) -> BookingResponse:
 	booking.status = status
+	queue_booking_email(session, booking, status)
+	if status == "completed":
+		booking.completedAt = datetime.now(timezone.utc).isoformat()
 	session.add(booking)
 	session.commit()
 	session.refresh(booking)
@@ -303,33 +330,16 @@ def create_booking(
 	session: SessionDep,  # type: ignore
 ):
 	meal_time = datetime.strptime(f"{booking_data.date} {booking_data.time}", "%Y-%m-%d %H:%M").replace(tzinfo=APP_TIME_ZONE)
-	if meal_time <= datetime.now(APP_TIME_ZONE):
-		raise HTTPException(422, "Giờ đặt bàn phải nằm trong tương lai")
-	active_strike_count = session.exec(
-		select(func.count(ViolationReport.id)).where(
-			ViolationReport.target_user_id == current_user.userId,
-			ViolationReport.target_type == "customer",
-			ViolationReport.status.in_(["open", "appeal_pending"]),
-		)
-	).one()
-
-	should_suspend = active_strike_count >= 3
-	if (
-		current_user.is_suspended != should_suspend
-		or current_user.report_strikes != active_strike_count
-	):
-		current_user.is_suspended = should_suspend
-		current_user.report_strikes = active_strike_count
-		session.add(current_user)
-		session.commit()
-
-	if should_suspend:
+	minimum_booking_time = datetime.now(APP_TIME_ZONE) + timedelta(hours=2)
+	if meal_time < minimum_booking_time:
 		raise HTTPException(
-			status_code=403,
-			detail="Tài khoản đã bị tạm khóa chức năng đặt bàn do có cờ vi phạm",
+			422,
+			"Khung giờ đặt bàn phải cách thời điểm hiện tại ít nhất 2 tiếng",
 		)
+	if current_user.is_permanently_banned or current_user.is_suspended:
+		raise HTTPException(403, "Tài khoản đã bị khóa do vi phạm đặt bàn")
 	restaurant = _get_restaurant_or_404(session, booking_data.restaurantId)
-	if not restaurant.is_active:
+	if not restaurant.is_active or restaurant.is_report_suspended or restaurant.approval_status != "approved":
 		raise HTTPException(status_code=400, detail="This restaurant is not accepting bookings")
 	if booking_data.childCount < 0 or booking_data.childCount > booking_data.guestCount:
 		raise HTTPException(status_code=422, detail="Child count must be between 0 and total guest count")
@@ -411,6 +421,8 @@ def create_booking(
 		)
 		session.add(deposit_payment)
 
+	if not deposit_amount:
+		queue_booking_email(session, db_booking, "pending")
 	session.commit()
 
 	session.refresh(db_booking)
@@ -423,6 +435,8 @@ def get_my_bookings(
 	session: SessionDep,  # type: ignore
 ):
 	expire_unpaid_bookings(session, user_id=current_user.userId)
+	expire_unanswered_bookings(session, user_id=current_user.userId)
+	auto_complete_expired_confirmed_bookings(session, user_id=current_user.userId)
 	bookings = session.exec(
 		select(Booking)
 		.where(Booking.userId == current_user.userId)
@@ -444,6 +458,7 @@ def get_my_restaurant_bookings(
 
 	expire_unpaid_bookings(session, restaurant_id=restaurant.id)
 	auto_complete_expired_confirmed_bookings(session, restaurant_id=restaurant.id)
+	expire_unanswered_bookings(session, restaurant_id=restaurant.id)
 	bookings = session.exec(
 		select(Booking)
 		.where(Booking.restaurantId == restaurant.id)
@@ -463,6 +478,7 @@ def get_bookings_by_restaurant(
 
 	expire_unpaid_bookings(session, restaurant_id=restaurant.id)
 	auto_complete_expired_confirmed_bookings(session, restaurant_id=restaurant.id)
+	expire_unanswered_bookings(session, restaurant_id=restaurant.id)
 	bookings = session.exec(
 		select(Booking)
 		.where(Booking.restaurantId == restaurant_id)
@@ -479,7 +495,8 @@ def get_booking_detail(
 ):
 	expire_unpaid_bookings(session, booking_id=booking_id)
 	auto_complete_expired_confirmed_bookings(session, booking_id=booking_id)
-	booking = session.get(Booking, booking_id)
+	expire_unanswered_bookings(session, booking_id=booking_id)
+	booking = session.exec(select(Booking).where(Booking.bookingId == booking_id).with_for_update().execution_options(populate_existing=True)).first()
 	if not booking:
 		raise HTTPException(status_code=404, detail="Booking not found")
 
@@ -500,7 +517,7 @@ def confirm_booking(
 	current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
 	session: SessionDep,  # type: ignore
 ):
-	booking = session.get(Booking, booking_id)
+	booking = session.exec(select(Booking).where(Booking.bookingId == booking_id).with_for_update().execution_options(populate_existing=True)).first()
 	if not booking:
 		raise HTTPException(status_code=404, detail="Booking not found")
 
@@ -510,26 +527,12 @@ def confirm_booking(
 	if booking.status != "pending":
 		raise HTTPException(status_code=400, detail="Only pending bookings can be confirmed")
 
+	meal_time = get_booking_meal_time(booking)
+	if not meal_time or meal_time - datetime.now(APP_TIME_ZONE) <= CONFIRMATION_LEAD:
+		session.rollback()
+		expire_unanswered_bookings(session, booking_id=booking_id)
+		raise HTTPException(409, "Đã quá hạn xác nhận: phải xác nhận trước giờ dùng bữa 2 tiếng")
 	return _persist_booking_status(session, booking, "confirmed")
-
-
-@router.put("/{booking_id}/cancel", response_model=BookingResponse)
-def cancel_booking(
-	booking_id: int,
-	current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
-	session: SessionDep,  # type: ignore
-):
-	booking = session.get(Booking, booking_id)
-	if not booking:
-		raise HTTPException(status_code=404, detail="Booking not found")
-
-	restaurant = _get_restaurant_or_404(session, booking.restaurantId)
-	_ensure_restaurant_access(restaurant, current_user)
-
-	if booking.status == "cancelled":
-		return _serialize_booking(session, booking)
-
-	return _persist_booking_status(session, booking, "cancelled")
 
 
 @router.put("/{booking_id}/complete", response_model=BookingResponse)
@@ -538,7 +541,7 @@ def complete_booking(
 	current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
 	session: SessionDep,  # type: ignore
 ):
-	booking = session.get(Booking, booking_id)
+	booking = session.exec(select(Booking).where(Booking.bookingId == booking_id).with_for_update().execution_options(populate_existing=True)).first()
 	if not booking:
 		raise HTTPException(status_code=404, detail="Booking not found")
 

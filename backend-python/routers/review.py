@@ -39,11 +39,12 @@ def create_review(
         raise HTTPException(status_code=403, detail="Not authorized to review for this user")
 
     completed_booking = session.exec(
-        select(Booking.bookingId).where(
+        select(Booking).where(
+            Booking.bookingId == review_data.bookingId,
             Booking.userId == current_user.userId,
             Booking.restaurantId == review_data.restaurantId,
             Booking.status == "completed",
-        )
+        ).with_for_update()
     ).first()
     if completed_booking is None:
         raise HTTPException(
@@ -53,14 +54,13 @@ def create_review(
 
     existing_review = session.exec(
         select(Review.reviewId).where(
-            Review.userId == current_user.userId,
-            Review.restaurantId == review_data.restaurantId,
+            Review.bookingId == review_data.bookingId,
         )
     ).first()
     if existing_review is not None:
         raise HTTPException(
             status_code=409,
-            detail="Bạn đã đánh giá nhà hàng này.",
+            detail="Bạn đã đánh giá đơn đặt bàn này.",
         )
 
     # Create the review

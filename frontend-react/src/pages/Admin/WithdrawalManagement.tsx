@@ -1,3 +1,4 @@
+import RefundManagement from "./RefundManagement";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import axios from "axios";
@@ -66,6 +67,7 @@ export default function WithdrawalManagement() {
   };
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <RefundManagement />
       {reviewsQ.isError && <p className="text-red-600">Không tải được giao dịch cần đối soát.</p>}
       {!!reviewsQ.data?.length && (
         <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">

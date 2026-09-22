@@ -28,6 +28,8 @@ APPROVAL_FIELD_LABELS = {
     "address": "Thay đổi địa chỉ",
     "district": "Thay đổi quận / huyện",
     "city": "Thay đổi thành phố",
+    "latitude": "Thay đổi vị trí trên bản đồ",
+    "longitude": "Thay đổi vị trí trên bản đồ",
     "website_url": "Thay đổi website chính thức",
     "category": "Thay đổi danh mục nhà hàng",
     "tax_code": "Thay đổi mã số thuế",
@@ -43,6 +45,8 @@ RESTAURANT_APPROVAL_FIELDS = (
     "address",
     "district",
     "city",
+    "latitude",
+    "longitude",
     "website_url",
     "category",
     "tax_code",
@@ -340,23 +344,7 @@ def cancel_pending_approval(
             detail="Chỉ có thể hủy yêu cầu chỉnh sửa đang chờ xét duyệt",
         )
 
-    restaurant.pending_approval_fields = None
-    restaurant.approval_status = "approved"
-    restaurant.is_active = True
-
-    create_approval_history(
-        session=session,
-        restaurant=restaurant,
-        admin_id=None,
-        action="cancelled",
-        request_type=request_type,
-        change_fields=change_fields,
-    )
-    session.add(restaurant)
-    session.commit()
-    session.refresh(restaurant)
-    background_tasks.add_task(clear_restaurant_caches)
-    return restaurant
+    raise HTTPException(409, "Thông tin đã sửa cần admin xét duyệt. Vui lòng cập nhật hồ sơ hoặc chờ phản hồi; không thể bỏ qua xét duyệt bằng cách huỷ yêu cầu.")
 
 
 @router.put("/applications/{restaurant_id}/approve", response_model=Restaurant)
@@ -372,7 +360,7 @@ def approve_application(
 
     request_type, change_fields = get_pending_approval_request(restaurant)
     restaurant.approval_status = "approved"
-    restaurant.is_active = True
+    restaurant.is_active = not restaurant.is_report_suspended
     restaurant.pending_approval_fields = None
     create_approval_history(
         session=session,
@@ -413,11 +401,10 @@ def reject_application(
         raise HTTPException(404, "Application not found")
 
     request_type, change_fields = get_pending_approval_request(restaurant)
-    is_new_application = request_type == "new"
-    deactivate_restaurant = True if is_new_application else data.deactivate
+    deactivate_restaurant = True
 
     restaurant.approval_status = "rejected"
-    restaurant.is_active = not deactivate_restaurant
+    restaurant.is_active = False
     create_approval_history(
         session=session,
         restaurant=restaurant,

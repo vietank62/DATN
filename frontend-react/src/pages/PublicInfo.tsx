@@ -1,0 +1,13 @@
+import { Link, useLocation } from "react-router-dom";
+
+const pages: Record<string, { title: string; intro: string; sections: Array<[string, string]> }> = {
+  "/about": { title: "Về TableNow", intro: "Khám phá nhà hàng phù hợp và đặt bàn dễ dàng cho mọi cuộc hẹn.", sections: [["TableNow là gì?", "TableNow kết nối khách hàng với các nhà hàng, giúp xem thông tin, lựa chọn thời gian và quản lý đơn đặt bàn ở một nơi."], ["Cam kết của chúng tôi", "Thông tin đặt bàn rõ ràng, quy trình thanh toán minh bạch và hỗ trợ xuyên suốt khi có vấn đề phát sinh."]] },
+  "/policies/terms": { title: "Điều khoản sử dụng", intro: "Những quy định khi sử dụng TableNow.", sections: [["Đặt bàn", "Khách hàng cần cung cấp thông tin chính xác và đến đúng thời gian đã đặt. Nhà hàng có thể áp dụng điều kiện đặt cọc được hiển thị trước khi thanh toán."], ["Trách nhiệm", "Người dùng không được sử dụng hệ thống để cung cấp thông tin sai lệch, gây gián đoạn hoặc vi phạm quyền của người khác."]] },
+  "/policies/privacy": { title: "Chính sách quyền riêng tư", intro: "Cách TableNow xử lý dữ liệu của bạn.", sections: [["Dữ liệu thu thập", "Chúng tôi lưu thông tin tài khoản, liên hệ và đặt bàn cần thiết để cung cấp dịch vụ."], ["Bảo vệ dữ liệu", "Dữ liệu chỉ được dùng cho vận hành dịch vụ, hỗ trợ khách hàng và các nghĩa vụ pháp lý liên quan."]] },
+  "/policies/payment-refund": { title: "Thanh toán và hoàn cọc", intro: "Thông tin minh bạch về đặt cọc, thanh toán và hoàn tiền.", sections: [["Thanh toán", "Số tiền đặt cọc và thời hạn thanh toán được hiển thị trước khi khách xác nhận đơn."], ["Hoàn cọc", "Khi đơn đủ điều kiện hoàn cọc, khách cung cấp tài khoản nhận tiền trong mục Đơn đặt bàn và theo dõi kết quả hoàn trả tại đó."]] },
+};
+
+export default function PublicInfo() {
+  const page = pages[useLocation().pathname] ?? pages["/about"];
+  return <div className="bg-slate-50"><header className="bg-slate-950 px-6 py-20 text-center text-white"><p className="text-sm font-bold uppercase tracking-widest text-red-400">TableNow</p><h1 className="mx-auto mt-3 max-w-3xl text-4xl font-black">{page.title}</h1><p className="mx-auto mt-4 max-w-2xl text-slate-300">{page.intro}</p></header><main className="mx-auto max-w-4xl space-y-6 px-6 py-12">{page.sections.map(([title, content]) => <section key={title} className="rounded-2xl bg-white p-7 shadow-sm"><h2 className="text-xl font-bold text-slate-900">{title}</h2><p className="mt-3 leading-7 text-slate-600">{content}</p></section>)}<Link to="/" className="inline-flex rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white">Khám phá nhà hàng</Link></main></div>;
+}

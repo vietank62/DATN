@@ -4,6 +4,9 @@ export interface RestaurantCard {
     city: string;
     district: string;
     address: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    distance_km?: number;
     image_url?: string;
     website_url?: string;
     price_avg?: number;

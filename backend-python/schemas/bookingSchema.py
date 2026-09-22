@@ -1,6 +1,6 @@
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator  # type: ignore
+from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict  # type: ignore
 
 
 class BookingItemCreate(BaseModel):
@@ -41,18 +41,23 @@ class BookingResponse(BaseModel):
     note: Optional[str] = None
     createdAt: Optional[str] = None
     booking_items: list[BookingItemOut] = []
+    cancellationStatus: Optional[str] = None
+    cancellationReason: Optional[str] = None
+    cancellationEvidence: Optional[str] = None
+    cancellationActor: Optional[str] = None
 
 
 class BookingCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     restaurantId: int
     date: str
     time: str
     guestCount: int = Field(ge=1)
     childCount: int = Field(default=0, ge=0)
     requestSeats: int = Field(ge=1)
-    contactName: str
-    contactEmail: str
-    contactPhone: str
+    contactName: str = Field(min_length=2, max_length=120)
+    contactEmail: EmailStr
+    contactPhone: str = Field(pattern=r"^\+?[0-9][0-9 ()-]{7,19}$")
     note: Optional[str] = None
     items: list[BookingItemCreate] = []
 

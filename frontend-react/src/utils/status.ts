@@ -1,6 +1,7 @@
 export const BOOKING_STATUS_LABEL: Record<string, string> = {
   awaiting_payment: "Chờ thanh toán đặt cọc",
-  payment_expired: "Hết hạn đặt cọc",
+  payment_expired: "Thanh toán không thành công",
+  rejected: "Đặt bàn không thành công",
   pending: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
   completed: "Hoàn thành",

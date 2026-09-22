@@ -26,6 +26,12 @@ class Booking(SQLModel, table=True):
     contactPhone: str
     note: Optional[str] = None
     createdAt: Optional[str] = None
+    cancellationStatus: Optional[str] = None
+    cancellationReason: Optional[str] = None
+    cancellationEvidence: Optional[str] = None
+    cancellationActor: Optional[str] = None
+    expiredAt: Optional[str] = None
+    completedAt: Optional[str] = None
 
     user: Optional["User"] = Relationship()
     restaurant: Optional["Restaurant"] = Relationship()

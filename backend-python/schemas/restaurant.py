@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, List
 
@@ -11,6 +11,8 @@ class RestaurantCreate(BaseModel):
     address: str
     district: str
     city: Optional[str] = None
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     price_avg: int = 0
     category: Optional[List[str]] = None
     suitable_for: Optional[List[str]] = None
@@ -27,6 +29,8 @@ class RestaurantBase(BaseModel):
     address: str
     district: str
     city: Optional[str] = None
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     price_avg: int = 0
     rating: Optional[float] = None
     review_count: int = 0
@@ -49,6 +53,8 @@ class RestaurantUpdate(BaseModel):
     address: Optional[str] = None
     district: Optional[str] = None
     city: Optional[str] = None
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     price_avg: Optional[int] = None
     category: Optional[List[str]] = None
     suitable_for: Optional[List[str]] = None
