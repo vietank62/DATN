@@ -25,12 +25,14 @@ const formatDistance = (distance?: number) => distance === undefined ? "" : dist
 
 function MapViewport({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
+  const latitude = center[0];
+  const longitude = center[1];
 
   useEffect(() => {
-    map.setView(center, zoom, { animate: true });
+    map.setView([latitude, longitude], zoom, { animate: true });
     const resizeTimer = window.setTimeout(() => map.invalidateSize(), 0);
     return () => window.clearTimeout(resizeTimer);
-  }, [center[0], center[1], map, zoom]);
+  }, [latitude, longitude, map, zoom]);
 
   return null;
 }

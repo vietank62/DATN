@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 const policyLinks = [
-  ["Hướng dẫn đặt bàn", "/about"],
+  ["Hướng dẫn đặt bàn", "/booking-guide"],
   ["Điều khoản sử dụng", "/policies/terms"],
   ["Chính sách quyền riêng tư", "/policies/privacy"],
   ["Thanh toán & hoàn cọc", "/policies/payment-refund"],
@@ -17,7 +17,7 @@ export const Footer = () => (
       </section>
       <section>
         <h2 className="text-sm font-bold uppercase tracking-wider text-white">Khách hàng</h2>
-        <nav className="mt-4 space-y-3 text-sm">{policyLinks.slice(0, 1).map(([label, to]) => <Link key={to} to={to} className="block hover:text-white">{label}</Link>)}<Link to="/search" className="block hover:text-white">Tìm nhà hàng</Link><Link to="/account/bookings" className="block hover:text-white">Đơn đặt bàn của tôi</Link></nav>
+        <nav className="mt-4 space-y-3 text-sm">{policyLinks.slice(0, 1).map(([label, to]) => <Link key={to} to={to} className="block hover:text-white">{label}</Link>)}<Link to="/search" className="block hover:text-white">Tìm nhà hàng</Link><Link to="/map" className="block hover:text-white">Bản đồ nhà hàng</Link><Link to="/account/bookings" className="block hover:text-white">Đơn đặt bàn của tôi</Link></nav>
       </section>
       <section>
         <h2 className="text-sm font-bold uppercase tracking-wider text-white">Chính sách</h2>

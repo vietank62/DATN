@@ -105,6 +105,8 @@ function App() {
                 <Route path="/search" element={<SearchRestaurants />} />
                 <Route path="/map" element={<NearbyRestaurantsMap />} />
                 <Route path="/about" element={<PublicInfo />} />
+                <Route path="/booking-guide" element={<PublicInfo />} />
+                <Route path="/contact" element={<PublicInfo />} />
                 <Route path="/policies/terms" element={<PublicInfo />} />
                 <Route path="/policies/privacy" element={<PublicInfo />} />
                 <Route path="/policies/payment-refund" element={<PublicInfo />} />
