@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Security
 from database import SessionDep
-from models import Review, Restaurant, User
+from models import Review, Restaurant, User, Booking
 from schemas.reviewMenuSchema import ReviewCreate, ReviewOut
 from routers.authentication import get_current_user
 from datetime import datetime
@@ -26,11 +26,16 @@ def create_review(
     if current_user.userId != review_data.userId:
         raise HTTPException(status_code=403, detail="Not authorized to review for this user")
 
-    # Create the review
-    review = Review(
-        **review_data.model_dump(),
-        createdAt=datetime.now().isoformat()
-    )
+    booking = session.get(Booking, review_data.bookingId)
+    if not booking or booking.userId != current_user.userId or booking.restaurantId != review_data.restaurantId:
+        raise HTTPException(status_code=400, detail="Đơn đặt bàn không hợp lệ cho đánh giá này")
+    if booking.status != "completed":
+        raise HTTPException(status_code=400, detail="Chỉ có thể đánh giá sau khi hoàn thành bữa ăn")
+    existing = session.exec(select(Review).where(Review.bookingId == booking.bookingId)).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Mỗi đơn đặt bàn chỉ được đánh giá một lần")
+
+    review = Review(**review_data.model_dump(), createdAt=datetime.now().isoformat())
     session.add(review)
     session.commit()
     session.refresh(review)

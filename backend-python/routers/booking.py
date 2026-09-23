@@ -90,6 +90,8 @@ def create_booking(
 	session: SessionDep,  # type: ignore
 ):
 	restaurant = _get_restaurant_or_404(session, booking_data.restaurantId)
+	if restaurant.capacity > 0 and booking_data.requestSeats > restaurant.capacity:
+		raise HTTPException(status_code=400, detail=f"Nhà hàng chỉ có tối đa {restaurant.capacity} chỗ ngồi cho một đơn")
 
 	now = datetime.now(timezone.utc).isoformat()
 	db_booking = Booking(
@@ -98,7 +100,7 @@ def create_booking(
 		date=booking_data.date,
 		time=booking_data.time,
 		guestCount=booking_data.guestCount,
-		requestSeats=booking_data.requestSeats,
+		requestSeats=max(booking_data.guestCount, booking_data.requestSeats),
 		assignedSeats=0,
 		status="pending",
 		contactName=booking_data.contactName,

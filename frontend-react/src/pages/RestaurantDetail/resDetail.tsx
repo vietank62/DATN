@@ -57,6 +57,8 @@ export const RestaurantDetail = () => {
     const [selectedMenuItems, setSelectedMenuItems] = useState<Record<number, number>>({});
 
     const [activeTab, setActiveTab] = useState("Mô tả");
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState("");
     const [activeImgIndex, setActiveImgIndex] = useState(0); 
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0); 
@@ -90,6 +92,12 @@ export const RestaurantDetail = () => {
         enabled: !!id,
         staleTime: 1000 * 60 * 5,
     });
+
+    type RestaurantReview = { reviewId: number; bookingId?: number | null; userId: number; restaurantId: number; rating: number; comment?: string | null; createdAt?: string | null; userName?: string | null };
+    const { data: reviews = [] } = useQuery<RestaurantReview[]>({ queryKey: ["restaurant-reviews", id], queryFn: async () => (await api.get(`/api/get-restaurant-reviews/${id}`)).data, enabled: !!id });
+    const { data: myBookings = [] } = useQuery<BookingDetail[]>({ queryKey: ["my-bookings-review"], queryFn: async () => (await api.get("/v1/bookings/me")).data, enabled: isAuthenticated && user?.role === "customer" });
+    const eligibleBooking = myBookings.find(booking => booking.restaurantId === Number(id) && booking.status === "completed" && !reviews.some(review => review.bookingId === booking.bookingId));
+    const reviewMutation = useMutation({ mutationFn: () => api.post("/api/create-review/", { bookingId: eligibleBooking?.bookingId, userId: user?.userId, restaurantId: Number(id), rating: reviewRating, comment: reviewComment.trim() || null }), onSuccess: () => { setReviewComment(""); queryClient.invalidateQueries({ queryKey: ["restaurant-reviews", id] }); queryClient.invalidateQueries({ queryKey: ["restaurant-base", id] }); toast.success("Cảm ơn bạn đã đánh giá nhà hàng."); }, onError: (error: any) => toast.error(error?.response?.data?.detail || "Chưa thể gửi đánh giá.") });
 
     const favoriteStatusQueryKey = ["restaurant-favorite", id, user?.userId ?? undefined];
 
@@ -283,6 +291,7 @@ export const RestaurantDetail = () => {
             toast.error("Vui lòng đăng nhập để đặt bàn.");
             return;
         }
+        setRequestSeats(adults + children);
         setIsModalOpen(true);
     };
 
@@ -307,7 +316,10 @@ export const RestaurantDetail = () => {
             toast.error("Vui lòng nhập đầy đủ tên, email và số điện thoại.");
             return;
         }
-
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contactEmail)) { toast.error("Email không hợp lệ."); return; }
+        if (!/^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/.test(payload.contactPhone.replace(/[ .-]/g, ""))) { toast.error("Số điện thoại Việt Nam không hợp lệ."); return; }
+        if (payload.requestSeats < guestCount) { toast.error("Số chỗ ngồi không được nhỏ hơn tổng số người tham gia."); return; }
+        if ((restaurantBase.capacity ?? 0) > 0 && payload.requestSeats > (restaurantBase.capacity ?? 0)) { toast.error(`Nhà hàng chỉ nhận tối đa ${restaurantBase.capacity ?? 0} chỗ cho một đơn.`); return; }
         bookingMutation.mutate(payload);
     };
 
@@ -362,7 +374,7 @@ export const RestaurantDetail = () => {
                             </div>
                         </div>
                         <div className="flex border-b border-gray-200 overflow-x-auto -mx-6 px-6 justify-between">
-                            {["Mô tả", "Thực đơn", "Tiện ích", "Bãi xe", "Quy định"].map((tab) => (
+                            {["Mô tả", "Thực đơn", "Đánh giá", "Tiện ích", "Bãi xe", "Quy định"].map((tab) => (
                                 <button key={tab} onClick={() => setActiveTab(tab)} className={`py-3 px-4 text-xs md:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${activeTab === tab ? "border-red-600 text-red-600" : "border-transparent text-gray-500"}`}>{tab}</button>
                             ))}
                         </div>
@@ -376,7 +388,7 @@ export const RestaurantDetail = () => {
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 {items.map((item) => (
                                                     <div key={item.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white p-3 flex gap-3">
-                                                        <img src={item.image_url} alt={item.name} className="w-16 h-16 object-cover rounded-lg shrink-0" />
+                                                        <img src={item.image_url || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=160"} alt={item.name} className="w-16 h-16 object-cover rounded-lg shrink-0" />
                                                         <div>
                                                             <h6 className="text-sm font-semibold text-gray-900">{item.name}</h6>
                                                             <p className="text-xs font-bold text-red-600 mt-1">{Number(item.price || 0).toLocaleString("vi-VN")} đ</p>
@@ -388,6 +400,7 @@ export const RestaurantDetail = () => {
                                     ))}
                                 </div>
                             )}
+                            {activeTab === "Đánh giá" && <div className="space-y-4"><div className="rounded-xl border border-gray-200 p-4"><p className="font-semibold text-gray-900">Đánh giá từ khách hàng</p>{eligibleBooking && <div className="mt-3 border-t pt-3"><p className="text-xs text-gray-500">Đơn #{eligibleBooking.bookingId} đã hoàn thành, bạn có thể đánh giá một lần.</p><div className="mt-2 flex gap-1">{[1,2,3,4,5].map(star => <button key={star} type="button" onClick={() => setReviewRating(star)} className={`text-2xl ${star <= reviewRating ? "text-amber-400" : "text-gray-200"}`} aria-label={`${star} sao`}>★</button>)}</div><textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} maxLength={1000} placeholder="Chia sẻ trải nghiệm của bạn (không bắt buộc)" className="mt-2 w-full rounded-lg border border-gray-200 p-2 text-sm" /><button type="button" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate()} className="mt-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{reviewMutation.isPending ? "Đang gửi..." : "Gửi đánh giá"}</button></div>}{!eligibleBooking && isAuthenticated && <p className="mt-2 text-sm text-gray-500">Bạn có thể đánh giá sau khi hoàn thành bữa ăn tại nhà hàng.</p>}</div>{reviews.length === 0 ? <p className="text-sm text-gray-500">Nhà hàng chưa có đánh giá.</p> : reviews.map(review => <article key={review.reviewId} className="border-b border-gray-100 pb-3"><div className="flex items-center justify-between"><b className="text-sm">{review.userName || "Khách hàng"}</b><span className="text-amber-500">{"★".repeat(review.rating)}<span className="text-gray-200">{"★".repeat(5-review.rating)}</span></span></div>{review.comment && <p className="mt-1 text-sm text-gray-600">{review.comment}</p>}<p className="mt-1 text-xs text-gray-400">{review.createdAt ? new Date(review.createdAt).toLocaleDateString("vi-VN") : ""}</p></article>)}</div>}
                             {activeTab === "Tiện ích" && <div className="flex flex-wrap gap-2">{restaurantDetail.utilities?.map(id => <span key={id} className="bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold">{UTILITIES_MAP[id]?.icon} {UTILITIES_MAP[id]?.label}</span>)}</div>}
                             {activeTab === "Bãi xe" && <p className="text-xs font-medium">{restaurantDetail.parking_info || "Chưa có thông tin."}</p>}
                             {activeTab === "Quy định" && <p className="text-xs font-medium">{restaurantDetail.regulations || "Chưa có quy định."}</p>}
@@ -429,6 +442,7 @@ export const RestaurantDetail = () => {
                             <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-3.5 rounded-lg shadow-md transition-colors cursor-pointer mt-2">
                                 Đặt bàn ngay
                             </button>
+                            <button type="button" onClick={() => isAuthenticated ? navigate(`/chat/${id}`) : toast.error("Vui lòng đăng nhập để nhắn tin với nhà hàng.")} className="w-full rounded-lg border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Nhắn tin với nhà hàng</button>
                         </form>
                     </div>
                 </div>
@@ -458,7 +472,7 @@ export const RestaurantDetail = () => {
                                     </div>
                                     <div className="flex flex-col gap-1">
                                         <label className="text-xs text-gray-500 font-semibold">Số điện thoại liên hệ *</label>
-                                        <input required value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                                        <input required type="tel" inputMode="tel" pattern="(?:\+84|0)(?:3|5|7|8|9)[0-9]{8}" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none" />
                                     </div>
                                 </div>
                             </div>
@@ -468,8 +482,9 @@ export const RestaurantDetail = () => {
                                 <div className="flex flex-col gap-1">
                                     <label className="text-xs text-gray-500 font-semibold">Số lượng chỗ ngồi mong muốn</label>
                                     <select value={requestSeats} onChange={(e) => setRequestSeats(Number(e.target.value))} className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none">
-                                        {[...Array(10)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1} chỗ</option>)}
+                                        {Array.from({ length: Math.max(0, Math.min(restaurantBase.capacity || 50, 50) - (adults + children) + 1) }, (_, index) => adults + children + index).map((seat) => <option key={seat} value={seat}>{seat} chỗ</option>)}
                                     </select>
+                                    <p className="mt-1 text-[11px] text-gray-500">Mặc định bằng tổng số khách ({adults + children} người).</p>
                                 </div>
                             </div>
 

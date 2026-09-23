@@ -13,7 +13,8 @@ from routers import (
     upload, 
     review, 
     payment, 
-    # notification,
+    notification,
+    chat,
     favorite
 )
 
@@ -58,6 +59,7 @@ app.include_router(statistical.router)
 app.include_router(upload.router)
 app.include_router(review.router)
 app.include_router(payment.router)
-# app.include_router(notification.router)
+app.include_router(notification.router)
+app.include_router(chat.router)
 app.include_router(detail.router)
 app.include_router(favorite.router)

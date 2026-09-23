@@ -20,6 +20,7 @@ import BookingManagement from './pages/Manager/BookingManagement';
 import MenuManagement from './pages/Manager/MenuManagement';
 import ManagerStats from './pages/Manager/ManagerStats';
 import BookingPage from './pages/Account/booking';
+import ChatPage from './pages/Chat/ChatPage';
 
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ function App() {
               <Route path="/search" element={<SearchRestaurants />} />
               <Route path="/account/bookings" element={<BookingPage />} />
               <Route path="/account/bookings/:bookingId" element={<BookingPage />} />
+              <Route path="/chat/:restaurantId" element={<ChatPage />} />
             </Route>
 
             {/* === Admin === */}

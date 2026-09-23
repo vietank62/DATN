@@ -7,6 +7,7 @@ from .review import Review
 from .payment import Payment
 from .notification import Notification
 from .favorite import Favorite
+from .chatMessage import ChatMessage
 
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "Payment",
     "Notification",
     "Favorite",
+    "ChatMessage",
 ]
