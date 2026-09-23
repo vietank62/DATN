@@ -1,5 +1,6 @@
-from typing import Optional, TYPE_CHECKING, List
-from sqlmodel import SQLModel, Field, Relationship  # type: ignore
+from typing import Optional, TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship # type: ignore
+from typing import List
 
 if TYPE_CHECKING:
     from .restaurant import Restaurant
@@ -7,6 +8,7 @@ if TYPE_CHECKING:
 
 class User(SQLModel, table=True):
     __tablename__ = "user"
+    
     userId: Optional[int] = Field(default=None, primary_key=True)
     name: str
     email: str = Field(unique=True)
@@ -15,9 +17,12 @@ class User(SQLModel, table=True):
     role: str = Field(default="customer")
     avatar: Optional[str] = None
     createdAt: Optional[str] = None
-    isSuspended: bool = Field(default=False)
-    suspensionReason: Optional[str] = None
-    appealText: Optional[str] = None
-    appealStatus: Optional[str] = None
-    restaurant: Optional["Restaurant"] = Relationship(back_populates="manager", sa_relationship_kwargs={"uselist": False})
+    report_strikes: int = Field(default=0)
+    is_suspended: bool = Field(default=False)
+    is_permanently_banned: bool = Field(default=False)
+    
+    restaurant: Optional["Restaurant"] = Relationship(
+        back_populates="manager",
+        sa_relationship_kwargs={"uselist": False}
+    )
     favorite: List["Favorite"] = Relationship(back_populates="user")

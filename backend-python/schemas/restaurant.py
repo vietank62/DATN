@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, List
 
@@ -7,9 +7,12 @@ class RestaurantCreate(BaseModel):
     name: str
     slug: str
     image_url: Optional[str] = None
+    website_url: Optional[str] = None
     address: str
     district: str
     city: Optional[str] = None
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     price_avg: int = 0
     category: Optional[List[str]] = None
     suitable_for: Optional[List[str]] = None
@@ -22,17 +25,23 @@ class RestaurantBase(BaseModel):
     name: str
     slug: str
     image_url: Optional[str] = None
+    website_url: Optional[str] = None
     address: str
     district: str
     city: Optional[str] = None
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     price_avg: int = 0
     rating: Optional[float] = None
+    review_count: int = 0
     like_count: Optional[int] = None
     has_exclusive: Optional[bool] = None
     category: Optional[List[str]] = None
     suitable_for: Optional[List[str]] = None
     service_types: Optional[List[str]] = None
     capacity: int = 0
+    booking_opening_time: Optional[str] = None
+    booking_closing_time: Optional[str] = None
     is_active: bool
     created_at: datetime
     
@@ -40,9 +49,12 @@ class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
     image_url: Optional[str] = None
+    website_url: Optional[str] = None
     address: Optional[str] = None
     district: Optional[str] = None
     city: Optional[str] = None
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     price_avg: Optional[int] = None
     category: Optional[List[str]] = None
     suitable_for: Optional[List[str]] = None

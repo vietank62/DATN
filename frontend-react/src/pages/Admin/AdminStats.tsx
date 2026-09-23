@@ -74,7 +74,7 @@ function RestaurantDonut({ active, total }: { active: number; total: number }) {
             {inactiveDash > 0 && activeDash < CIRC && (
               <circle
                 cx="60" cy="60" r={R} fill="none"
-                stroke="#ef4444" strokeWidth="16" strokeLinecap="round"
+                stroke="#f97316" strokeWidth="16" strokeLinecap="round"
                 strokeDasharray={mounted ? `${inactiveDash} ${CIRC - inactiveDash}` : `0 ${CIRC}`}
                 strokeDashoffset={mounted ? -activeDash : 0}
                 style={{ transition: 'stroke-dasharray 1.4s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1)' }}

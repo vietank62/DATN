@@ -22,9 +22,18 @@ export interface BookingDetail {
   date: string;
   time: string;
   guestCount: number;
+  childCount: number;
   requestSeats: number;
   assignedSeats: number;
   status: string;
+  cancellationStatus?: string | null;
+  cancellationReason?: string | null;
+  cancellationEvidence?: string | null;
+  cancellationActor?: string | null;
+  depositAmount: number;
+  depositStatus: string;
+  depositPaidAt?: string | null;
+  depositExpiresAt?: string | null;
   contactName: string;
   contactEmail: string;
   contactPhone: string;
@@ -38,6 +47,7 @@ export interface BookingCreatePayload {
   date: string;
   time: string;
   guestCount: number;
+  childCount: number;
   requestSeats: number;
   contactName: string;
   contactEmail: string;

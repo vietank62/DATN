@@ -1,3 +1,4 @@
+import { ROLE_LABEL } from "../../utils/status";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { toast } from 'sonner';
@@ -31,6 +32,11 @@ interface AdminStats {
   newUsersThisMonth: number;
 }
 
+interface UserPage {
+  items: User[];
+  total: number;
+}
+
 export default function AdminDashboard() {
   const qc = useQueryClient();
 
@@ -39,9 +45,11 @@ export default function AdminDashboard() {
     queryFn: () => api.get('/api/stats/admin').then(r => r.data),
   });
 
-  const usersQ = useQuery<User[]>({
-    queryKey: ['admin-users'],
-    queryFn: () => api.get('/v1/users/').then(r => r.data),
+  const usersQ = useQuery<UserPage>({
+    queryKey: ['admin-users', 'recent'],
+    queryFn: () => api.get('/v1/users/', {
+      params: { limit: 5, offset: 0 },
+    }).then(r => r.data),
   });
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -57,8 +65,7 @@ export default function AdminDashboard() {
   });
 
   const stats = statsQ.data;
-  // 5 newest users (slice from end assuming sorted by id asc)
-  const newestUsers = [...(usersQ.data ?? [])].reverse().slice(0, 5);
+  const newestUsers = usersQ.data?.items ?? [];
 
   return (
     <div className="space-y-8">
@@ -122,7 +129,7 @@ export default function AdminDashboard() {
                       ${u.role === 'admin' ? 'bg-violet-100 text-violet-700'
                         : u.role === 'manager' ? 'bg-blue-100 text-blue-700'
                         : 'bg-gray-100 text-gray-500'}`}>
-                      {u.role}
+                      {ROLE_LABEL[u.role] ?? u.role}
                     </span>
                   </td>
                   <td className="px-6 py-3 text-right">

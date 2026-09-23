@@ -12,6 +12,7 @@ frontend-react/build/
 frontend-react/.vite/
 frontend-react/.DS_Store
 frontend-react/*.log
+.pnpm-store/
 
 # Backend (Python)
 backend-python/__pycache__/
@@ -22,6 +23,7 @@ backend-python/.Python
 backend-python/env/
 backend-python/venv/
 backend-python/.venv/
+backend-python/.venv-runtime/
 backend-python/ENV/
 backend-python/.egg-info/
 backend-python/dist/
@@ -66,3 +68,15 @@ yarn-error.log*
 *.temp
 BAO_CAO_DO_AN_TableNow.md
 QUICK_START_GUIDE.md
+
+# Local documentation and verification files (do not publish)
+*.[mM][dD]
+*.[mM][aA][rR][kK][dD][oO][wW][nN]
+**/tests/
+**/__tests__/
+test_*.py
+*_test.py
+*.test.*
+*.spec.*
+backend-python/scripts/benchmark_*.py
+backend-python/docs/search-performance.json

@@ -14,14 +14,24 @@ class Booking(SQLModel, table=True):
     date: str
     time: str
     guestCount: int
+    childCount: int = Field(default=0)
     requestSeats: int
     assignedSeats: int = Field(default=0)
     status: str = Field(default="pending")
+    depositAmount: int = Field(default=0)
+    depositStatus: str = Field(default="not_required", max_length=20)
+    depositPaidAt: Optional[str] = None
     contactName: str
     contactEmail: str
     contactPhone: str
     note: Optional[str] = None
     createdAt: Optional[str] = None
+    cancellationStatus: Optional[str] = None
+    cancellationReason: Optional[str] = None
+    cancellationEvidence: Optional[str] = None
+    cancellationActor: Optional[str] = None
+    expiredAt: Optional[str] = None
+    completedAt: Optional[str] = None
 
     user: Optional["User"] = Relationship()
     restaurant: Optional["Restaurant"] = Relationship()

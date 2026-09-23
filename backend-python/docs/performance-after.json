@@ -1,0 +1,7 @@
+{
+  "requests": 100,
+  "median_ms": 0.601,
+  "p95_ms": 1.42,
+  "sql_per_request": 1.0,
+  "mode": "SQLite in-memory service only; excludes network/auth; not production load test"
+}

@@ -6,8 +6,14 @@ from .booking import Booking
 from .review import Review
 from .payment import Payment
 from .notification import Notification
-from .favorite import Favorite
+from .approvalHistory import ApprovalHistory
+from .conversation import Conversation
 from .chatMessage import ChatMessage
+from .favorite import Favorite
+from .depositPayment import DepositPayment
+from .withdrawalRequest import WithdrawalRequest
+from .depositRefund import DepositRefund
+from .customerPreference import CustomerPreference
 
 
 __all__ = [
@@ -19,6 +25,18 @@ __all__ = [
     "Review",
     "Payment",
     "Notification",
-    "Favorite",
+    "ApprovalHistory",
+    "Conversation",
     "ChatMessage",
+    "Favorite",
+    "DepositPayment",
+    "WithdrawalRequest",
+    "DepositRefund",
+    "CustomerPreference",
 ]
+
+from .depositCheckout import DepositCheckout
+
+from .bookingFee import BookingFee
+
+from .bookingEmail import BookingEmail

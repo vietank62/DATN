@@ -39,6 +39,24 @@ target_metadata = SQLModel.metadata
 # ... etc.
 
 
+# Search projection is deliberately DB-owned so it is not loaded into API models.
+# Preserve it when generating future migrations from SQLModel metadata.
+SEARCH_INDEX_NAMES = {
+    "ix_restaurants_search_document", "ix_restaurants_category_normalized",
+    "ix_restaurants_suitable_normalized", "ix_restaurants_service_normalized",
+    "ix_restaurants_location_normalized",
+}
+
+
+def include_search_schema_object(obj, name, type_, reflected, compare_to):
+    if reflected and compare_to is None and getattr(getattr(obj, "table", None), "name", None) == "restaurants":
+        if type_ == "column" and name == "search_document":
+            return False
+        if type_ == "index" and name in SEARCH_INDEX_NAMES:
+            return False
+    return True
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -55,6 +73,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_search_schema_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -78,7 +97,8 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, target_metadata=target_metadata,
+            include_object=include_search_schema_object
         )
 
         with context.begin_transaction():

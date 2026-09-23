@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Navbar } from '../components/Navbar/navbar';
 import { Footer } from '../components/Footer/footer';
+import { TableNowChatbot } from '../components/Chatbot/TableNowChatbot';
 
 export default function MainLayout() {
   return (
@@ -15,6 +16,7 @@ export default function MainLayout() {
 
       {/* Footer dùng chung */}
       <Footer />
+      <TableNowChatbot />
     </div>
   );
 }

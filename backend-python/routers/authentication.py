@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta, datetime, timezone
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
@@ -12,6 +13,14 @@ from sqlmodel import select # type: ignore
 from routers.deps import get_current_user
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
+
+def refresh_cookie_options():
+    secure = os.getenv("AUTH_COOKIE_SECURE", "true" if os.getenv("VERCEL") == "1" or os.getenv("FRONTEND_URL", "").startswith("https://") else "false").lower() == "true"
+    same_site = os.getenv("AUTH_COOKIE_SAMESITE", "none" if secure else "lax").lower()
+    if same_site not in {"none", "lax", "strict"} or (same_site == "none" and not secure):
+        raise HTTPException(503, "Cấu hình cookie không hợp lệ")
+    return {"secure": secure, "samesite": same_site, "path": "/"}
+
 
 def authenticate_user(username: str, password: str, session: SessionDep): #type: ignore
     user = session.exec(select(User).where(User.email == username)).first()
@@ -40,6 +49,20 @@ def register_user(user_data: UserRegister, session: SessionDep): #type: ignore
     session.refresh(new_user)
     return new_user
 
+
+@router.post("/partner-register", response_model=UserOut)
+def register_partner_manager(user_data: UserRegister, session: SessionDep): #type: ignore
+    """Đăng ký tài khoản đối tác; role manager không thể tự gán qua đăng ký khách thông thường."""
+    if session.exec(select(User).where(User.email == user_data.email)).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    new_user = User(
+        name=user_data.name, email=user_data.email, phone=user_data.phone,
+        password=security.get_password_hash(user_data.password), role="manager",
+        createdAt=str(datetime.now(timezone.utc)),
+    )
+    session.add(new_user); session.commit(); session.refresh(new_user)
+    return new_user
+
 @router.post("/login", response_model=Token)
 def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -54,6 +77,8 @@ def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    if user.is_permanently_banned:
+        raise HTTPException(403, "Tài khoản đã bị cấm vĩnh viễn do vi phạm đặt bàn")
     scopes = ["customer"]
     if user.role == "admin":
         scopes.extend(["admin", "manager"])
@@ -68,8 +93,7 @@ def login_for_access_token(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
-        secure=False,
-        samesite="Lax",
+        **refresh_cookie_options(),
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -88,6 +112,8 @@ def refresh_access_token(request: Request, session: SessionDep): #type: ignore
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
+    if user.is_permanently_banned:
+        raise HTTPException(403, "Tài khoản đã bị cấm vĩnh viễn do vi phạm đặt bàn")
     scopes = ["customer"]
     if user.role == "admin":
         scopes.extend(["admin", "manager"])
@@ -99,7 +125,7 @@ def refresh_access_token(request: Request, session: SessionDep): #type: ignore
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("refresh_token")
+    response.delete_cookie("refresh_token", **refresh_cookie_options())
     return {"message": "Đăng xuất thành công"}
 
 @router.get("/active-user", response_model=UserOut)

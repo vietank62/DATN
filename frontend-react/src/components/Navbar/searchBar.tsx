@@ -1,9 +1,17 @@
 import { useRef, useState, useEffect } from "react";
 import { useLocation } from "../../hooks/useLocation";
-import { useNavigate, useSearchParams,  } from "react-router-dom";
+import { normalizeKeyword, SEARCH_KEYWORD_MAX_LENGTH, updateSearchFilters } from "../../utils/searchParams";
+import {
+  useLocation as useRouterLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export const SearchBar = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  const routerLocation = useRouterLocation();
   const [searchParams] = useSearchParams();
   const { city, setCity } = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -11,14 +19,17 @@ export const SearchBar = () => {
 
   const locations = ["Hồ Chí Minh", "Hà Nội", "Đà Nẵng"];
 
-  const currentSearchParam = searchParams.get("search") || "";
-  
-  const [typedKeyword, setTypedKeyword] = useState(() => currentSearchParam);
-  const [prevSearchParam, setPrevSearchParam] = useState(currentSearchParam);
-  if (currentSearchParam !== prevSearchParam) {
-    setTypedKeyword(currentSearchParam);
-    setPrevSearchParam(currentSearchParam);
+  const isSearchPage = routerLocation.pathname === "/search";
+  const currentCity = (isSearchPage ? searchParams.get("city") : null) || city;
+  const currentSearchParam = isSearchPage ? searchParams.get("search") || "" : "";
+  const [draft, setDraft] = useState({ locationKey: routerLocation.key, keyword: currentSearchParam });
+  // Reset on navigation so Back or modal filters cannot revive an unsubmitted old keyword.
+  if (draft.locationKey !== routerLocation.key) {
+    setDraft({ locationKey: routerLocation.key, keyword: currentSearchParam });
   }
+  const typedKeyword = draft.locationKey === routerLocation.key ? draft.keyword : currentSearchParam;
+  const [isComposing, setIsComposing] = useState(false);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -29,19 +40,41 @@ export const SearchBar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!isSearchPage || isComposing || normalizeKeyword(typedKeyword) === normalizeKeyword(currentSearchParam)) {
+      return;
+    }
+
+    const debounceTimer = window.setTimeout(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("city", currentCity);
+      const nextParams = updateSearchFilters(params, { search: typedKeyword });
+      navigate(`/search?${nextParams.toString()}`, { replace: true });
+    }, 400);
+
+    return () => window.clearTimeout(debounceTimer);
+  }, [currentCity, currentSearchParam, isComposing, isSearchPage, navigate, searchParams, typedKeyword]);
+
   const handleSearch = () => {
-    const queryParams = new URLSearchParams();
-    if (city) {
-      queryParams.set("city", city);
-    }
-    if (typedKeyword.trim()) {
-      queryParams.set("search", typedKeyword.trim());
-    }
-    navigate(`/search?${queryParams.toString()}`);
+    const params = new URLSearchParams(isSearchPage ? searchParams : undefined);
+    params.set("city", currentCity);
+    const nextParams = updateSearchFilters(params, { search: typedKeyword });
+    navigate(`/search?${nextParams.toString()}`);
+  };
+
+  const handleCityChange = (nextCity: string) => {
+    setCity(nextCity);
+    setIsOpen(false);
+    if (!isSearchPage) return;
+
+    const params = new URLSearchParams(searchParams);
+    params.set("city", currentCity);
+    const nextParams = updateSearchFilters(params, { city: nextCity, search: typedKeyword });
+    navigate(`/search?${nextParams.toString()}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       handleSearch();
     }
   };
@@ -61,7 +94,7 @@ export const SearchBar = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-gray-700">{city}</span>
+            <span className="text-gray-700">{currentCity}</span>
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ml-auto text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -73,19 +106,12 @@ export const SearchBar = () => {
               {locations.map((loc) => (
                 <div
                   key={loc}
-                  onClick={() => {
-                    setCity(loc);
-                    setIsOpen(false);
-                    const currentParams = new URLSearchParams(searchParams);
-                    currentParams.set("city", loc);
-                    if (typedKeyword.trim()) currentParams.set("search", typedKeyword.trim());
-                    navigate(`/search?${currentParams.toString()}`);
-                  }}
+                  onClick={() => handleCityChange(loc)}
                   className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center justify-between
-                    ${city === loc ? "bg-red-50 text-red-600 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
+                    ${currentCity === loc ? "bg-red-50 text-red-600 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
                 >
                   {loc}
-                  {city === loc && (
+                  {currentCity === loc && (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -96,13 +122,19 @@ export const SearchBar = () => {
           )}
         </div>
 
+        <button type="button" onClick={() => navigate("/map")} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21s7-5.4 7-12A7 7 0 105 9c0 6.6 7 12 7 12z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" /></svg>{t("search.map")}</button>
+
         {/* Search Input */}
         <div className="flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-50/50 transition-all">
           <input
             type="text"
-            placeholder="Bạn muốn đặt chỗ đến đâu?"
+            placeholder={t("search.placeholder")}
+            maxLength={SEARCH_KEYWORD_MAX_LENGTH}
+            aria-label={t("search.label")}
             value={typedKeyword}
-            onChange={(e) => setTypedKeyword(e.target.value)}
+            onChange={(e) => setDraft({ locationKey: routerLocation.key, keyword: e.target.value })}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
             onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent px-5 text-sm focus:outline-none text-gray-700 placeholder:text-gray-400"
           />
@@ -110,7 +142,7 @@ export const SearchBar = () => {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span>Tìm kiếm</span>
+            <span>{t("search.submit")}</span>
           </button>
         </div>
 
