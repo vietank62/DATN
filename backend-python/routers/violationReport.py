@@ -14,7 +14,7 @@ from models.restaurant import Restaurant
 from models.user import User
 from models.violationReport import ViolationReport
 from routers.booking import APP_TIME_ZONE, get_booking_meal_time
-from routers.deps import get_current_user
+from routers.deps import get_current_user, get_current_user_for_appeal
 from schemas.violationReport import (
     ViolationAppealCreate,
     ViolationReportCreate,
@@ -70,7 +70,7 @@ def report_customer(
         ViolationReport.target_type == "customer", ViolationReport.status != "dismissed",
         ViolationReport.created_at >= month_start())).one()
     if customer.report_strikes > 3:
-        customer.is_permanently_banned = True
+        customer.is_permanently_banned = False
         customer.is_suspended = True
     payment = session.exec(select(DepositPayment).where(DepositPayment.booking_id == booking.bookingId).with_for_update()).first()
     if payment and payment.status == "paid":
@@ -154,7 +154,7 @@ def get_my_reports(current_user: Annotated[User, Security(get_current_user)], se
 
 
 @router.post("/{report_id}/appeal", response_model=ViolationReport)
-def appeal_report(report_id: int, data: ViolationAppealCreate, current_user: Annotated[User, Security(get_current_user)], session: SessionDep):
+def appeal_report(report_id: int, data: ViolationAppealCreate, current_user: Annotated[User, Depends(get_current_user_for_appeal)], session: SessionDep):
     report = session.get(ViolationReport, report_id)
     if not report or report.status not in {"open", "appeal_rejected"}:
         raise HTTPException(status_code=404, detail="Không tìm thấy báo cáo đang có hiệu lực")

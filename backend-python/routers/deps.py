@@ -37,8 +37,8 @@ def get_current_user(
     if user is None:
         raise credentials_exception
         
-    if user.is_permanently_banned:
-        raise HTTPException(403, "Tài khoản đã bị cấm vĩnh viễn do vi phạm đặt bàn")
+    if user.is_suspended:
+        raise HTTPException(403, "Tài khoản đang bị tạm chặn do vi phạm. Bạn chỉ có thể gửi giải trình.")
     allowed_scopes = {"customer"}
     if user.role == "admin":
         allowed_scopes.update({"admin", "manager"})
@@ -88,3 +88,17 @@ def require_restaurant_owner(session, restaurant_id: int, user: User):
     if user.role != "admin" and restaurant.manager_id != user.userId:
         raise HTTPException(403, "Bạn không có quyền quản lý nhà hàng này")
     return restaurant
+
+
+def get_current_user_for_appeal(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    session: SessionDep,
+) -> User:
+    """Authenticate a suspended user only for the appeal endpoint."""
+    payload = decode_token(token)
+    if payload.get("type") == "refresh" or not payload.get("email"):
+        raise HTTPException(401, "Could not validate credentials")
+    user = session.exec(select(User).where(User.email == payload["email"])).first()
+    if not user:
+        raise HTTPException(401, "Could not validate credentials")
+    return user
