@@ -59,20 +59,20 @@ interface DashboardSidebarProps {
 
 // Active link classes per variant
 const ACTIVE_CLASSES = {
-  admin: "bg-violet-50 text-violet-700 font-semibold",
-  manager: "bg-amber-50 text-amber-700 font-semibold",
+  admin: "bg-red-50 text-red-700 font-semibold",
+  manager: "bg-red-50 text-red-700 font-semibold",
 };
 const ACTIVE_ICON = {
-  admin: "text-violet-600",
-  manager: "text-amber-600",
+  admin: "text-red-600",
+  manager: "text-red-600",
 };
 const BRAND_COLOR = {
-  admin: "text-violet-600",
-  manager: "text-amber-600",
+  admin: "text-red-600",
+  manager: "text-red-600",
 };
 const LOGO_RING = {
-  admin: "ring-violet-200",
-  manager: "ring-amber-200",
+  admin: "ring-red-200",
+  manager: "ring-red-200",
 };
 
 export default function DashboardSidebar({

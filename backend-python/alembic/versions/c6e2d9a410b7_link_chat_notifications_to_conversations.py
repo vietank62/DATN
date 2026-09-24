@@ -5,7 +5,7 @@ Revises: b4d8e6f1c230
 Create Date: 2026-08-20
 """
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -16,7 +16,13 @@ depends_on = None
 
 
 def upgrade():
-    inspector = sa.inspect(op.get_bind())
+    if context.is_offline_mode():
+        class OfflineInspector:
+            def get_columns(self, _name): return []
+            def get_indexes(self, _name): return []
+        inspector = OfflineInspector()
+    else:
+        inspector = sa.inspect(op.get_bind())
     columns = {column["name"] for column in inspector.get_columns("notification")}
 
     if "conversationId" not in columns:

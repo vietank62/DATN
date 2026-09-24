@@ -112,10 +112,10 @@ export function TableNowChatbot() {
   return (
     <div className="fixed bottom-5 right-5 z-50">
       {isOpen && (
-        <section className="mb-4 flex h-[min(650px,calc(100vh-7rem))] w-[calc(100vw-2.5rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-amber-100 bg-white shadow-2xl">
+        <section className="mb-4 flex h-[min(650px,calc(100vh-7rem))] w-[calc(100vw-2.5rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-red-100 bg-white shadow-2xl">
           <header className="flex items-center justify-between bg-slate-900 px-5 py-4 text-white">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-amber-500 p-2"><Bot size={20} /></div>
+              <div className="rounded-xl bg-red-600 p-2"><Bot size={20} /></div>
               <div>
                 <h2 className="text-sm font-bold">Trợ lý TableNow</h2>
                 <p className="text-xs text-slate-300">Gợi ý nhà hàng tức thì</p>
@@ -126,7 +126,7 @@ export function TableNowChatbot() {
             </button>
           </header>
 
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-amber-50/40 p-4">
+          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-red-50/40 p-4">
             {messages.map((message) => (
               <div key={message.id} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div className={message.role === "user" ? "max-w-[85%] rounded-2xl rounded-br-md bg-slate-900 px-4 py-3 text-sm leading-6 text-white" : "max-w-[92%] rounded-2xl rounded-bl-md bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm"}>
@@ -134,7 +134,7 @@ export function TableNowChatbot() {
                   {message.restaurants && message.restaurants.length > 0 && (
                     <div className="mt-3 space-y-2">
                       {message.restaurants.map((restaurant) => (
-                        <button key={restaurant.id} type="button" onClick={() => navigate(`/restaurant/${restaurant.id}`)} className="flex w-full cursor-pointer gap-3 rounded-xl border border-slate-100 bg-slate-50 p-2 text-left transition hover:border-amber-300 hover:bg-amber-50">
+                        <button key={restaurant.id} type="button" onClick={() => navigate(`/restaurant/${restaurant.id}`)} className="flex w-full cursor-pointer gap-3 rounded-xl border border-slate-100 bg-slate-50 p-2 text-left transition hover:border-red-300 hover:bg-red-50">
                           <img src={getChatImageUrl(restaurant.image_url)} alt="" loading="lazy" className="h-12 w-14 rounded-lg object-cover" />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-xs font-bold text-slate-800">{restaurant.name}</span>
@@ -154,14 +154,14 @@ export function TableNowChatbot() {
           <div className="border-t border-slate-100 bg-white p-3">
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
               {QUICK_PROMPTS.map((prompt) => (
-                <button key={prompt} type="button" onClick={() => void sendMessage(prompt)} className="shrink-0 cursor-pointer rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-100">
+                <button key={prompt} type="button" onClick={() => void sendMessage(prompt)} className="shrink-0 cursor-pointer rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-800 transition hover:bg-red-100">
                   <Sparkles className="mr-1 inline" size={12} />{prompt}
                 </button>
               ))}
             </div>
             <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void sendMessage(input); }}>
-              <input maxLength={2000} aria-label="Câu hỏi cho trợ lý TableNow" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Nhập câu hỏi của bạn..." className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
-              <button type="submit" disabled={isSending || !input.trim()} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Gửi tin nhắn">
+              <input maxLength={2000} aria-label="Câu hỏi cho trợ lý TableNow" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Nhập câu hỏi của bạn..." className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100" />
+              <button type="submit" disabled={isSending || !input.trim()} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Gửi tin nhắn">
                 <Send size={17} />
               </button>
             </form>
@@ -169,7 +169,7 @@ export function TableNowChatbot() {
         </section>
       )}
 
-      <button type="button" onClick={() => setIsOpen((open) => !open)} className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-amber-500 text-white shadow-lg shadow-amber-500/30 transition hover:scale-105 hover:bg-amber-600" aria-label="Mở trợ lý TableNow">
+      <button type="button" onClick={() => setIsOpen((open) => !open)} className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-red-600 text-white shadow-lg shadow-red-500/30 transition hover:scale-105 hover:bg-red-700" aria-label="Mở trợ lý TableNow">
         {isOpen ? <X size={24} /> : <MessageCircle size={25} />}
       </button>
     </div>

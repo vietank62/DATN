@@ -194,8 +194,8 @@ export default function PartnerProfile() {
   if (app) {
     return (
       <div className="max-w-3xl space-y-5">
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-7">
-          <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-7">
+          <p className="text-xs font-bold uppercase tracking-wide text-red-700">
             Hồ sơ đối tác
           </p>
           <h1 className="mt-2 text-2xl font-bold text-gray-900">{app.name}</h1>
@@ -289,7 +289,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor={`partner-${key}`}
-        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-amber-600 bg-amber-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
+        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
       >
         {uploadingField === key ? "Đang tải ảnh..." : "Chọn nhiều ảnh từ máy"}
       </label>
@@ -327,7 +327,7 @@ export default function PartnerProfile() {
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:col-span-2">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="rounded-xl bg-amber-50 p-2 text-amber-700">
+          <span className="rounded-xl bg-red-50 p-2 text-red-700">
             <Images size={18} />
           </span>
           <p className="text-sm font-bold text-gray-800">Hình ảnh nhà hàng</p>
@@ -349,7 +349,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor="partner-restaurant-images"
-        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-amber-600 bg-amber-500 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
+        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-red-600 bg-red-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
       >
         <ImagePlus size={16} />
         {uploadingField === "image_urls" ? "Đang tải ảnh..." : "Chọn nhiều ảnh từ máy"}
@@ -401,7 +401,7 @@ export default function PartnerProfile() {
       <p className="mt-1 text-xs text-gray-500">
         Ảnh này hiển thị trên thẻ nhà hàng và kết quả tìm kiếm, tách biệt với thư viện ảnh bên dưới.
       </p>
-      <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+      <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
         Tỷ lệ đề xuất <strong>5:3</strong> — khoảng <strong>1500 × 900 px</strong>
         (tối thiểu 1200 × 720 px). Hãy dùng ảnh ngang và đặt chủ thể ở vùng trung tâm;
         ảnh dọc hoặc vuông có thể bị cắt khi hiển thị.
@@ -416,7 +416,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor="partner-restaurant-cover"
-        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-amber-600 bg-amber-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
+        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
       >
         {uploadingField === "image_url" ? "Đang tải ảnh..." : "Chọn ảnh đại diện từ máy"}
       </label>

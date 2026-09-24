@@ -4,7 +4,7 @@ Revision ID: d7f3a1b842c9
 Revises: c6e2d9a410b7
 """
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -16,8 +16,13 @@ depends_on = None
 
 
 def upgrade():
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
+    if context.is_offline_mode():
+        class OfflineInspector:
+            def get_columns(self, _name): return []
+            def has_table(self, _name): return False
+        inspector = OfflineInspector()
+    else:
+        inspector = sa.inspect(op.get_bind())
     user_columns = {item["name"] for item in inspector.get_columns("user")}
     restaurant_columns = {item["name"] for item in inspector.get_columns("restaurants")}
     if "report_strikes" not in user_columns:

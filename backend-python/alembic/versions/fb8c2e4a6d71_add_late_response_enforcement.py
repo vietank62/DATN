@@ -7,7 +7,7 @@ Create Date: 2026-09-03
 
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -18,7 +18,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    inspector = sa.inspect(op.get_bind())
+    if context.is_offline_mode():
+        class OfflineInspector:
+            def get_columns(self, _name): return []
+            def has_table(self, _name): return False
+        inspector = OfflineInspector()
+    else:
+        inspector = sa.inspect(op.get_bind())
     restaurant_columns = {column["name"] for column in inspector.get_columns("restaurants")}
     if "late_response_strikes" not in restaurant_columns:
         op.add_column(

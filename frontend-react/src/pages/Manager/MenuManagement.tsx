@@ -157,7 +157,7 @@ export default function MenuManagement() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition shadow-sm"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition shadow-sm"
         >
           <svg
             className="w-4 h-4"
@@ -214,7 +214,7 @@ export default function MenuManagement() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, name: e.target.value }))
                   }
-                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-amber-400 focus:bg-white transition"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-red-500 focus:bg-white transition"
                   placeholder="Ví dụ: Phở bò tái"
                 />
               </div>
@@ -231,7 +231,7 @@ export default function MenuManagement() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, price: e.target.value }))
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-amber-400 focus:bg-white transition"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-red-500 focus:bg-white transition"
                     placeholder="0"
                   />
                 </div>
@@ -245,7 +245,7 @@ export default function MenuManagement() {
                       setForm((f) => ({ ...f, category: e.target.value }))
                     }
                     list="categories"
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-amber-400 focus:bg-white transition"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-red-500 focus:bg-white transition"
                     placeholder="Khai vị, Món chính..."
                   />
                   <datalist id="categories">
@@ -265,7 +265,7 @@ export default function MenuManagement() {
                     setForm((f) => ({ ...f, description: e.target.value }))
                   }
                   rows={3}
-                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-amber-400 focus:bg-white transition resize-none"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:border-red-500 focus:bg-white transition resize-none"
                   placeholder="Mô tả ngắn về món ăn..."
                 />
               </div>
@@ -291,7 +291,7 @@ export default function MenuManagement() {
                       }
                     }}
                   />
-                  <label htmlFor="menu-item-image-file" className="cursor-pointer rounded-lg border-2 border-amber-600 bg-amber-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200">
+                  <label htmlFor="menu-item-image-file" className="cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200">
                     Chọn tệp
                   </label>
                 </div>
@@ -304,7 +304,7 @@ export default function MenuManagement() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, available: e.target.checked }))
                   }
-                  className="w-4 h-4 rounded accent-amber-500"
+                  className="w-4 h-4 rounded accent-red-600"
                 />
                 <span className="text-sm text-gray-700 font-medium">
                   Hiển thị (còn phục vụ)
@@ -314,7 +314,7 @@ export default function MenuManagement() {
                 <button
                   type="submit"
                   disabled={createMut.isPending || updateMut.isPending}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-50"
                 >
                   {createMut.isPending || updateMut.isPending
                     ? "Đang lưu..."
@@ -360,7 +360,7 @@ export default function MenuManagement() {
               placeholder="Tìm theo tên, danh mục..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-amber-400 focus:bg-white transition w-60"
+              className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-red-500 focus:bg-white transition w-60"
             />
           </div>
         </div>
@@ -375,7 +375,7 @@ export default function MenuManagement() {
             <p className="text-gray-500 font-medium">Chưa có món ăn nào</p>
             <button
               onClick={openCreate}
-              className="mt-3 text-sm text-amber-600 hover:underline font-medium"
+              className="mt-3 text-sm text-red-600 hover:underline font-medium"
             >
               + Thêm món đầu tiên
             </button>

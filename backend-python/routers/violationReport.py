@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Security
+from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy import func, or_, and_
 from sqlmodel import select  # type: ignore
 

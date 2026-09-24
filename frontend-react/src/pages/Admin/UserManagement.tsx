@@ -68,7 +68,7 @@ export default function UserManagement() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-violet-400 focus:bg-white transition w-64"
+              className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-red-500 focus:bg-white transition w-64"
             />
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function UserManagement() {
                     <td className="px-6 py-3.5 font-mono text-gray-400 text-xs">#{u.userId}</td>
                     <td className="px-6 py-3.5">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-xs font-bold flex-shrink-0">
                           {u.name.charAt(0).toUpperCase()}
                         </div>
                         <span className="font-medium text-gray-800">{u.name}</span>
@@ -104,7 +104,7 @@ export default function UserManagement() {
                     <td className="px-6 py-3.5 text-gray-500">{u.phone ?? '—'}</td>
                     <td className="px-6 py-3.5 text-center">
                       <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold
-                        ${u.role === 'admin' ? 'bg-violet-100 text-violet-700'
+                        ${u.role === 'admin' ? 'bg-red-100 text-red-700'
                           : u.role === 'manager' ? 'bg-blue-100 text-blue-700'
                           : 'bg-gray-100 text-gray-500'}`}>
                         {ROLE_LABEL[u.role] ?? u.role}

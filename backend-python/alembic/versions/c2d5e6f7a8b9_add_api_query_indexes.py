@@ -5,7 +5,7 @@ Revises: fb8c2e4a6d71
 Create Date: 2026-09-03
 """
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -42,7 +42,13 @@ INDEXES = (
 
 
 def upgrade() -> None:
-    inspector = sa.inspect(op.get_bind())
+    if context.is_offline_mode():
+        class OfflineInspector:
+            def has_table(self, _name): return True
+            def get_indexes(self, _name): return []
+        inspector = OfflineInspector()
+    else:
+        inspector = sa.inspect(op.get_bind())
 
     for name, table_name, columns in INDEXES:
         if not inspector.has_table(table_name):

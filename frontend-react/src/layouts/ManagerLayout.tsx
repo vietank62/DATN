@@ -158,7 +158,7 @@ export default function ManagerLayout() {
             <button
               type="button"
               onClick={() => setIsNotificationOpen((current) => !current)}
-              className="relative cursor-pointer rounded-lg p-2 text-gray-600 transition hover:bg-amber-50 hover:text-amber-700"
+              className="relative cursor-pointer rounded-lg p-2 text-gray-600 transition hover:bg-red-50 hover:text-red-700"
               aria-label="Thông báo"
             >
               <Bell className="h-5 w-5" />
@@ -193,7 +193,7 @@ export default function ManagerLayout() {
                       <button
                         type="button"
                         onClick={() => void markAllNotificationsRead()}
-                        className="cursor-pointer text-xs font-semibold text-amber-700 hover:text-amber-900"
+                        className="cursor-pointer text-xs font-semibold text-red-700 hover:text-red-900"
                       >
                         Đánh dấu đã đọc
                       </button>
@@ -204,7 +204,7 @@ export default function ManagerLayout() {
                         setIsNotificationOpen(false);
                         navigate("/manager/approval-status");
                       }}
-                      className="cursor-pointer text-xs font-semibold text-amber-700"
+                      className="cursor-pointer text-xs font-semibold text-red-700"
                     >
                       Xem lịch sử
                     </button>
@@ -222,7 +222,7 @@ export default function ManagerLayout() {
                       type="button"
                       onClick={() => void openNotification(notification)}
                       className={`w-full cursor-pointer border-b border-gray-100 px-4 py-3 text-left transition last:border-b-0 ${
-                        notification.isRead ? "bg-white" : "bg-amber-50/70"
+                        notification.isRead ? "bg-white" : "bg-red-50/70"
                       } hover:bg-gray-50`}
                     >
                       <p className="text-sm font-bold text-gray-800">

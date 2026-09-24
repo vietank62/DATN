@@ -95,10 +95,10 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
   const avatarLetter = name.trim().charAt(0).toUpperCase() || "U";
 
   return (
-    <main className="min-h-screen bg-amber-50/40 px-4 py-10 sm:px-6">
+    <main className="min-h-screen bg-red-50/40 px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-4xl">
         <div className="mb-7">
-          <p className="text-sm font-semibold text-amber-700">{t("profile.kicker")}</p>
+          <p className="text-sm font-semibold text-red-700">{t("profile.kicker")}</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
             {t("profile.title")}
           </h1>
@@ -107,7 +107,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm">
+        <form onSubmit={handleSubmit} className="overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
           <section className="border-b border-slate-100 p-6 sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
               <div className="relative mx-auto h-28 w-28 shrink-0 sm:mx-0">
@@ -115,14 +115,14 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
                   <img
                     src={avatar}
                     alt={t("profile.avatar")}
-                    className="h-full w-full rounded-full border-4 border-amber-100 object-cover"
+                    className="h-full w-full rounded-full border-4 border-red-100 object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center rounded-full border-4 border-amber-100 bg-amber-600 text-4xl font-bold text-white">
+                  <div className="flex h-full w-full items-center justify-center rounded-full border-4 border-red-100 bg-red-600 text-4xl font-bold text-white">
                     {avatarLetter}
                   </div>
                 )}
-                <label className="absolute bottom-0 right-0 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-amber-500 text-white shadow-lg ring-2 ring-amber-200 transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-300">
+                <label className="absolute bottom-0 right-0 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-red-500 text-white shadow-lg ring-2 ring-red-200 transition hover:bg-red-600 focus-within:ring-4 focus-within:ring-red-300">
                   <Camera size={17} />
                   <input
                     type="file"
@@ -138,7 +138,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {t("profile.avatarHelp")}
                 </p>
-                {isUploading && <p className="mt-2 text-sm font-medium text-amber-700">{t("profile.uploading")}</p>}
+                {isUploading && <p className="mt-2 text-sm font-medium text-red-700">{t("profile.uploading")}</p>}
               </div>
             </div>
           </section>
@@ -151,7 +151,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                 placeholder={t("profile.fullNamePlaceholder")}
               />
             </label>
@@ -164,7 +164,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 inputMode="tel"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                 placeholder={t("profile.phonePlaceholder")}
               />
             </label>
@@ -184,7 +184,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
 
           <section className="border-t border-slate-100 bg-slate-50/70 p-6 sm:p-8">
             <div className="mb-5 flex items-center gap-3">
-              <div className="rounded-xl bg-amber-100 p-2 text-amber-700"><KeyRound size={20} /></div>
+              <div className="rounded-xl bg-red-100 p-2 text-red-700"><KeyRound size={20} /></div>
               <div>
                 <h2 className="font-bold text-slate-900">{t("profile.changePassword")}</h2>
                 <p className="text-sm text-slate-500">{t("profile.changePasswordHelp")}</p>
@@ -198,7 +198,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                   autoComplete="new-password"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                   placeholder={t("profile.passwordMinimum")}
                 />
               </label>
@@ -209,7 +209,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   autoComplete="new-password"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                   placeholder={t("profile.confirmPasswordPlaceholder")}
                 />
               </label>
@@ -220,7 +220,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
             <button
               type="submit"
               disabled={updateProfile.isPending || isUploading}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Save size={17} />
               {updateProfile.isPending ? t("profile.saving") : t("profile.save")}
@@ -240,12 +240,12 @@ export default function AccountProfile() {
   });
 
   if (profileQuery.isLoading) {
-    return <div className="min-h-screen bg-amber-50/40" />;
+    return <div className="min-h-screen bg-red-50/40" />;
   }
 
   if (profileQuery.isError || !profileQuery.data) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-amber-50/40 px-4">
+      <main className="flex min-h-screen items-center justify-center bg-red-50/40 px-4">
         <p className="rounded-xl bg-white px-6 py-4 text-sm text-slate-600 shadow-sm">
           {t("profile.loadFailed")}
         </p>

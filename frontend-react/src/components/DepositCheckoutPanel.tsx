@@ -80,7 +80,7 @@ export function DepositCheckoutPanel({ bookingId }: { bookingId: number }) {
   return (
     <div className="space-y-3 text-left">
       <p className="text-sm text-gray-600">{t("payment.payWithin")} <b className="tabular-nums">{countdown(secondsLeft)}</b>.</p>
-      <button type="button" disabled={checkout.isPending} onClick={() => checkout.mutate()} className="w-full rounded-xl bg-violet-600 py-3 text-sm font-bold text-white disabled:opacity-50">
+      <button type="button" disabled={checkout.isPending} onClick={() => checkout.mutate()} className="w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-50">
         {checkout.isPending ? t("payment.opening") : t("payment.payNow")}
       </button>
     </div>

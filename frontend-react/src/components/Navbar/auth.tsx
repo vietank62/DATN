@@ -292,7 +292,7 @@ export const Auth = () => {
                       <button
                         type="button"
                         onClick={() => setIsNotificationOpen((current) => !current)}
-                        className="relative flex cursor-pointer items-center justify-center rounded-lg p-1 text-white transition hover:bg-white/10 hover:text-amber-300"
+                        className="relative flex cursor-pointer items-center justify-center rounded-lg p-1 text-white transition hover:bg-white/10 hover:text-red-300"
                         aria-label="Thông báo"
                       >
                         <Bell className="h-4 w-4" />
@@ -310,7 +310,7 @@ export const Auth = () => {
                               <button
                                 type="button"
                                 onClick={() => void markAllNotificationsRead()}
-                                className="cursor-pointer text-xs font-semibold text-amber-700 hover:text-amber-900"
+                                className="cursor-pointer text-xs font-semibold text-red-700 hover:text-red-900"
                               >
                                 Đánh dấu đã đọc
                               </button>
@@ -328,7 +328,7 @@ export const Auth = () => {
                                 type="button"
                                 onClick={() => void openCustomerNotification(notification)}
                                 className={`w-full cursor-pointer border-b border-gray-100 px-4 py-3 text-left transition last:border-b-0 ${
-                                  notification.isRead ? "bg-white" : "bg-amber-50/80"
+                                  notification.isRead ? "bg-white" : "bg-red-50/80"
                                 } hover:bg-gray-50`}
                               >
                                 <p className="text-sm font-bold text-gray-800">

@@ -5,7 +5,7 @@ Revises: a7c9e4b12d60
 Create Date: 2026-08-20
 """
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -16,7 +16,15 @@ depends_on = None
 
 
 def upgrade():
-    inspector = sa.inspect(op.get_bind())
+    if context.is_offline_mode():
+        class OfflineInspector:
+            def has_table(self, _name): return False
+            def get_indexes(self, _name): return []
+            def get_unique_constraints(self, _name):
+                return [{"name": "uq_conversation_customer_restaurant"}]
+        inspector = OfflineInspector()
+    else:
+        inspector = sa.inspect(op.get_bind())
 
     if not inspector.has_table("conversations"):
         op.create_table(
@@ -45,7 +53,7 @@ def upgrade():
 
     existing_conversation_indexes = {
         item["name"]
-        for item in sa.inspect(op.get_bind()).get_indexes("conversations")
+        for item in inspector.get_indexes("conversations")
     }
     for name, column in (
         ("ix_conversations_customer_id", "customer_id"),
@@ -57,7 +65,7 @@ def upgrade():
 
     existing_unique_constraints = {
         item["name"]
-        for item in sa.inspect(op.get_bind()).get_unique_constraints("conversations")
+        for item in inspector.get_unique_constraints("conversations")
         if item["name"]
     }
     if "uq_conversation_customer_restaurant" not in existing_unique_constraints:
@@ -69,7 +77,7 @@ def upgrade():
 
     existing_message_indexes = {
         item["name"]
-        for item in sa.inspect(op.get_bind()).get_indexes("chat_messages")
+        for item in inspector.get_indexes("chat_messages")
     }
     for name, column in (
         ("ix_chat_messages_conversation_id", "conversation_id"),

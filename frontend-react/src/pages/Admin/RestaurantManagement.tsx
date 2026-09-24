@@ -31,7 +31,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
   return (
     <button role="switch" aria-checked={checked ? 'true' : 'false'} onClick={onChange} disabled={disabled}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-40
-        ${checked ? 'bg-violet-500' : 'bg-gray-300'}`}>
+        ${checked ? 'bg-red-600' : 'bg-gray-300'}`}>
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200
         ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
@@ -104,7 +104,7 @@ export default function RestaurantManagement() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-violet-400 focus:bg-white transition w-64"
+              className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-red-500 focus:bg-white transition w-64"
             />
           </div>
         </div>
