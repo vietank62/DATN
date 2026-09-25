@@ -3,18 +3,18 @@ import DashboardSidebar from "../components/DashboardSidebar/DashboardSidebar";
 import type { NavItem } from "../components/DashboardSidebar/DashboardSidebar";
 
 const ADMIN_NAV: NavItem[] = [
-  { label: "Phí dịch vụ", to: "/admin/booking-fees", icon: "stats" },
   { label: "Tổng quan", to: "/admin", icon: "dashboard" },
   { label: "Người dùng", to: "/admin/users", icon: "users" },
   { label: "Nhà hàng", to: "/admin/restaurants", icon: "restaurant" },
   {
     label: "Duyệt đối tác",
     to: "/admin/partner-applications",
-    icon: "restaurant",
+    icon: "approval",
   },
-  { label: "Lịch sử duyệt", to: "/admin/approval-history", icon: "stats" },
-  { label: "Báo cáo vi phạm", to: "/admin/violation-reports", icon: "users" },
-  { label: "Rút tiền / Hoàn cọc", to: "/admin/withdrawals", icon: "stats" },
+  { label: "Lịch sử duyệt", to: "/admin/approval-history", icon: "history" },
+  { label: "Báo cáo vi phạm", to: "/admin/violation-reports", icon: "shield" },
+  { label: "Rút tiền / Hoàn cọc", to: "/admin/withdrawals", icon: "wallet" },
+  { label: "Phí dịch vụ", to: "/admin/booking-fees", icon: "receipt" },
   { label: "Thống kê", to: "/admin/stats", icon: "stats" },
 ];
 
@@ -26,6 +26,7 @@ const BREADCRUMB: Record<string, string> = {
   "/admin/approval-history": "Lịch sử duyệt",
   "/admin/violation-reports": "Báo cáo vi phạm",
   "/admin/withdrawals": "Rút tiền và hoàn cọc",
+  "/admin/booking-fees": "Phí dịch vụ",
   "/admin/stats": "Thống kê",
 };
 

@@ -141,6 +141,7 @@ export const Home = () => {
             return { previousQueries };
         },
         onSuccess: (result, restaurantId) => {
+            void queryClient.invalidateQueries({ queryKey: ["favorite-restaurants"] });
             const isFavorite = result.action === "added";
             queryClient.setQueriesData<RestaurantCard[]>({ queryKey: ["restaurants"] }, (oldData) => {
                 if (!oldData) return oldData;

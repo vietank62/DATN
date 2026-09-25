@@ -73,10 +73,10 @@ def customer_cancel(booking_id: int, data: CancellationInput, session: SessionDe
     if booking.status not in {"pending", "awaiting_payment", "confirmed"}:
         raise HTTPException(409, "Đơn không còn có thể huỷ")
     restaurant = session.get(Restaurant, booking.restaurantId)
+    meal = get_booking_meal_time(booking)
+    if not meal or meal - datetime.now(APP_TIME_ZONE) <= CUSTOMER_CANCEL_LEAD:
+        raise HTTPException(409, "Còn 1 giờ hoặc ít hơn: vui lòng nhắn tin hoặc gọi hotline nhà hàng để yêu cầu huỷ")
     if booking.status == "confirmed":
-        meal = get_booking_meal_time(booking)
-        if not meal or meal - datetime.now(APP_TIME_ZONE) < CUSTOMER_CANCEL_LEAD:
-            raise HTTPException(409, "Còn dưới 1 giờ: vui lòng nhắn tin hoặc gọi hotline nhà hàng để yêu cầu huỷ")
         if booking.cancellationStatus == "requested":
             raise HTTPException(409, "Yêu cầu huỷ đang chờ nhà hàng xử lý")
         booking.cancellationStatus = "requested"
@@ -118,6 +118,10 @@ def restaurant_cancel(booking_id: int, data: CancellationInput, session: Session
     _ensure_restaurant_access(session.get(Restaurant, booking.restaurantId), current_user)
     if booking.status not in {"pending", "awaiting_payment", "confirmed"}:
         raise HTTPException(409, "Đơn không còn có thể huỷ")
+    if booking.status == "confirmed":
+        meal = get_booking_meal_time(booking)
+        if not meal or datetime.now(APP_TIME_ZONE) >= meal:
+            raise HTTPException(409, "Đã tới giờ dùng bữa, nhà hàng không thể huỷ đơn đã xác nhận")
     if data.source == "restaurant" and booking.status == "confirmed":
         if not data.contacted_customer or not data.evidence_url:
             raise HTTPException(422, "Nhà hàng phải liên hệ khách và đính kèm ảnh minh chứng khi huỷ bàn đã xác nhận")

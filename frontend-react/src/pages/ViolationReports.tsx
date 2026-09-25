@@ -9,6 +9,7 @@ import { uploadImage } from "../services/upload";
 type Report = {
   id: number;
   booking_id: number;
+  reporter_id: number;
   target_type: string;
   source: string;
   reason: string;
@@ -47,14 +48,18 @@ export default function ViolationReports() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
+
+  const [lateHistoryOffset, setLateHistoryOffset] = useState(0);
 
   const summaryQuery = useQuery<{
     late_response_count: number; customer_report_count: number; total_active_count: number;
     customer_report_history_count: number;
+    late_response_history_total: number;
     late_response_history: Array<{ id: number; booking_id: number | null; message: string; created_at: string }>;
   }>({
-    queryKey: ["violation-summary", user?.userId],
-    queryFn: () => api.get("/v1/violation-reports/manager/summary").then(r => r.data),
+    queryKey: ["violation-summary", user?.userId, lateHistoryOffset],
+    queryFn: () => api.get("/v1/violation-reports/manager/summary", { params: { limit: 5, offset: lateHistoryOffset } }).then(r => r.data),
     enabled: user?.role === "manager", refetchOnWindowFocus: true, refetchInterval: 30000,
   });
 
@@ -156,34 +161,35 @@ export default function ViolationReports() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 mt-2">
-      <div>
-        <h1 className="text-2xl font-bold">
-          {isAdmin ? "Quản lý báo cáo vi phạm" : "Vi phạm"}
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+        <p className="text-xs font-bold uppercase tracking-wide text-red-600">Quản lý tuân thủ</p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900">
+          {isAdmin ? "Quản lý báo cáo vi phạm" : isManager ? "Vi phạm và giải trình" : "Vi phạm và báo cáo"}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Các vi phạm đang có hiệu lực cần được admin duyệt trước khi được gỡ.
+        <p className="mt-2 text-sm leading-6 text-gray-500">
+          {isManager ? "Theo dõi hồ sơ vi phạm của nhà hàng, báo cáo đã gửi và phản hồi từ admin." : "Theo dõi trạng thái các báo cáo và phản hồi xử lý từ admin."}
         </p>
       </div>
 
-      {user?.role === "manager" && <section className="space-y-4">
+      {isManager && <section className="space-y-5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
         {summaryQuery.isLoading && <p>Đang tải số lần vi phạm…</p>}
         {summaryQuery.isError && <button onClick={() => void summaryQuery.refetch()} className="text-red-600">Chưa tải được thống kê vi phạm. Thử lại</button>}
         {summaryQuery.data && <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[["Tổng vi phạm còn hiệu lực", summaryQuery.data.total_active_count], ["Phản hồi trễ", summaryQuery.data.late_response_count], ["Bị khách báo cáo", summaryQuery.data.customer_report_count]].map(([label, count]) => <div key={label} className="rounded-xl border bg-white p-4"><p className="text-sm text-gray-600">{label}</p><p className="mt-2 text-2xl font-bold text-red-700">{count} lần</p></div>)}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[["Tổng vi phạm còn hiệu lực", summaryQuery.data.total_active_count, "border-red-100 bg-red-50/70 text-red-700"], ["Phản hồi trễ", summaryQuery.data.late_response_count, "border-amber-100 bg-amber-50/70 text-amber-800"], ["Bị khách báo cáo", summaryQuery.data.customer_report_count, "border-slate-200 bg-slate-50 text-slate-700"]].map(([label, count, tone]) => <div key={String(label)} className={`rounded-2xl border p-5 ${tone}`}><p className="text-xs font-bold uppercase tracking-wide opacity-75">{label}</p><p className="mt-2 text-3xl font-extrabold">{count} <span className="text-base font-semibold">lần</span></p></div>)}
           </div>
-          <p className="text-sm text-gray-500">Số lần còn hiệu lực không bao gồm vi phạm đã được gỡ. Hồ sơ xử lý khi đủ 3 lần phản hồi trễ không được tính thêm một lần. Tổng báo cáo của khách trong lịch sử: {summaryQuery.data.customer_report_history_count}.</p>
-          <div className="rounded-xl border bg-white p-5 space-y-3">
-            <h2 className="font-bold">Lịch sử cảnh báo phản hồi trễ</h2>
-            <p className="text-xs text-gray-500">Tối đa 100 cảnh báo gần nhất, bao gồm cả các lần thuộc đợt vi phạm đã được gỡ.</p>
-            {summaryQuery.data.late_response_history.length === 0 && <p className="text-sm text-gray-500">Chưa có lịch sử cảnh báo.</p>}
-            {summaryQuery.data.late_response_history.map(item => <article key={item.id} className="border-t pt-3 text-sm"><p className="font-semibold">{item.booking_id ? `Đơn #${item.booking_id}` : "Cảnh báo phản hồi trễ trước đây"}</p><p>{item.message.replaceAll("cờ phản hồi trễ", "vi phạm phản hồi trễ")}</p><p className="mt-1 text-gray-500">{new Date(item.created_at).toLocaleString("vi-VN")}</p><Link className="mt-2 inline-block font-semibold text-blue-700 underline" to={item.booking_id ? `/manager/bookings?booking=${item.booking_id}` : "/manager/bookings?status=all"}>Xem đơn đặt bàn</Link></article>)}
+          <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Chỉ các báo cáo chưa được gỡ mới được tính là vi phạm còn hiệu lực. Khi nhà hàng đã bị xử lý vì 3 lần phản hồi trễ, hồ sơ xử lý đó không làm tăng thêm số vi phạm. Khách hàng này có tổng cộng <strong>{summaryQuery.data.customer_report_history_count}</strong> báo cáo trong lịch sử.</p>
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+            <div className="border-b border-gray-100 p-5"><h2 className="font-bold text-gray-900">Lịch sử cảnh báo phản hồi trễ</h2><p className="mt-1 text-xs text-gray-500">Hiển thị 5 đơn gần nhất. Bạn có thể chuyển trang để xem các cảnh báo trước đó.</p></div>
+            {summaryQuery.data.late_response_history.length === 0 && <p className="p-5 text-sm text-gray-500">Chưa có lịch sử cảnh báo.</p>}
+            {summaryQuery.data.late_response_history.map(item => <article key={item.id} className="border-t border-gray-100 px-5 py-4 text-sm"><p className="font-semibold">{item.booking_id ? `Đơn #${item.booking_id}` : "Cảnh báo phản hồi trễ trước đây"}</p><p>{item.message.replaceAll("cờ phản hồi trễ", "vi phạm phản hồi trễ")}</p><p className="mt-1 text-gray-500">{new Date(item.created_at).toLocaleString("vi-VN")}</p><Link className="mt-2 inline-block font-semibold text-blue-700 underline" to={item.booking_id ? `/manager/bookings?booking=${item.booking_id}` : "/manager/bookings?status=all"}>Xem chi tiết đơn</Link></article>)}
+            {summaryQuery.data.late_response_history_total > 5 && <nav className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4 text-sm"><button type="button" disabled={lateHistoryOffset === 0 || summaryQuery.isFetching} onClick={() => setLateHistoryOffset(value => Math.max(0, value - 5))} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang trước</button><span className="text-gray-500">Trang {lateHistoryOffset / 5 + 1}</span><button type="button" disabled={lateHistoryOffset + 5 >= summaryQuery.data.late_response_history_total || summaryQuery.isFetching} onClick={() => setLateHistoryOffset(value => value + 5)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang tiếp</button></nav>}
           </div>
-          <h2 className="text-lg font-bold">Báo cáo và giải trình</h2>
         </>}
       </section>}
 
+      {isManager && <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6"><h2 className="text-lg font-bold text-gray-900">Hồ sơ vi phạm và giải trình</h2><p className="mt-1 text-sm text-gray-500">Theo dõi tiến trình xử lý từng hồ sơ bên dưới.</p></section>}
       {reportsQuery.isLoading && (
         <div className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500">
           Đang tải thông tin báo cáo...
@@ -197,17 +203,17 @@ export default function ViolationReports() {
       )}
 
       {reportsQuery.data?.map((report) => (
-        <article key={report.id} className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
+        <article key={report.id} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-bold text-gray-900">
-                {report.source === "late_response" ? "Phản hồi trễ – hồ sơ xử lý" : "Bị báo cáo"} · Đơn #{report.booking_id}
+                {report.source === "late_response" ? "Phản hồi trễ – hồ sơ xử lý" : report.reporter_id === user?.userId ? "Báo cáo đã gửi" : "Bị báo cáo"} · Đơn #{report.booking_id}
               </p>
               <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
                 {report.reason}
               </p>
             </div>
-            <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${report.status === "dismissed" ? "bg-emerald-100 text-emerald-700" : report.status === "appeal_pending" ? "bg-amber-100 text-amber-800" : "bg-red-50 text-red-700"}`}>
               {STATUS_LABEL[report.status] || report.status}
             </span>
           </div>
@@ -228,11 +234,11 @@ export default function ViolationReports() {
             </p>
           )}
 
-          {!isAdmin && ["open", "appeal_rejected"].includes(report.status) && (
+          {!isAdmin && report.reporter_id !== user?.userId && ["open", "appeal_rejected"].includes(report.status) && (
             <button
               type="button"
               onClick={() => setSelectedReport(report)}
-              className="mt-4 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white"
+              className="mt-4 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-600"
             >
               Gửi giải trình
             </button>

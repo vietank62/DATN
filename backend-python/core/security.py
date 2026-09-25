@@ -51,6 +51,6 @@ def decode_token(token: str) -> dict[str, Any]:
     except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.",
             headers={"WWW-Authenticate": "Bearer"},
         )

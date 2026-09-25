@@ -32,6 +32,8 @@ export interface BookingDetail {
   cancellationActor?: string | null;
   depositAmount: number;
   depositStatus: string;
+  refundStatus?: "pending" | "processing" | "refunded" | null;
+  restaurantReportStatus?: "open" | "appeal_pending" | "dismissed" | "appeal_rejected" | null;
   depositPaidAt?: string | null;
   depositExpiresAt?: string | null;
   contactName: string;

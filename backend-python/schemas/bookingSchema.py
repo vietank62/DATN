@@ -33,6 +33,8 @@ class BookingResponse(BaseModel):
     status: str
     depositAmount: int = 0
     depositStatus: str = "not_required"
+    refundStatus: Optional[str] = None
+    restaurantReportStatus: Optional[str] = None
     depositPaidAt: Optional[str] = None
     depositExpiresAt: Optional[str] = None
     contactName: str

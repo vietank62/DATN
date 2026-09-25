@@ -1,3 +1,4 @@
+import { AdminRestaurantDetail } from "../../components/AdminDetailDialog";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { toast } from 'sonner';
@@ -40,6 +41,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 
 export default function RestaurantManagement() {
   const qc = useQueryClient();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -71,6 +73,7 @@ export default function RestaurantManagement() {
 
   return (
     <div className="space-y-6">
+      {selectedId !== null && <AdminRestaurantDetail key={selectedId} id={selectedId} onClose={() => setSelectedId(null)} />}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Quản lý nhà hàng</h1>
         <p className="text-sm text-gray-400 mt-0.5">Phê duyệt và điều chỉnh trạng thái hoạt động của nhà hàng</p>
@@ -122,6 +125,7 @@ export default function RestaurantManagement() {
                   <th className="px-6 py-3 text-center">Sức chứa</th>
                   <th className="px-6 py-3 text-center">Đánh giá</th>
                   <th className="px-6 py-3 text-center">Trạng thái</th>
+                  <th className="px-6 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -150,10 +154,14 @@ export default function RestaurantManagement() {
                         </span>
                       </div>
                     </td>
+                    <td className="px-6 py-3.5 text-right whitespace-nowrap"><button type="button" onClick={() => setSelectedId(r.id)}
+                        className="mr-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                        Xem chi tiết
+                      </button></td>
                   </tr>
                 ))}
                 {restaurants.length === 0 && (
-                  <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400 text-sm">Không tìm thấy kết quả</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400 text-sm">Không tìm thấy kết quả</td></tr>
                 )}
               </tbody>
             </table>

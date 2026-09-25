@@ -38,6 +38,15 @@ def update_me(
     update_data = user_data.model_dump(exclude_unset=True)
     if "role" in update_data:
         raise HTTPException(403, "Không thể tự thay đổi vai trò tài khoản")
+
+    current_password = update_data.pop("current_password", None)
+    new_password = update_data.get("password")
+    if new_password and new_password.strip():
+        if not current_password or not security.verify_password(current_password, current_user.password):
+            raise HTTPException(400, "Mật khẩu hiện tại không chính xác")
+        if security.verify_password(new_password, current_user.password):
+            raise HTTPException(400, "Mật khẩu mới bị trùng mật khẩu cũ")
+
     _apply_user_update_fields(current_user, update_data)
 
     session.add(current_user)
@@ -83,6 +92,27 @@ def get_all_users(
         "offset": offset,
     }
 
+@router.get("/{user_id}/detail", response_model=dict)
+def admin_user_detail(
+    user_id: int,
+    session: SessionDep,
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+):
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "Không tìm thấy người dùng")
+    from models.restaurant import Restaurant
+    restaurant = session.exec(select(Restaurant).where(Restaurant.manager_id == user_id)).first()
+    return {
+        "userId": user.userId, "name": user.name, "email": user.email,
+        "phone": user.phone, "role": user.role, "createdAt": user.createdAt,
+        "is_suspended": user.is_suspended,
+        "is_permanently_banned": user.is_permanently_banned,
+        "report_strikes": user.report_strikes,
+        "restaurant": {"id": restaurant.id, "name": restaurant.name} if restaurant else None,
+    }
+
+
 @router.post("/", response_model=UserOut)
 def admin_create_user(
     user_data: UserRegister,
@@ -92,7 +122,7 @@ def admin_create_user(
     existing_user = session.exec(select(User).where(User.email == user_data.email)).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-        
+
     new_user = User(
         name=user_data.name,
         email=user_data.email,
@@ -136,7 +166,7 @@ def delete_user(
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     session.delete(user)
     session.commit()
     return {"message": "User deleted successfully"}

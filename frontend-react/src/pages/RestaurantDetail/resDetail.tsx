@@ -1,5 +1,5 @@
 import { DepositCheckoutPanel } from "../../components/DepositCheckoutPanel";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -111,8 +111,10 @@ export const RestaurantDetail = () => {
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
 
-  const [adults, setAdults] = useState(2);
-  const [children, setChildren] = useState(0);
+  const [adultsInput, setAdultsInput] = useState("2");
+  const [childrenInput, setChildrenInput] = useState("0");
+  const adults = Number(adultsInput) || 0;
+  const children = Number(childrenInput) || 0;
   const [bookingDate, setBookingDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -133,35 +135,39 @@ export const RestaurantDetail = () => {
     null,
   );
 
-  const [requestSeats, setRequestSeats] = useState(2);
+  const [requestSeatsInput, setRequestSeatsInput] = useState("2");
+  const requestSeats = Number(requestSeatsInput) || 0;
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [note, setNote] = useState("");
 
-  const updateAdults = (value: string | number) => {
-    const nextAdults = Math.min(100, Math.max(1, Number(value) || 1));
+  const normalizedContactPhone = contactPhone.replace(/[.\s-]/g, "");
+  const isValidContactPhone = /^(?:0(?:3|5|7|8|9)\d{8}|(?:\+84|84)(?:3|5|7|8|9)\d{8})$/u.test(normalizedContactPhone);
 
-    setAdults(nextAdults);
-    setRequestSeats((currentSeats) =>
-      Math.max(currentSeats, nextAdults + children),
-    );
+  const totalGuests = adults + children;
+  const digitsOnly = (value: string) => value.replace(/\D/g, "");
+
+  useEffect(() => {
+    window.localStorage.setItem("booking-total-guests", String(totalGuests));
+    setRequestSeatsInput((current) => totalGuests > 0 ? String(totalGuests) : current);
+  }, [totalGuests]);
+
+  const updateAdults = (value: string) => {
+    setAdultsInput(digitsOnly(value));
   };
 
-  const updateChildren = (value: string | number) => {
-    const nextChildren = Math.min(100, Math.max(0, Number(value) || 0));
-
-    setChildren(nextChildren);
-    setRequestSeats((currentSeats) =>
-      Math.max(currentSeats, adults + nextChildren),
-    );
+  const updateChildren = (value: string) => {
+    setChildrenInput(digitsOnly(value));
   };
 
-  const updateRequestSeats = (value: string | number) => {
-    const totalGuests = adults + children;
-    const nextSeats = Math.min(200, Math.max(1, Number(value) || 1));
+  const updateRequestSeats = (value: string) => {
+    setRequestSeatsInput(digitsOnly(value));
+  };
 
-    setRequestSeats(Math.max(totalGuests, nextSeats));
+  const normalizeRequestSeats = () => {
+    const seats = Number(requestSeatsInput) || 0;
+    setRequestSeatsInput(String(Math.max(totalGuests, seats)));
   };
   const [selectedMenuItems, setSelectedMenuItems] = useState<
     Record<number, number>
@@ -300,6 +306,7 @@ export const RestaurantDetail = () => {
       };
     },
     onSuccess: (result, restaurantId) => {
+      void queryClient.invalidateQueries({ queryKey: ["favorite-restaurants"] });
       const isFavorite = result.action === "added";
 
       queryClient.setQueryData<RestaurantCard>(
@@ -559,6 +566,11 @@ export const RestaurantDetail = () => {
       return false;
     }
 
+    if (!isValidContactPhone) {
+      toast.error("Số điện thoại không đúng định dạng.");
+      return false;
+    }
+
     bookingMutation.mutate(payload, {
       onSuccess: (booking) => {
         void queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
@@ -569,6 +581,10 @@ export const RestaurantDetail = () => {
   };
 
   const handleStepOneNext = () => {
+    if (adults < 1) {
+      toast.error("Vui lòng nhập ít nhất 1 người lớn.");
+      return;
+    }
     if (!bookingDate || !bookingTime) {
       toast.error("Vui lòng chọn ngày và giờ đến.");
       return;
@@ -583,6 +599,10 @@ export const RestaurantDetail = () => {
   const handleStepTwoNext = () => {
     if (!contactName.trim() || !contactEmail.trim() || !contactPhone.trim()) {
       toast.error("Vui lòng nhập đầy đủ tên, email và số điện thoại.");
+      return;
+    }
+    if (!isValidContactPhone) {
+      toast.error("Số điện thoại Việt Nam phải có 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.");
       return;
     }
     setBookingStep(3);
@@ -1016,15 +1036,14 @@ export const RestaurantDetail = () => {
                   <input
                     type="number"
                     min="1"
-                    max="100"
-                    value={adults}
+                    value={adultsInput}
                     onChange={(e) => updateAdults(e.target.value)}
                     className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none"
                   />
                   <select
                     aria-hidden="true"
                     tabIndex={-1}
-                    value={adults}
+                    value={adultsInput}
                     onChange={(e) => updateAdults(e.target.value)}
                     className="hidden"
                   >
@@ -1042,15 +1061,14 @@ export const RestaurantDetail = () => {
                   <input
                     type="number"
                     min="0"
-                    max="100"
-                    value={children}
+                    value={childrenInput}
                     onChange={(e) => updateChildren(e.target.value)}
                     className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none"
                   />
                   <select
                     aria-hidden="true"
                     tabIndex={-1}
-                    value={children}
+                    value={childrenInput}
                     onChange={(e) => updateChildren(e.target.value)}
                     className="hidden"
                   >
@@ -1273,15 +1291,14 @@ export const RestaurantDetail = () => {
                       <input
                         type="number"
                         min="1"
-                        max="100"
-                        value={adults}
+                        value={adultsInput}
                         onChange={(e) => updateAdults(e.target.value)}
                         className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                       <select
                         aria-hidden="true"
                         tabIndex={-1}
-                        value={adults}
+                        value={adultsInput}
                         onChange={(e) => updateAdults(e.target.value)}
                         className="hidden"
                       >
@@ -1299,15 +1316,14 @@ export const RestaurantDetail = () => {
                       <input
                         type="number"
                         min="0"
-                        max="100"
-                        value={children}
+                        value={childrenInput}
                         onChange={(e) => updateChildren(e.target.value)}
                         className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                       <select
                         aria-hidden="true"
                         tabIndex={-1}
-                        value={children}
+                        value={childrenInput}
                         onChange={(e) => updateChildren(e.target.value)}
                         className="hidden"
                       >
@@ -1469,15 +1485,15 @@ export const RestaurantDetail = () => {
                       <input
                         type="number"
                         min={adults + children}
-                        max="200"
-                        value={requestSeats}
+                        value={requestSeatsInput}
                         onChange={(e) => updateRequestSeats(e.target.value)}
+                        onBlur={normalizeRequestSeats}
                         className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                       <select
                         aria-hidden="true"
                         tabIndex={-1}
-                        value={requestSeats}
+                        value={requestSeatsInput}
                         onChange={(e) => updateRequestSeats(e.target.value)}
                         className="hidden"
                       >

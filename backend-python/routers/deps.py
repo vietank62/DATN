@@ -18,13 +18,13 @@ def get_current_user(
     
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.",
         headers={"WWW-Authenticate": authenticate_value},
     )
     
     payload = decode_token(token)
     if payload.get("type") == "refresh":
-        raise HTTPException(401, "Refresh token không được dùng để truy cập API")
+        raise HTTPException(401, "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.")
     email: str = payload.get("email")
     if email is None:
         raise credentials_exception
@@ -50,7 +50,7 @@ def get_current_user(
         if scope not in token_scopes:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not enough permissions",
+                detail="Phiên đăng nhập không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.",
                 headers={"WWW-Authenticate": authenticate_value},
             )
     return user
@@ -69,7 +69,7 @@ def get_optional_current_user(
 
     payload = decode_token(token)
     if payload.get("type") == "refresh":
-        raise HTTPException(401, "Refresh token không được dùng để truy cập API")
+        raise HTTPException(401, "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.")
     email: str = payload.get("email")
     if email is None:
         return None
@@ -97,8 +97,8 @@ def get_current_user_for_appeal(
     """Authenticate a suspended user only for the appeal endpoint."""
     payload = decode_token(token)
     if payload.get("type") == "refresh" or not payload.get("email"):
-        raise HTTPException(401, "Could not validate credentials")
+        raise HTTPException(401, "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.")
     user = session.exec(select(User).where(User.email == payload["email"])).first()
     if not user:
-        raise HTTPException(401, "Could not validate credentials")
+        raise HTTPException(401, "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.")
     return user

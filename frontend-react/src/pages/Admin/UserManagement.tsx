@@ -1,3 +1,4 @@
+import { AdminUserDetail } from "../../components/AdminDetailDialog";
 import { ROLE_LABEL } from "../../utils/status";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
@@ -16,6 +17,7 @@ const PAGE_SIZE = 10;
 
 export default function UserManagement() {
   const qc = useQueryClient();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -38,6 +40,7 @@ export default function UserManagement() {
       qc.invalidateQueries({ queryKey: ['admin-users'] });
       qc.invalidateQueries({ queryKey: ['admin-stats'] });
       setDeletingId(null);
+      setSelectedId(null);
     },
     onError: () => toast.error('Xoá thất bại'),
   });
@@ -47,6 +50,7 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6">
+      {selectedId !== null && <AdminUserDetail key={selectedId} id={selectedId} onClose={() => setSelectedId(null)} />}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Quản lý người dùng</h1>
         <p className="text-sm text-gray-400 mt-0.5">Danh sách toàn bộ tài khoản trên hệ thống</p>
@@ -111,6 +115,10 @@ export default function UserManagement() {
                       </span>
                     </td>
                     <td className="px-6 py-3.5 text-right">
+                      <button type="button" onClick={() => setSelectedId(u.userId)}
+                        className="mr-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                        Xem chi tiết
+                      </button>
                       {deletingId === u.userId ? (
                         <div className="flex items-center justify-end gap-2">
                           <span className="text-xs text-gray-400">Xác nhận?</span>

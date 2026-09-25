@@ -36,6 +36,18 @@ const ICONS = {
     "M4 19.5A2.5 2.5 0 016.5 17H9l1.5 2h3L15 17h2.5a2.5 2.5 0 012.5 2.5V21H4v-1.5zM7 3h10v10H7z",
   stats:
     "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+  history:
+    "M12 8v4l3 3m6-3a9 9 0 11-3-6.7M21 4v5h-5",
+  shield:
+    "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zm0-14v4m0 4h.01",
+  wallet:
+    "M20 7V6a2 2 0 00-2-2H5a3 3 0 000 6h14a2 2 0 012 2v5a3 3 0 01-3 3H5a3 3 0 01-3-3V7m15 6h.01",
+  receipt:
+    "M7 3h10a2 2 0 012 2v16l-3-2-4 2-4-2-3 2V5a2 2 0 012-2zm3 5h4m-4 4h5",
+  approval:
+    "M9 5h6m-3-2v4m-5 1H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2-2v-9a2 2 0 00-2-2h-2m-7 6l2 2 4-4",
+  settings:
+    "M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm7.4-3.5a7.7 7.7 0 00-.1-1l2-1.5-2-3.5-2.3 1a7 7 0 00-1.7-1L15 3h-4l-.3 3a7 7 0 00-1.7 1L6.7 6 4.7 9.5 6.8 11a7.7 7.7 0 000 2l-2.1 1.5 2 3.5 2.3-1a7 7 0 001.7 1l.3 3h4l.3-3a7 7 0 001.7-1l2.3 1 2-3.5-2.1-1.5c.1-.3.1-.7.1-1z",
   logout:
     "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
   chevronLeft: "M15 19l-7-7 7-7",
@@ -148,7 +160,7 @@ export default function DashboardSidebar({
                   className={isActive ? ACTIVE_ICON[variant] : "text-gray-400"}
                 >
                   <Icon
-                    path={ICONS[item.icon]}
+                    path={ICONS[item.icon] ?? ICONS.dashboard}
                     className="w-5 h-5 flex-shrink-0"
                   />
                 </span>

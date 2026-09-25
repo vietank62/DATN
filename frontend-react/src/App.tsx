@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CustomerFacingRoute } from "./components/CustomerFacingRoute";
 import { ScrollToTop } from "./components/ScrolltoTop/ScrolltoTop";
 import { LocationProvider } from "./context/LocationProvider";
 import { useTranslation } from "react-i18next";
@@ -29,6 +30,7 @@ const PartnerRegister = lazy(() => import("./pages/Manager/PartnerRegister"));
 const PartnerPolicy = lazy(() => import("./pages/Manager/PartnerPolicy"));
 const AccountProfile = lazy(() => import("./pages/Account/AccountProfile"));
 const BookingRefund = lazy(() => import("./pages/Account/BookingRefund"));
+const Favorites = lazy(() => import("./pages/Account/Favorites"));
 const BookingPage = lazy(() => import("./pages/Account/booking"));
 const ChatPage = lazy(() => import("./pages/Chat/ChatPage"));
 const ViolationReports = lazy(() => import("./pages/ViolationReports"));
@@ -99,6 +101,7 @@ function App() {
           <ScrollToTop />
           <Suspense fallback={<PageLoading />}>
             <Routes>
+              <Route element={<CustomerFacingRoute />}>
               <Route element={<MainLayout />}>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/restaurant/:id" element={<RestaurantDetail />} />
@@ -114,6 +117,7 @@ function App() {
                 <Route path="/partner/policy" element={<PartnerPolicy />} />
                 <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
                   <Route path="/account/profile" element={<AccountProfile />} />
+                  <Route path="/account/favorites" element={<Favorites />} />
                   <Route path="/account/bookings" element={<BookingPage />} />
                   <Route path="/account/bookings/:bookingId/refund" element={<BookingRefund />} />
                   <Route
@@ -126,6 +130,7 @@ function App() {
                   />
                   <Route path="/chat/:restaurantId?" element={<ChatPage />} />
                 </Route>
+              </Route>
               </Route>
 
               {/* === Admin === */}

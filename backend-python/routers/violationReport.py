@@ -59,6 +59,7 @@ def report_customer(
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn đặt bàn")
     if booking.status not in {"confirmed", "completed"}:
         raise HTTPException(status_code=400, detail="Chỉ có thể báo cáo khách không đến với đơn đã xác nhận")
+    ensure_report_window(booking, timedelta())
     if session.exec(select(ViolationReport).where(ViolationReport.booking_id == booking.bookingId, ViolationReport.target_type == "customer")).first():
         raise HTTPException(status_code=409, detail="Đơn đặt bàn này đã được báo cáo")
 
@@ -96,6 +97,7 @@ def report_restaurant(
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn đặt bàn")
     if booking.status not in {"confirmed", "completed"}:
         raise HTTPException(status_code=400, detail="Chỉ có thể báo cáo nhà hàng từ đơn đã xác nhận hoặc hoàn thành")
+    ensure_report_window(booking, timedelta())
     if session.exec(select(ViolationReport).where(ViolationReport.booking_id == booking.bookingId, ViolationReport.target_type == "restaurant")).first():
         raise HTTPException(status_code=409, detail="Đơn đặt bàn này đã báo cáo nhà hàng")
 
@@ -114,7 +116,7 @@ def report_restaurant(
 
 
 @router.get("/manager/summary")
-def manager_violation_summary(current_user: Annotated[User, Security(get_current_user, scopes=["manager"])], session: SessionDep):
+def manager_violation_summary(current_user: Annotated[User, Security(get_current_user, scopes=["manager"])], session: SessionDep, limit: int = 5, offset: int = 0):
     restaurant = session.exec(select(Restaurant).where(Restaurant.manager_id == current_user.userId)).first()
     if not restaurant:
         raise HTTPException(404, "Tài khoản chưa liên kết nhà hàng")
@@ -125,17 +127,20 @@ def manager_violation_summary(current_user: Annotated[User, Security(get_current
             ViolationReport.target_type == "restaurant",
             ViolationReport.source == "customer_report")).one()
     # Threshold escalation records are not extra violations. The counter tracks active late responses.
-    warnings = session.exec(select(Notification).outerjoin(Booking, Booking.bookingId == Notification.bookingId)
-        .where(Notification.type == "late_response_warning", or_(
-            Booking.restaurantId == restaurant.id,
-            and_(Notification.bookingId == None, Notification.userId == current_user.userId)))
-        .order_by(Notification.id.desc()).limit(100)).all()
+    warning_filter = and_(Notification.type == "late_response_warning", or_(
+        Booking.restaurantId == restaurant.id,
+        and_(Notification.bookingId == None, Notification.userId == current_user.userId),
+    ))
+    warning_query = select(Notification).outerjoin(Booking, Booking.bookingId == Notification.bookingId).where(warning_filter)
+    warning_total = session.exec(select(func.count(Notification.id)).outerjoin(Booking, Booking.bookingId == Notification.bookingId).where(warning_filter)).one()
+    warnings = session.exec(warning_query.order_by(Notification.id.desc()).offset(offset).limit(min(max(limit, 1), 50))).all()
     late_count = max(0, restaurant.late_response_strikes)
     return {
         "late_response_count": late_count,
         "customer_report_count": active_reports,
         "total_active_count": late_count + active_reports,
         "customer_report_history_count": report_count,
+        "late_response_history_total": int(warning_total or 0),
         "late_response_history": [{"id": n.id, "booking_id": n.bookingId, "message": n.message,
             "created_at": n.createdAt} for n in warnings],
     }
@@ -144,10 +149,16 @@ def manager_violation_summary(current_user: Annotated[User, Security(get_current
 @router.get("/me", response_model=list[ViolationReport])
 def get_my_reports(current_user: Annotated[User, Security(get_current_user)], session: SessionDep):
     if current_user.role == "customer":
-        statement = select(ViolationReport).where(ViolationReport.target_user_id == current_user.userId)
+        statement = select(ViolationReport).where(or_(
+            ViolationReport.target_user_id == current_user.userId,
+            ViolationReport.reporter_id == current_user.userId,
+        ))
     elif current_user.role == "manager":
         restaurant = session.exec(select(Restaurant).where(Restaurant.manager_id == current_user.userId)).first()
-        statement = select(ViolationReport).where(ViolationReport.target_restaurant_id == (restaurant.id if restaurant else -1))
+        statement = select(ViolationReport).where(or_(
+            ViolationReport.target_restaurant_id == (restaurant.id if restaurant else -1),
+            ViolationReport.reporter_id == current_user.userId,
+        ))
     else:
         raise HTTPException(status_code=403, detail="Tính năng này không khả dụng cho tài khoản hiện tại")
     return session.exec(statement.order_by(ViolationReport.created_at.desc())).all()

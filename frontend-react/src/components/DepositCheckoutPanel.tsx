@@ -60,11 +60,16 @@ export function DepositCheckoutPanel({ bookingId }: { bookingId: number }) {
     },
     onError: error => {
       const code = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const detail = axios.isAxiosError(error)
+        ? error.response?.data?.detail
+        : undefined;
       toast.error(code === 401
         ? t("payment.signInAgain")
         : code === 409
           ? t("payment.bookingChanged")
-          : t("payment.openFailed"));
+          : typeof detail === "string" && detail
+            ? detail
+            : t("payment.openFailed"));
       void statusQ.refetch();
     },
   });

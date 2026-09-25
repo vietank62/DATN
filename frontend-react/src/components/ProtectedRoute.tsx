@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { defaultRouteForRole } from '../utils/roleRoutes';
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
@@ -19,9 +20,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) 
   if (!user) {
     return <Navigate to="/" replace />;
   }
-  // If roles are restricted and user doesn't have required role, redirect to home
-  if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+  // Send authenticated users to the home area for their own role.
+  if (allowedRoles && user.role && !allowedRoles.includes(user.role)) {
+    return <Navigate to={defaultRouteForRole(user.role)} replace />;
   }
 
   return <Outlet />;

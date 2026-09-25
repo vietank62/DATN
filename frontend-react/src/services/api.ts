@@ -44,6 +44,11 @@ api.interceptors.request.use((config) => {
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Let the browser generate the multipart boundary for image uploads.
+  if (config.data instanceof FormData && config.headers) {
+    config.headers.delete?.('Content-Type');
+    delete config.headers['Content-Type'];
+  }
   return config;
 }, (error) => {
   return Promise.reject(error);
@@ -65,10 +70,13 @@ api.interceptors.response.use(
         originalRequest.headers = originalRequest.headers ?? {};
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest as never);
-      } catch (refreshError) {
+      } catch {
         localStorage.removeItem('token');
         window.dispatchEvent(new Event('auth:logout'));
-        return Promise.reject(refreshError);
+        if (error.response?.data) {
+          error.response.data.detail = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        }
+        return Promise.reject(error);
       }
     }
 

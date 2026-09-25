@@ -101,16 +101,16 @@ def login_for_access_token(
 def refresh_access_token(request: Request, session: SessionDep): #type: ignore
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
-        raise HTTPException(status_code=401, detail="No refresh token")
+        raise HTTPException(status_code=401, detail="Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
         
     payload = security.decode_token(refresh_token)
     email = payload.get("email")
     if email is None or payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        raise HTTPException(status_code=401, detail="Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.")
 
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.")
 
     if user.is_permanently_banned:
         raise HTTPException(403, "Tài khoản đã bị cấm vĩnh viễn do vi phạm đặt bàn")

@@ -11,19 +11,19 @@ const MANAGER_NAV: NavItem[] = [
   { label: "Đặt bàn", to: "/manager/bookings", icon: "booking" },
   { label: "Tin nhắn", to: "/manager/chat", icon: "message" },
   { label: "Thực đơn", to: "/manager/menu", icon: "menu" },
-  { label: "Tiền đặt cọc", to: "/manager/finance", icon: "stats" },
+  { label: "Tiền đặt cọc", to: "/manager/finance", icon: "wallet" },
   {
     label: "Cài đặt nhà hàng",
     to: "/manager/restaurant-settings",
-    icon: "restaurant",
+    icon: "settings",
   },
   { label: "Hồ sơ đối tác", to: "/manager/partner", icon: "partner" },
   {
     label: "Trạng thái xét duyệt",
     to: "/manager/approval-status",
-    icon: "stats",
+    icon: "approval",
   },
-  { label: "Vi phạm", to: "/manager/violation-reports", icon: "stats" },
+  { label: "Vi phạm", to: "/manager/violation-reports", icon: "shield" },
 ];
 
 const BREADCRUMB: Record<string, string> = {

@@ -30,6 +30,7 @@ interface MenuChartResponse {
   totalItems: number;
 }
 interface FeeStats { availableBalance: number; completedBookings: number; }
+interface ManagerFinanceResponse { summary: FeeStats; }
 
 
 // ── Light KPI Card ─────────────────────────────────────────────────────────────
@@ -214,7 +215,7 @@ export default function ManagerDashboard() {
         .then((r) => r.data),
     enabled: !!restaurantId,
   });
-  const feeQ = useQuery<FeeStats>({
+  const feeQ = useQuery<ManagerFinanceResponse>({
     queryKey: ["manager-deposit-summary", restaurantId],
     queryFn: () =>
       api.get("/v1/deposits/manager/summary").then((r) => r.data),
@@ -254,7 +255,7 @@ export default function ManagerDashboard() {
   }
 
   const stats = statsQ.data;
-  const fees = feeQ.data;
+  const fees = feeQ.data?.summary;
 
   return (
     <div className="space-y-8">

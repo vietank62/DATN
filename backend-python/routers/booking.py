@@ -103,6 +103,9 @@ def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit:
 			continue
 
 		booking.status = "expired"
+		booking.cancellationStatus = "expired"
+		booking.cancellationActor = "system"
+		booking.cancellationReason = "Nhà hàng không xác nhận đơn trước thời hạn 2 giờ"
 		booking.expiredAt = (meal_time - CONFIRMATION_LEAD).astimezone(timezone.utc).isoformat()
 		session.add(booking)
 		session.flush()
@@ -136,11 +139,11 @@ def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit:
 		session.add(Notification(
 			userId=booking.userId,
 			bookingId=booking.bookingId,
-			title="Bổ sung thông tin nhận hoàn cọc" if needs_refund else "Đơn đặt bàn đã hết hạn phản hồi",
+			title="Bổ sung thông tin nhận hoàn cọc" if needs_refund else "Đơn đặt bàn đã tự động huỷ",
 			message=(
 				f"Nhà hàng chưa phản hồi đơn #{booking.bookingId} đúng hạn. "
 				+ (f"Bạn được hoàn {payment.amount:,}đ tiền đặt cọc. Bấm để gửi thông tin tài khoản nhận tiền; ảnh QR không bắt buộc."
-				   if needs_refund else "Đơn đã hết hạn. Bạn có thể chọn nhà hàng khác để đặt bàn.")
+				   if needs_refund else "Đơn đã tự động huỷ. Bạn có thể chọn nhà hàng khác để đặt bàn.")
 			),
 			type="refund_required" if needs_refund else "booking_expired",
 			createdAt=now_iso,
@@ -217,6 +220,13 @@ def _serialize_booking(session: Any, booking: Booking) -> BookingResponse:
 		for booking_item, menu_item in item_rows
 	]
 
+	refund = session.exec(select(DepositRefund).where(DepositRefund.booking_id == booking.bookingId)).first()
+	restaurant_report = session.exec(select(ViolationReport).where(
+		ViolationReport.booking_id == booking.bookingId,
+		ViolationReport.target_type == 'restaurant',
+		ViolationReport.reporter_id == booking.userId,
+	)).first()
+
 	return BookingResponse(
 		bookingId=booking.bookingId,
 		userId=booking.userId,
@@ -233,6 +243,8 @@ def _serialize_booking(session: Any, booking: Booking) -> BookingResponse:
         status=booking.status,
         depositAmount=booking.depositAmount,
         depositStatus=booking.depositStatus,
+        refundStatus=refund.status if refund else None,
+        restaurantReportStatus=restaurant_report.status if restaurant_report else None,
         depositPaidAt=booking.depositPaidAt,
         depositExpiresAt=deposit_deadline(booking).isoformat() if deposit_deadline(booking) else None,
 		contactName=booking.contactName,
@@ -256,6 +268,11 @@ def _serialize_bookings(session: Any, bookings: list[Booking]) -> list[BookingRe
 		select(Restaurant.id, Restaurant.name).where(Restaurant.id.in_(restaurant_ids))
 	).all()
 	restaurant_names = {restaurant_id: name for restaurant_id, name in restaurant_rows}
+
+	refund_rows = session.exec(
+		select(DepositRefund.booking_id, DepositRefund.status).where(DepositRefund.booking_id.in_(booking_ids))
+	).all()
+	refund_statuses = {booking_id: status for booking_id, status in refund_rows}
 
 	item_rows = session.exec(
 		select(BookingItem, RestaurantMenuList)
@@ -300,6 +317,7 @@ def _serialize_bookings(session: Any, bookings: list[Booking]) -> list[BookingRe
 			status=booking.status,
 			depositAmount=booking.depositAmount,
 			depositStatus=booking.depositStatus,
+			refundStatus=refund_statuses.get(booking.bookingId),
 			depositPaidAt=booking.depositPaidAt,
 			depositExpiresAt=deposit_deadline(booking).isoformat() if deposit_deadline(booking) else None,
 			contactName=booking.contactName,

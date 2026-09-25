@@ -35,14 +35,17 @@ def expire_locked_deposit(session, booking: Booking, now: datetime | None = None
         return False
     booking.status = "payment_expired"
     booking.depositStatus = "expired"
+    booking.cancellationStatus = "expired"
+    booking.cancellationActor = "system"
+    booking.cancellationReason = "Hết hạn thanh toán đặt cọc"
     session.add(booking)
     if payment:
         payment.status = "expired"
         session.add(payment)
     session.add(Notification(
         userId=booking.userId,
-        title="Đơn đặt bàn đã hết hạn đặt cọc",
-        message="Bạn chưa thanh toán đặt cọc trong thời hạn. Đơn đã tự động hết hạn; vui lòng tạo đơn mới nếu vẫn muốn đặt bàn.",
+        title="Đơn đặt bàn đã tự động huỷ",
+        message="Bạn chưa thanh toán đặt cọc trong thời hạn. Đơn đã tự động huỷ; vui lòng tạo đơn mới nếu vẫn muốn đặt bàn.",
         type="booking_expired",
         createdAt=current.isoformat(),
     ))

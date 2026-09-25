@@ -318,6 +318,33 @@ def get_messages(
     ]
 
 
+def create_chat_notification(
+    session: SessionDep,
+    conversation: Conversation,
+    restaurant: Restaurant,
+    sender: User,
+    content: str,
+) -> None:
+    """Notify the other participant without preventing message delivery."""
+    recipient_id = (
+        restaurant.manager_id
+        if sender.role == "customer"
+        else conversation.customer_id
+    )
+    if not recipient_id or recipient_id == sender.userId:
+        return
+
+    preview = " ".join(content.split())[:180]
+    session.add(Notification(
+        userId=recipient_id,
+        conversationId=conversation.id,
+        title=f"Tin nhắn mới từ {sender.name}",
+        message=preview,
+        type="chat_message",
+        createdAt=datetime.now(timezone.utc).isoformat(),
+    ))
+
+
 @router.post("/conversations/{conversation_id}/messages", response_model=dict)
 def send_message(
     conversation_id: int,
@@ -328,6 +355,9 @@ def send_message(
     conversation = get_conversation_or_404(session, conversation_id)
     restaurant = ensure_conversation_access(session, conversation, current_user)
     content = data.content.strip()
+    if not content:
+        raise HTTPException(status_code=422, detail="Nội dung tin nhắn không được để trống")
+
     now = datetime.now(timezone.utc)
     message = ChatMessage(
         conversation_id=conversation.id,

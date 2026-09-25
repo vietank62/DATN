@@ -115,6 +115,26 @@ def get_all_restaurants_for_admin(
         "offset": offset,
     }
 
+@router.get("/{id}/admin-detail", response_model=dict)
+def get_restaurant_admin_detail(
+    id: int,
+    session: SessionDep,
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+):
+    restaurant = session.get(Restaurant, id)
+    if restaurant is None:
+        raise HTTPException(404, "Không tìm thấy nhà hàng")
+    manager = session.get(User, restaurant.manager_id) if restaurant.manager_id else None
+    # Keep this admin summary explicit: no menus, galleries or full public detail.
+    fields = ("id", "name", "address", "district", "city", "capacity", "rating",
+              "review_count", "is_active", "is_report_suspended", "approval_status",
+              "booking_opening_time", "booking_closing_time", "created_at", "tax_code")
+    result = {field: getattr(restaurant, field) for field in fields}
+    result["manager"] = {"userId": manager.userId, "name": manager.name,
+                         "email": manager.email, "phone": manager.phone} if manager else None
+    return result
+
+
 @router.patch("/{id}/toggle-active", response_model=Restaurant)
 def toggle_restaurant_active(
     id: int,

@@ -100,7 +100,10 @@ export default function ChatPage() {
       void queryClient.invalidateQueries({ queryKey: ["chat-messages", activeConversationId] });
       void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
-    onError: () => toast.error("Không thể gửi tin nhắn."),
+    onError: (error) => {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail || "Không thể gửi tin nhắn. Vui lòng thử lại.");
+    },
   });
 
   const markConversationRead = useCallback(

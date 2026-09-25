@@ -2,14 +2,21 @@ import { BookingActions } from "../../components/BookingActions";
 import { RefundProgress } from "../../components/RefundProgress";
 import { DepositCheckoutPanel } from "../../components/DepositCheckoutPanel";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../services/api";
 import type { BookingDetail } from "../../types/booking";
 import { getCategoryLabel } from "../../utils/category";
 import { ViolationReportModal } from "../../components/ViolationReportModal";
 import { useTranslation } from "react-i18next";
 
+
+const REPORT_STATUS_LABEL: Record<string, string> = {
+  open: "Đang chờ nhà hàng giải trình",
+  appeal_pending: "Đang chờ admin xét duyệt",
+  dismissed: "Đã xử lý và gỡ vi phạm",
+  appeal_rejected: "Giải trình bị từ chối",
+};
 
 const STATUS_BADGE: Record<string, string> = {
   payment_expired: "bg-red-100 text-red-700",
@@ -37,6 +44,11 @@ export default function BookingPage() {
   const { bookingId } = useParams<{ bookingId?: string }>();
   const navigate = useNavigate();
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const bookingDetailQ = useQuery<BookingDetail>({
     queryKey: ["booking-detail", bookingId],
@@ -144,7 +156,8 @@ export default function BookingPage() {
                       {item.status === "payment_expired" && <p className="mt-2 text-xs font-medium text-red-600">{t("booking.paymentFailed")}</p>}
                     </div>
                     <div className="flex items-center gap-3">
-                      {item.depositStatus === "refund_pending" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">{t("booking.addRefundDetails")}</button>}
+                      {item.depositStatus === "refund_pending" && item.refundStatus !== "processing" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">{t("booking.addRefundDetails")}</button>}
+                      {item.depositStatus === "refund_pending" && item.refundStatus === "processing" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-bold text-white">{t("booking.refundProcessing")}</button>}
                       {item.depositStatus === "refunded" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">{t("booking.viewRefund")}</button>}
                       <span className="text-sm font-semibold text-red-600">{t("booking.viewDetails")}</span>
                     </div>
@@ -162,6 +175,12 @@ export default function BookingPage() {
     return null;
   }
 
+  const bookingMealTime = new Date(`${booking.date}T${booking.time.slice(0, 5)}:00+07:00`).getTime();
+  const canReportRestaurant = ['confirmed', 'completed'].includes(booking.status)
+    && Number.isFinite(bookingMealTime)
+    && now >= bookingMealTime
+    && now <= bookingMealTime + 7 * 24 * 60 * 60 * 1000;
+
   const itemTotal = booking.booking_items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
@@ -171,11 +190,16 @@ export default function BookingPage() {
     <div className="min-h-screen bg-slate-50 py-10 px-4">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-          <div>
-            <p className="text-sm text-gray-500 font-medium">
-              {t("booking.detailKicker")}
-            </p>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => navigate("/account/bookings")}
+              className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-red-600"
+            >
+              <span aria-hidden="true">←</span>
+              {t("booking.backToList")}
+            </button>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               {t("booking.detailTitle")}
             </h1>
           </div>
@@ -205,8 +229,13 @@ export default function BookingPage() {
               >
                 {t("booking.viewRestaurant")}
               </button>
-              {(booking.status === "confirmed" ||
-                booking.status === "completed") && (
+              {booking.restaurantReportStatus ? (
+                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-sm">
+                  <span className="font-semibold text-amber-900">✓ Đã gửi báo cáo</span>
+                  <span className="text-amber-800">{REPORT_STATUS_LABEL[booking.restaurantReportStatus] ?? booking.restaurantReportStatus}</span>
+                  <Link to="/account/violation-reports" className="font-bold text-red-700 underline hover:text-red-800">Theo dõi xử lý</Link>
+                </div>
+              ) : canReportRestaurant && (
                 <button
                   onClick={() => setIsReportOpen(true)}
                   className="mt-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"

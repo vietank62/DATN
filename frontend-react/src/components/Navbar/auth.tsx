@@ -2,25 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Bell, Building2, Eye, EyeOff } from "lucide-react";
+import { useCustomerNotifications, type CustomerNotification } from "../../hooks/useCustomerNotifications";
 import { useAuth } from "../../hooks/useAuth";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import axios from "axios";
-import type { BookingDetail } from "../../types/booking";
 import { useTranslation } from "react-i18next";
 
 type ChatConversation = {
   unread_count: number;
-};
-
-type CustomerNotification = {
-  id: number;
-  title: string;
-  message: string;
-  isRead: boolean;
-  type: string;
-  bookingId?: number | null;
-  conversationId?: number | null;
 };
 
 export const Auth = () => {
@@ -47,13 +37,6 @@ export const Auth = () => {
     password: "",
   });
 
-  const { data: bookings = [] } = useQuery<BookingDetail[]>({
-    queryKey: ["my-bookings"],
-    queryFn: () => api.get("/v1/bookings/me").then((response) => response.data),
-    enabled: isAuthenticated && user?.role === "customer",
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-  });
 
   const { data: conversations = [] } = useQuery<ChatConversation[]>({
     queryKey: ["chat-conversations"],
@@ -64,25 +47,16 @@ export const Auth = () => {
     refetchInterval: 15_000,
   });
 
-  const notificationsQuery = useQuery<CustomerNotification[]>({
-    queryKey: ["customer-notifications"],
-    queryFn: () =>
-      api.get("/v1/notifications/me?limit=10").then((response) => response.data),
-    enabled: isAuthenticated && user?.role === "customer",
-    refetchInterval: 30_000,
-  });
-
-  const activeBookings = bookings.filter((booking) =>
-    booking.status === "pending" || booking.status === "confirmed"
+  const notificationsQuery = useCustomerNotifications(
+    isAuthenticated && user?.role === "customer" ? user.userId : undefined,
   );
+
   const unreadChatCount = conversations.reduce(
     (total, conversation) => total + conversation.unread_count,
     0,
   );
-  const notifications = notificationsQuery.data ?? [];
-  const unreadNotificationCount = notifications.filter(
-    (notification) => !notification.isRead,
-  ).length;
+  const notifications = notificationsQuery.data?.items ?? [];
+  const unreadNotificationCount = notificationsQuery.data?.unreadCount ?? 0;
 
   useEffect(() => {
     if (!isNotificationOpen) {
@@ -165,8 +139,10 @@ export const Auth = () => {
       return;
     }
 
-    await api.put("/v1/notifications/read-all");
-    await notificationsQuery.refetch();
+    try {
+      await api.put("/v1/notifications/read-all");
+      await notificationsQuery.refetch();
+    } catch { toast.error("Chưa thể đánh dấu thông báo đã đọc."); }
   };
 
   const onLoginSubmit = async (e: React.FormEvent) => {
@@ -190,11 +166,11 @@ export const Auth = () => {
       closeLogin();
       if (userRes.data.role === "admin") {
         toast.success("Đăng nhập Admin thành công!");
-        window.location.href = "/admin";
+        navigate("/admin", { replace: true });
         return;
       } else if (userRes.data.role === "manager") {
         toast.success("Đăng nhập Manager thành công!");
-        window.location.href = "/manager";
+        navigate("/manager", { replace: true });
         return;
       }
       toast.success(`Đăng nhập thành công! Xin chào ${userRes.data.name}`);
@@ -291,9 +267,13 @@ export const Auth = () => {
                     <div ref={notificationRef} className="relative">
                       <button
                         type="button"
-                        onClick={() => setIsNotificationOpen((current) => !current)}
+                        onClick={() => {
+                          setIsNotificationOpen((current) => !current);
+                          void notificationsQuery.refetch();
+                        }}
                         className="relative flex cursor-pointer items-center justify-center rounded-lg p-1 text-white transition hover:bg-white/10 hover:text-red-300"
-                        aria-label="Thông báo"
+                        aria-label={`Thông báo, ${unreadNotificationCount} chưa đọc`}
+                        aria-expanded={isNotificationOpen}
                       >
                         <Bell className="h-4 w-4" />
                         {unreadNotificationCount > 0 && (
@@ -317,7 +297,13 @@ export const Auth = () => {
                             )}
                           </div>
                           <div className="max-h-80 overflow-y-auto">
-                            {notifications.length === 0 && (
+                            {notificationsQuery.isError && (
+                              <p role="status" className="p-3 text-sm text-red-700">Không thể tải thông báo. Đang thử kết nối lại.</p>
+                            )}
+                            {notificationsQuery.isPending && (
+                              <p role="status" className="p-3 text-sm text-gray-500">Đang tải thông báo...</p>
+                            )}
+                            {!notificationsQuery.isPending && !notificationsQuery.isError && notifications.length === 0 && (
                               <p className="p-5 text-center text-sm text-gray-400">
                                 Chưa có thông báo.
                               </p>
@@ -360,20 +346,15 @@ export const Auth = () => {
                           Thông tin tài khoản
                         </a>
                         {user?.role === "customer" && (
-                          <a href="/account/bookings" className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors">
-                            <span>Thông tin đơn đặt bàn</span>
-                            <span className="flex items-center gap-2">
-                              {activeBookings.length > 0 && (
-                                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-                                  {activeBookings.length}
-                                </span>
-                              )}
-                            </span>
+                          <a href="/account/bookings" className="block w-full px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-red-50 hover:text-red-600">
+                            Thông tin đơn đặt bàn
                           </a>
                         )}
-                        <button className="w-full cursor-not-allowed px-4 py-3 text-left text-sm text-gray-400" disabled>
-                          Yêu thích
-                        </button>
+                        {user?.role === "customer" && (
+                          <a href="/account/favorites" className="block w-full px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-red-50 hover:text-red-600">
+                            Yêu thích
+                          </a>
+                        )}
                         {user?.role === "customer" && (
                           <a
                             href="/chat"

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Camera, KeyRound, Mail, Phone, Save, UserRound } from "lucide-react";
+import { Camera, Eye, EyeOff, KeyRound, Mail, Phone, Save, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../hooks/useAuth";
@@ -17,6 +17,7 @@ type ProfilePayload = {
   phone: string;
   avatar?: string | null;
   password?: string;
+  current_password?: string;
 };
 
 function ProfileForm({ initialUser }: ProfileFormProps) {
@@ -25,8 +26,12 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
   const [name, setName] = useState(initialUser.name);
   const [phone, setPhone] = useState(initialUser.phone ?? "");
   const [avatar, setAvatar] = useState(initialUser.avatar ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   const updateProfile = useMutation({
@@ -35,12 +40,14 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
     onSuccess: (updatedUser) => {
       setUser(updatedUser);
       localStorage.setItem("auth:user", JSON.stringify(updatedUser));
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       toast.success(t("profile.updated"));
     },
-    onError: () => {
-      toast.error(t("profile.updateFailed"));
+    onError: (error) => {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail || t("profile.updateFailed"));
     },
   });
 
@@ -69,8 +76,18 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
       return;
     }
 
+    if (newPassword && !currentPassword) {
+      toast.error("Vui lòng nhập mật khẩu hiện tại.");
+      return;
+    }
+
     if (newPassword && newPassword.length < 6) {
       toast.error(t("profile.passwordMin"));
+      return;
+    }
+
+    if (newPassword && newPassword === currentPassword) {
+      toast.error("Mật khẩu mới bị trùng mật khẩu cũ.");
       return;
     }
 
@@ -87,6 +104,7 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
 
     if (newPassword) {
       payload.password = newPassword;
+      payload.current_password = currentPassword;
     }
 
     updateProfile.mutate(payload);
@@ -191,27 +209,53 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
               </div>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">Mật khẩu hiện tại</span>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    autoComplete="current-password"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                    placeholder="Nhập mật khẩu hiện tại để đổi mật khẩu"
+                  />
+                  <button type="button" onClick={() => setShowCurrentPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-red-600" aria-label={showCurrentPassword ? "Ẩn mật khẩu hiện tại" : "Xem mật khẩu hiện tại"}>
+                    {showCurrentPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                  </button>
+                </div>
+              </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">{t("profile.newPassword")}</span>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  autoComplete="new-password"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                  placeholder={t("profile.passwordMinimum")}
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    autoComplete="new-password"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                    placeholder={t("profile.passwordMinimum")}
+                  />
+                  <button type="button" onClick={() => setShowNewPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-red-600" aria-label={showNewPassword ? "Ẩn mật khẩu mới" : "Xem mật khẩu mới"}>
+                    {showNewPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                  </button>
+                </div>
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">{t("profile.confirmPassword")}</span>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  autoComplete="new-password"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                  placeholder={t("profile.confirmPasswordPlaceholder")}
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    autoComplete="new-password"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                    placeholder={t("profile.confirmPasswordPlaceholder")}
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-red-600" aria-label={showConfirmPassword ? "Ẩn xác nhận mật khẩu" : "Xem xác nhận mật khẩu"}>
+                    {showConfirmPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                  </button>
+                </div>
               </label>
             </div>
           </section>
