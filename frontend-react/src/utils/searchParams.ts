@@ -16,6 +16,10 @@ export function normalizeSearchParams(input: URLSearchParams, fallbackCity = "")
     const value = Number(input.get(key));
     if (Number.isInteger(value) && value >= 1 && value <= 5) params.set(key, String(value));
   }
+  const partySize = Number(input.get("party_size"));
+  if (Number.isInteger(partySize) && partySize >= 1 && partySize <= 1000) {
+    params.set("party_size", String(partySize));
+  }
   const rating = Number(input.get("rating"));
   if (rating > 0 && rating <= 5) params.set("rating", String(rating));
   if (input.get("has_exclusive") === "true") params.set("has_exclusive", "true");

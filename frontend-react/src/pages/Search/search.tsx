@@ -14,7 +14,6 @@ const fetchFilteredRestaurants = async (query: string, signal: AbortSignal): Pro
 };
 
 const PRICE_LABELS = ["Dưới 100k", "100k - 200k", "200k - 500k", "500k - 1.000k", "Từ 1.000k"];
-const SPACE_LABELS = ["1-5 người", "6-10 người", "11-20 người", "21-50 người", "Trên 50 người"];
 const CATEGORIES = RESTAURANT_CATEGORIES.map(({ slug, label: name }) => ({ slug, name }));
 
 const SUITABLE_FOR = [
@@ -45,6 +44,7 @@ export const SearchRestaurants = () => {
         suitable_for: "",
         service_type: "",
         space_level: "",
+        party_size: "",
         rating: "",
         has_exclusive: false
     });
@@ -100,6 +100,7 @@ export const SearchRestaurants = () => {
     const currentSuitableFor = effectiveParams.get("suitable_for") || "";
     const currentServiceType = effectiveParams.get("service_type") || "";
     const currentSpaceLevel = effectiveParams.get("space_level") || "";
+    const currentPartySize = effectiveParams.get("party_size") || "";
 
     const hasActiveFilters = 
         currentSearch.trim() || 
@@ -110,7 +111,8 @@ export const SearchRestaurants = () => {
         currentCategory || 
         currentSuitableFor || 
         currentServiceType || 
-        currentSpaceLevel;
+        currentSpaceLevel ||
+        currentPartySize;
 
     const handleOpenModal = () => {
         setTempFilters({
@@ -121,6 +123,7 @@ export const SearchRestaurants = () => {
             suitable_for: currentSuitableFor,
             service_type: currentServiceType,
             space_level: currentSpaceLevel,
+            party_size: currentPartySize,
             rating: currentRating,
             has_exclusive: currentHasExclusive
         });
@@ -227,10 +230,10 @@ export const SearchRestaurants = () => {
                         </div>
                     )}
 
-                    {currentSpaceLevel && (
+                    {currentPartySize && (
                         <div className="flex items-center gap-1.5 bg-cyan-50 text-cyan-700 border border-cyan-100 px-3 py-1 rounded-lg text-xs font-medium">
-                            <span>Sức chứa: {SPACE_LABELS[Number(currentSpaceLevel) - 1] || `Mức ${currentSpaceLevel}`}</span>
-                            <button onClick={() => updateParam("space_level", null)} className="hover:bg-cyan-200/60 p-0.5 rounded-full text-cyan-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
+                            <span>Số khách: {currentPartySize}</span>
+                            <button onClick={() => updateParam("party_size", null)} className="hover:bg-cyan-200/60 p-0.5 rounded-full text-cyan-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
@@ -443,17 +446,18 @@ export const SearchRestaurants = () => {
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Sức chứa nhà hàng</label>
-                                    <select
-                                        value={tempFilters.space_level}
-                                        onChange={(e) => setTempFilters(p => ({ ...p, space_level: e.target.value }))}
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
-                                    >
-                                        <option value="">Tất cả các mức chỗ</option>
-                                        {SPACE_LABELS.map((label, idx) => (
-                                            <option key={label} value={(idx + 1).toString()}>{label}</option>
-                                        ))}
-                                    </select>
+                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Số khách</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="1000"
+                                        inputMode="numeric"
+                                        value={tempFilters.party_size}
+                                        onChange={(e) => setTempFilters(p => ({ ...p, party_size: e.target.value.replace(/\D/g, "") }))}
+                                        placeholder="Ví dụ: 6"
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50"
+                                    />
+                                    <p className="text-xs text-gray-500">Chỉ hiển thị nhà hàng có tổng sức chứa đủ cho số khách.</p>
                                 </div>
                             </div>
 

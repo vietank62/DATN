@@ -194,6 +194,20 @@ export const RestaurantDetail = () => {
   });
   const restaurantBase = restaurantOverview?.restaurant;
   const restaurantDetail = restaurantOverview?.detail;
+  const availabilityQuery = useQuery<{
+    availableSeats: number;
+    reservedSeats: number;
+    capacity: number;
+    canBook: boolean;
+    bookingDurationMinutes: number;
+  }>({
+    queryKey: ["restaurant-availability", id, bookingDate, bookingTime, requestSeats],
+    queryFn: () => api.get("/v1/restaurants/" + id + "/availability", {
+      params: { date: bookingDate, time: bookingTime, seats: requestSeats },
+    }).then((response) => response.data),
+    enabled: Boolean(id && isModalOpen && bookingDate && bookingTime && requestSeats > 0),
+    staleTime: 10_000,
+  });
   const { data: restaurantMenuItems } = useQuery<RestaurantMenuItem[]>({
     queryKey: ["restaurant-menu-items", id],
     queryFn: async () => {
@@ -543,6 +557,10 @@ export const RestaurantDetail = () => {
       return false;
     }
 
+    if (availabilityQuery.data && !availabilityQuery.data.canBook) {
+      toast.error("Khung giờ đã gần đầy, chỉ còn " + availabilityQuery.data.availableSeats + " chỗ.");
+      return false;
+    }
     const payload: BookingCreatePayload = {
       restaurantId: Number(id),
       date: bookingDate,
@@ -1490,6 +1508,15 @@ export const RestaurantDetail = () => {
                         onBlur={normalizeRequestSeats}
                         className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
+                      {availabilityQuery.isFetching ? (
+                        <p className="text-xs text-gray-500">Đang kiểm tra chỗ còn lại…</p>
+                      ) : availabilityQuery.data ? (
+                        <p className={"text-xs font-semibold " + (availabilityQuery.data.canBook ? "text-emerald-700" : "text-red-700")}>
+                          {availabilityQuery.data.canBook
+                            ? "Còn " + availabilityQuery.data.availableSeats + " chỗ trong khoảng " + availabilityQuery.data.bookingDurationMinutes + " phút."
+                            : "Khung giờ này chỉ còn " + availabilityQuery.data.availableSeats + " chỗ."}
+                        </p>
+                      ) : null}
                       <select
                         aria-hidden="true"
                         tabIndex={-1}

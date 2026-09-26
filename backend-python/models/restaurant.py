@@ -43,6 +43,7 @@ class Restaurant(SQLModel, table=True):
     policy_accepted_at: Optional[datetime] = Field(default=None)
     booking_opening_time: Optional[str] = Field(default=None, max_length=5)
     booking_closing_time: Optional[str] = Field(default=None, max_length=5)
+    booking_duration_minutes: int = Field(default=120, ge=30, le=480)
     created_at: datetime = Field(
         default_factory=datetime.utcnow, 
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}

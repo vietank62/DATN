@@ -473,8 +473,8 @@ export const Auth = () => {
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
-                  placeholder="Số điện thoại, ví dụ 0901234567"
-                  title="Dùng số điện thoại Việt Nam: 03, 05, 07, 08, 09 hoặc +84/84."
+                  placeholder="Số điện thoại"
+                  title="Dùng số điện thoại Việt Nam."
                   className="border border-gray-300 p-2 focus:outline-none focus:border-red-500 col-span-2"
                   value={registerData.phone}
                   onChange={e => setRegisterData(prev => ({ ...prev, phone: e.target.value }))}

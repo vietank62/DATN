@@ -5,6 +5,7 @@ APP_TIME_ZONE = timezone(timedelta(hours=7))
 CONFIRMATION_LEAD = timedelta(hours=2)
 CUSTOMER_CANCEL_LEAD = timedelta(hours=1)
 AUTO_COMPLETE_DELAY = timedelta(days=7)
+COMPLETION_REMINDER_DELAY = timedelta(minutes=120)
 
 
 def month_start(now=None):

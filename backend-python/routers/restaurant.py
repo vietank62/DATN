@@ -15,6 +15,7 @@ from sqlalchemy import desc, func, or_  # type: ignore
 from routers.deps import get_current_user, get_optional_current_user
 from core.public_restaurants import card_columns
 from core.restaurant_search import apply_restaurant_filters, normalize_filters, restaurant_cache_key
+from core.booking_capacity import remaining_seats
 
 CACHE_READ_TIMEOUT_SECONDS = float(os.getenv("RESTAURANT_CACHE_READ_TIMEOUT_SECONDS", "0.25"))
 CACHE_RETRY_SECONDS = float(os.getenv("RESTAURANT_CACHE_RETRY_SECONDS", "15"))
@@ -173,6 +174,7 @@ async def get_restaurants(
     suitable_for: Optional[str] = Query(None, max_length=100, description="Suitable for slug"),
     service_type: Optional[str] = Query(None, max_length=100, description="Service type slug"),
     space_level: Optional[int] = Query(None, ge=1, le=5, description="Space level: 1, 2, 3, 4, 5"),
+    party_size: Optional[int] = Query(None, ge=1, le=1000, description="Minimum party size"),
     search: Optional[str] = Query(None, max_length=100, description="Search by restaurant, address, description or menu"),
     rating: Optional[float] = Query(None, ge=0, le=5, description="Minimum rating"),
     current_user: Annotated[User | None, Depends(get_optional_current_user)] = None
@@ -180,7 +182,7 @@ async def get_restaurants(
     filters = normalize_filters(sort_by=sort_by, has_exclusive=has_exclusive, city=city,
         district=district, price=price, category=category, suitable_for=suitable_for,
         service_type=service_type, space_level=space_level, search=search, rating=rating)
-    cache_key = restaurant_cache_key(filters, limit, offset)
+    cache_key = restaurant_cache_key(filters, limit, offset) + f":party:{party_size or 0}"
     request_started_at = time.perf_counter()
 
     try:
@@ -202,7 +204,10 @@ async def get_restaurants(
     except Exception as e:
         print(f"Redis Error (Get): {e}")
 
-    statement = apply_restaurant_filters(select(*card_columns()), **filters).offset(offset).limit(limit)
+    statement = apply_restaurant_filters(select(*card_columns()), **filters)
+    if party_size is not None:
+        statement = statement.where(Restaurant.capacity >= party_size)
+    statement = statement.offset(offset).limit(limit)
     database_started_at = time.perf_counter()
     results = await run_in_threadpool(lambda: session.execute(statement).mappings().all())
     database_finished_at = time.perf_counter()
@@ -245,6 +250,29 @@ def add_favorite_state(
         {**restaurant, "is_favorite": restaurant["id"] in favorite_ids}
         for restaurant in restaurants
     ]
+
+@router.get("/{id}/availability", response_model=dict)
+def get_restaurant_availability(
+    id: int,
+    session: SessionDep,
+    date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    time: str = Query(..., pattern=r"^\d{2}:\d{2}$"),
+    seats: int = Query(..., ge=1, le=1000),
+):
+    restaurant = session.get(Restaurant, id)
+    if not restaurant or not restaurant.is_active or restaurant.approval_status != "approved" or restaurant.is_report_suspended:
+        raise HTTPException(status_code=404, detail="Nhà hàng hiện không nhận đặt bàn")
+    try:
+        available, reserved = remaining_seats(session, restaurant, date, time)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Ngày hoặc giờ đặt bàn không hợp lệ")
+    return {
+        "capacity": restaurant.capacity,
+        "reservedSeats": reserved,
+        "availableSeats": available,
+        "canBook": seats <= available,
+        "bookingDurationMinutes": restaurant.booking_duration_minutes,
+    }
 
 @router.get("/nearby", response_model=List[dict])
 async def get_nearby_restaurants(

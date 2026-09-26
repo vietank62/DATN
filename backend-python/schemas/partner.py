@@ -44,6 +44,7 @@ class PartnerOperationalUpdate(BaseModel):
     opening_time: Optional[list[str]] = None
     booking_opening_time: Optional[str] = None
     booking_closing_time: Optional[str] = None
+    booking_duration_minutes: Optional[int] = Field(default=None, ge=30, le=480)
     parking_info: Optional[str] = None
     utilities: Optional[list[int]] = None
     regulations: Optional[str] = None

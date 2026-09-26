@@ -59,13 +59,14 @@ def warm_database_connection() -> None:
         print("[DATABASE] Connection pool warmed.", flush=True)
 
 
-def run_booking_maintenance() -> tuple[int, int, int]:
+def run_booking_maintenance() -> tuple[int, int, int, int]:
     """Run synchronous database maintenance outside FastAPI's event loop."""
     with Session(engine) as session:
         deliver_booking_emails(session)
         maintain_booking_fees(session)
         return (
             expire_unpaid_bookings(session),
+            booking.notify_restaurants_to_complete_bookings(session),
             booking.auto_complete_expired_confirmed_bookings(session),
             booking.expire_unanswered_bookings(session),
         )
@@ -77,12 +78,14 @@ async def booking_completion_worker() -> None:
 
     while True:
         try:
-            deposit_expired_count, completed_count, expired_count = await run_in_threadpool(
+            deposit_expired_count, reminder_count, completed_count, expired_count = await run_in_threadpool(
                 run_booking_maintenance
             )
 
             if deposit_expired_count:
                 print(f"Expired {deposit_expired_count} unpaid booking(s).")
+            if reminder_count:
+                print(f"Sent {reminder_count} booking completion reminder(s).")
             if completed_count:
                 print(f"Auto-completed {completed_count} expired confirmed booking(s).")
             if expired_count:

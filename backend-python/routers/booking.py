@@ -7,7 +7,8 @@ from sqlmodel import select  # type: ignore
 
 from database import SessionDep
 from core.booking_email import queue_booking_email
-from core.booking_policy import AUTO_COMPLETE_DELAY, CONFIRMATION_LEAD, month_start
+from core.booking_capacity import ensure_available_seats
+from core.booking_policy import AUTO_COMPLETE_DELAY, COMPLETION_REMINDER_DELAY, CONFIRMATION_LEAD, month_start
 from core.deposit_expiry import deposit_deadline, expire_unpaid_bookings
 from models.booking import Booking
 from models.bookingItem import BookingItem
@@ -78,6 +79,68 @@ def auto_complete_expired_confirmed_bookings(
 		session.commit()
 
 	return completed_count
+
+
+def completion_reminder_due(booking: Booking, now: datetime) -> bool:
+	"""A confirmed booking needs one manager reminder 120 minutes after its meal time."""
+	meal_time = get_booking_meal_time(booking)
+	return bool(meal_time and meal_time + COMPLETION_REMINDER_DELAY <= now)
+
+
+def notify_restaurants_to_complete_bookings(
+	session: Any,
+	now: datetime | None = None,
+	limit: int | None = None,
+) -> int:
+	"""Notify each restaurant once; the booking keeps its seats until completed."""
+	current_time = now or datetime.now(APP_TIME_ZONE)
+	if current_time.tzinfo is None:
+		current_time = current_time.replace(tzinfo=APP_TIME_ZONE)
+
+	query = select(Booking).where(
+		Booking.status == "confirmed",
+		Booking.date <= (current_time - COMPLETION_REMINDER_DELAY).date().isoformat(),
+	).order_by(Booking.date, Booking.time, Booking.bookingId)
+	if limit is not None:
+		query = query.limit(limit)
+
+	reminded_count = 0
+	for booking in session.exec(query.with_for_update(skip_locked=True).execution_options(populate_existing=True)).all():
+		if not completion_reminder_due(booking, current_time):
+			continue
+
+		restaurant = session.exec(
+			select(Restaurant).where(Restaurant.id == booking.restaurantId)
+		).first()
+		if not restaurant or not restaurant.manager_id:
+			continue
+
+		already_reminded = session.exec(
+			select(Notification.id).where(
+				Notification.bookingId == booking.bookingId,
+				Notification.type == "completion_reminder",
+			)
+		).first()
+		if already_reminded is not None:
+			continue
+
+		session.add(Notification(
+			userId=restaurant.manager_id,
+			bookingId=booking.bookingId,
+			title="Xác nhận hoàn thành đơn đặt bàn",
+			message=(
+				f"Đơn #{booking.bookingId} đã qua 120 phút kể từ giờ dùng bữa. "
+				"Vui lòng bấm Hoàn thành khi khách đã dùng bữa xong; chỗ vẫn được giữ đến khi hoàn tất."
+			),
+			type="completion_reminder",
+			createdAt=datetime.now(timezone.utc).isoformat(),
+		))
+		reminded_count += 1
+
+	if reminded_count:
+		session.commit()
+
+	return reminded_count
 
 
 def expire_unanswered_bookings(session: Any, now: datetime | None = None, limit: int | None = None, booking_id: int | None = None, user_id: int | None = None, restaurant_id: int | None = None) -> int:
@@ -356,7 +419,9 @@ def create_booking(
 		)
 	if current_user.is_permanently_banned or current_user.is_suspended:
 		raise HTTPException(403, "Tài khoản đã bị khóa do vi phạm đặt bàn")
-	restaurant = _get_restaurant_or_404(session, booking_data.restaurantId)
+	restaurant = session.exec(select(Restaurant).where(Restaurant.id == booking_data.restaurantId).with_for_update()).first()
+	if not restaurant:
+		raise HTTPException(status_code=404, detail="Restaurant not found")
 	if not restaurant.is_active or restaurant.is_report_suspended or restaurant.approval_status != "approved":
 		raise HTTPException(status_code=400, detail="This restaurant is not accepting bookings")
 	if booking_data.childCount < 0 or booking_data.childCount > booking_data.guestCount:
@@ -367,6 +432,7 @@ def create_booking(
 			detail="Số chỗ yêu cầu phải đủ cho toàn bộ người lớn và trẻ em",
 		)
 
+	ensure_available_seats(session, restaurant, booking_data.date, booking_data.time, booking_data.requestSeats)
 	menu_item_map: dict[int, RestaurantMenuList] = {}
 	if booking_data.items:
 		item_ids = [item.itemId for item in booking_data.items]

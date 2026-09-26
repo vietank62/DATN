@@ -49,6 +49,7 @@ type Restaurant = {
   price_avg?: number;
   booking_opening_time?: string;
   booking_closing_time?: string;
+  booking_duration_minutes?: number;
   approval_status: "pending" | "approved" | "rejected";
 };
 
@@ -253,6 +254,7 @@ export default function RestaurantSettings() {
       capacity: currentForm.capacity,
       booking_opening_time: openingTime || null,
       booking_closing_time: closingTime || null,
+      booking_duration_minutes: Number(currentForm.booking_duration_minutes ?? 120),
     });
   };
 
@@ -751,6 +753,19 @@ export default function RestaurantSettings() {
         </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           {text("capacity", "Sức chứa")}
+          <label className="text-sm font-medium text-gray-700">
+            Thời lượng giữ chỗ (phút)
+            <input
+              type="number"
+              min="30"
+              max="480"
+              step="30"
+              value={Number(currentForm.booking_duration_minutes ?? 120)}
+              onChange={(event) => setForm((current) => ({ ...current, booking_duration_minutes: Number(event.target.value) }))}
+              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm"
+            />
+            <span className="mt-1 block text-xs font-normal text-gray-500">Các đơn trùng trong khoảng này sẽ cùng chiếm sức chứa.</span>
+          </label>
           {timePicker(
             "booking_opening_time",
             "Bắt đầu nhận khách",
