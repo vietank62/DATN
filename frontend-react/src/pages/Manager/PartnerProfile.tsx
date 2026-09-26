@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { citiesList } from "../../data/Location";
 import { useLocation } from "../../hooks/useLocation";
@@ -7,11 +7,18 @@ import { api } from "../../services/api";
 import { uploadImage } from "../../services/upload";
 import { RESTAURANT_CATEGORIES } from "../../utils/category";
 import { toast } from "sonner";
-import { ImagePlus, Images, Trash2 } from "lucide-react";
 
 type Application = {
   id: number;
   name: string;
+  address: string;
+  district: string;
+  city: string;
+  category?: string[] | null;
+  image_url?: string | null;
+  business_license_urls?: string[] | null;
+  tax_code?: string | null;
+  capacity: number;
   approval_status: "pending" | "approved" | "rejected";
   is_active: boolean;
 };
@@ -64,6 +71,26 @@ export default function PartnerProfile() {
     queryKey: ["partner-application"],
     queryFn: () => api.get("/v1/partners/application/me").then((response) => response.data),
   });
+
+  useEffect(() => {
+    const application = applicationQ.data;
+    if (application?.approval_status !== "rejected") return;
+
+    setForm({
+      ...initialForm,
+      name: application.name,
+      address: application.address,
+      district: application.district,
+      city: application.city,
+      category: application.category ?? [],
+      image_url: application.image_url ?? "",
+      business_license_urls: application.business_license_urls ?? [],
+      tax_code: application.tax_code ?? "",
+      capacity: application.capacity,
+    });
+    setCity(application.city);
+    setDistrict(application.district);
+  }, [applicationQ.data, setCity, setDistrict]);
 
   const getErrorMessage = (error: unknown) => {
     if (typeof error === "object" && error !== null && "response" in error) {
@@ -131,26 +158,6 @@ export default function PartnerProfile() {
     }
   };
 
-  const uploadRestaurantImages = async (files: FileList | null) => {
-    if (!files?.length) {
-      return;
-    }
-
-    try {
-      setUploadingField("image_urls");
-      const imageUrls = await Promise.all([...files].map(uploadImage));
-      setForm((current) => ({
-        ...current,
-        image_urls: [...current.image_urls, ...imageUrls],
-      }));
-      toast.success(`Đã tải lên ${imageUrls.length} ảnh nhà hàng.`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Tải ảnh thất bại.");
-    } finally {
-      setUploadingField(null);
-    }
-  };
-
   const uploadCoverImage = async (file?: File) => {
     if (!file) {
       return;
@@ -166,13 +173,6 @@ export default function PartnerProfile() {
     } finally {
       setUploadingField(null);
     }
-  };
-
-  const removeRestaurantImage = (index: number) => {
-    setForm((current) => ({
-      ...current,
-      image_urls: current.image_urls.filter((_, imageIndex) => imageIndex !== index),
-    }));
   };
 
   const removeDocumentImage = (
@@ -191,7 +191,7 @@ export default function PartnerProfile() {
 
   const app = applicationQ.data;
 
-  if (app) {
+  if (app && app.approval_status !== "rejected") {
     return (
       <div className="max-w-3xl space-y-5">
         <div className="rounded-3xl border border-red-200 bg-red-50 p-7">
@@ -202,16 +202,12 @@ export default function PartnerProfile() {
           <p className="mt-2 text-sm text-gray-600">
             Trạng thái: {" "}
             <strong>
-              {app.approval_status === "approved"
-                ? "Đã được duyệt"
-                : app.approval_status === "rejected"
-                  ? "Cần bổ sung hồ sơ"
-                  : "Đang chờ xét duyệt"}
+              {app.approval_status === "approved" ? "Đã được duyệt" : "Đang chờ xét duyệt"}
             </strong>
           </p>
           {app.approval_status !== "approved" && (
             <p className="mt-3 text-sm text-gray-500">
-              Bạn sẽ nhận được thông báo sau khi TableNow hoàn tất xét duyệt. Nhà hàng chưa hiển thị với khách.
+              Bạn sẽ nhận được thông báo sau khi TableNow hoàn tất xét duyệt. Khi hồ sơ được duyệt, hãy vào Cài đặt nhà hàng để bổ sung thông tin vận hành và nội dung giới thiệu. Nhà hàng chưa hiển thị với khách.
             </p>
           )}
         </div>
@@ -323,78 +319,6 @@ export default function PartnerProfile() {
     </div>
   );
 
-  const restaurantImagesUpload = () => (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:col-span-2">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="rounded-xl bg-red-50 p-2 text-red-700">
-            <Images size={18} />
-          </span>
-          <p className="text-sm font-bold text-gray-800">Hình ảnh nhà hàng</p>
-        </div>
-        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-          {form.image_urls.length} ảnh
-        </span>
-      </div>
-      <p className="mt-1 text-xs text-gray-500">
-        Chọn nhiều ảnh cùng lúc từ máy tính để giới thiệu không gian và trải nghiệm tại nhà hàng.
-      </p>
-      <input
-        id="partner-restaurant-images"
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        onChange={(event) => void uploadRestaurantImages(event.target.files)}
-        className="sr-only"
-      />
-      <label
-        htmlFor="partner-restaurant-images"
-        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-red-600 bg-red-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
-      >
-        <ImagePlus size={16} />
-        {uploadingField === "image_urls" ? "Đang tải ảnh..." : "Chọn nhiều ảnh từ máy"}
-      </label>
-      {form.image_urls.length > 0 && (
-        <div className="mt-5 grid auto-rows-[112px] grid-cols-2 gap-3 sm:grid-cols-4">
-          {form.image_urls.map((url, index) => (
-            <div
-              key={url}
-              className={`group relative overflow-hidden rounded-xl bg-gray-100 shadow-sm ${
-                index === 0 ? "col-span-2 row-span-2" : "col-span-1 row-span-1"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => setPreviewImage(url)}
-                className="block h-full w-full cursor-zoom-in"
-                aria-label={`Xem chi tiết hình ảnh nhà hàng ${index + 1}`}
-              >
-                <img
-                  src={url}
-                  alt={`Hình ảnh nhà hàng ${index + 1}`}
-                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                />
-              </button>
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-7">
-                <span className="text-xs font-semibold text-white">
-                  {index === 0 ? "Ảnh nổi bật" : `Ảnh ${index + 1}`}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeRestaurantImage(index)}
-                className="absolute right-2 top-2 inline-flex cursor-pointer items-center gap-1 rounded-lg bg-black/70 px-2 py-1.5 text-xs font-bold text-white transition hover:bg-red-600"
-              >
-                <Trash2 size={14} />
-                Xóa
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   const coverImageUpload = () => (
     <div className="rounded-xl border border-dashed border-gray-300 bg-slate-50 p-4 sm:col-span-2">
       <p className="text-sm font-semibold text-gray-700">Ảnh đại diện nhà hàng</p>
@@ -440,32 +364,49 @@ export default function PartnerProfile() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Đăng ký đối tác TableNow</h1>
+        {app?.approval_status === "rejected" && (
+          <p className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">
+            Hồ sơ trước đó cần bổ sung. Hãy kiểm tra các thông tin quan trọng bên dưới rồi gửi lại để xét duyệt.
+          </p>
+        )}
+        <p className="text-xs font-bold uppercase tracking-wide text-red-700">Bước 1 / 2 · Hồ sơ xét duyệt</p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900">Thiết lập hồ sơ nhà hàng</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Hoàn thiện hồ sơ pháp lý để đưa nhà hàng của bạn lên TableNow.
+          Cung cấp đầy đủ thông tin pháp lý và nhận diện quan trọng để TableNow xét duyệt. Sau khi được duyệt, bạn có thể bổ sung mô tả, giờ hoạt động, tiện ích, thực đơn và hình ảnh giới thiệu.
         </p>
       </div>
 
       <form
         onSubmit={(event) => {
           event.preventDefault();
+          if (form.category.length === 0) {
+            toast.error("Vui lòng chọn ít nhất một danh mục nhà hàng.");
+            return;
+          }
+          if (!form.image_url) {
+            toast.error("Vui lòng tải ảnh đại diện nhà hàng.");
+            return;
+          }
+          if (form.business_license_urls.length === 0) {
+            toast.error("Vui lòng tải ít nhất một ảnh giấy phép kinh doanh.");
+            return;
+          }
           submit.mutate();
         }}
         className="space-y-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {field("name", "Tên nhà hàng")}
-          {field("website_url", "Website chính thức của nhà hàng (không bắt buộc)")}
-          {locationField("city", "Thành phố")}
-          {locationField("district", "Quận / huyện")}
-          {field("address", "Địa chỉ")}
-          {field("tax_code", "Mã số thuế")}
+          {field("name", "Tên nhà hàng *")}
+          {locationField("city", "Thành phố *")}
+          {locationField("district", "Quận / huyện *")}
+          {field("address", "Địa chỉ chi tiết *")}
+          {field("tax_code", "Mã số thuế *")}
         </div>
 
         <section>
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-sm font-semibold text-gray-800">Danh mục nhà hàng</h2>
-            <span className="text-xs text-gray-500">Có thể chọn nhiều danh mục</span>
+            <h2 className="text-sm font-semibold text-gray-800">Danh mục nhà hàng *</h2>
+            <span className="text-xs text-gray-500">Chọn ít nhất một danh mục</span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {RESTAURANT_CATEGORIES.map((category) => {
@@ -495,13 +436,11 @@ export default function PartnerProfile() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {coverImageUpload()}
-          {restaurantImagesUpload()}
-          {documentImagesUpload("business_license_urls", "Ảnh giấy phép kinh doanh", true)}
-          {documentImagesUpload("legal_documents_urls", "Ảnh tài liệu pháp lý khác (nếu có)", false)}
+          {documentImagesUpload("business_license_urls", "Ảnh giấy phép kinh doanh *", true)}
         </div>
 
         <label className="block text-sm font-medium text-gray-700">
-          Sức chứa tối đa
+          Sức chứa tối đa *
           <input
             required
             min="1"
@@ -528,11 +467,15 @@ export default function PartnerProfile() {
           </span>
         </label>
 
+        <p className="rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-600">
+          Các trường có dấu <strong>*</strong> là thông tin bắt buộc để gửi xét duyệt. Website, thư viện ảnh, mô tả, giờ hoạt động, tiện ích, quy định và thiết lập đặt bàn sẽ được bổ sung sau khi hồ sơ được duyệt.
+        </p>
+
         <button
           disabled={submit.isPending || uploadingField !== null}
           className="rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
         >
-          {submit.isPending ? "Đang gửi..." : "Gửi hồ sơ xét duyệt"}
+          {submit.isPending ? "Đang gửi..." : app?.approval_status === "rejected" ? "Gửi lại hồ sơ xét duyệt" : "Gửi hồ sơ xét duyệt"}
         </button>
       </form>
 

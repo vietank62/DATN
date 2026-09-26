@@ -49,6 +49,7 @@ type Restaurant = {
   price_avg?: number;
   booking_opening_time?: string;
   booking_closing_time?: string;
+  approval_status: "pending" | "approved" | "rejected";
 };
 
 type RestaurantDetailContent = {
@@ -189,6 +190,20 @@ export default function RestaurantSettings() {
       </div>
     );
   }
+  if (restaurantQ.data.approval_status !== "approved") {
+    return (
+      <div className="max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-6">
+        <h1 className="text-lg font-bold text-gray-900">Chờ duyệt hồ sơ nhà hàng</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          Bạn có thể bổ sung mô tả, hình ảnh giới thiệu và thông tin vận hành sau khi TableNow duyệt hồ sơ quan trọng ban đầu.
+        </p>
+        <a href="/manager/approval-status" className="mt-4 inline-flex rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white">
+          Xem trạng thái xét duyệt
+        </a>
+      </div>
+    );
+  }
+
   const currentForm = { ...restaurantQ.data, ...form } as Partial<Restaurant>;
   const currentGallery = gallery.length
     ? gallery

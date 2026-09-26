@@ -297,10 +297,12 @@ def get_messages(
     messages = session.exec(
         select(ChatMessage)
         .where(ChatMessage.conversation_id == conversation_id)
-        .order_by(ChatMessage.created_at.asc())
+        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
         .offset(offset)
         .limit(limit)
     ).all()
+    # Fetch the newest page first, then render it chronologically from top to bottom.
+    messages.reverse()
     sender_ids = [message.sender_id for message in messages]
     senders = session.exec(select(User).where(User.userId.in_(sender_ids))).all() if sender_ids else []
     senders_by_id = {sender.userId: sender for sender in senders}

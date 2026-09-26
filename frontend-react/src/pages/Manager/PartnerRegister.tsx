@@ -41,9 +41,19 @@ export default function PartnerRegister() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const isValidEmail = (email: string) => /^\s*[^\s@]+@[^\s@]+\.[^\s@]+\s*$/u.test(email);
+  const isValidVietnamesePhone = (phone: string) => /^(?:0(?:3|5|7|8|9)\d{8}|(?:\+84|84)(?:3|5|7|8|9)\d{8})$/u.test(phone.replace(/[.\s-]/gu, ""));
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (!isValidEmail(form.email)) {
+      toast.error("Email không đúng định dạng.");
+      return;
+    }
+    if (!isValidVietnamesePhone(form.phone)) {
+      toast.error("Số điện thoại không đúng định dạng.");
+      return;
+    }
     if (form.password !== confirmPassword) {
       toast.error("Mật khẩu nhập lại không khớp.");
       return;
@@ -56,7 +66,7 @@ export default function PartnerRegister() {
 
     try {
       setIsSubmitting(true);
-      await api.post("/v1/auth/partner-register", form);
+      await api.post("/v1/auth/partner-register", { ...form, email: form.email.trim(), phone: form.phone.trim() });
 
       const loginParams = new URLSearchParams();
       loginParams.append("username", form.email);
@@ -162,6 +172,9 @@ export default function PartnerRegister() {
                 <input
                   required
                   type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  title="Dùng số điện thoại Việt Nam: 03, 05, 07, 08, 09 hoặc +84/84."
                   value={form.phone}
                   onChange={(event) => updateField("phone", event.target.value)}
                   placeholder="090 123 4567"

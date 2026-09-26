@@ -44,6 +44,7 @@ export default function ChatPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const hasCreatedConversation = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
 
@@ -141,6 +142,11 @@ export default function ChatPage() {
     }
   }, [activeConversation?.unread_count, activeConversationId, markConversationRead]);
 
+  const newestMessageId = messagesQuery.data?.[messagesQuery.data.length - 1]?.id;
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [activeConversationId, newestMessageId]);
   const handleSend = (event: React.FormEvent) => {
     event.preventDefault();
     const content = message.trim();
@@ -227,6 +233,7 @@ export default function ChatPage() {
                   </div>
                 );
               })}
+              <div ref={messagesEndRef} />
             </div>
             <form onSubmit={handleSend} className="flex gap-2 border-t border-gray-100 p-3">
               <input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Nhập tin nhắn..." className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white" />
