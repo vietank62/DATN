@@ -1,6 +1,6 @@
 // Explicit UI translations; filter values sent to the API remain unchanged.
 export const additionalVi = {
-  "home.hotDeals": "Ưu đãi nhà hàng",
+  "home.hotDeals": "Nhà hàng có ưu đãi",
   "home.hotDealsSubtitle": "Khám phá những nhà hàng đang có ưu đãi hấp dẫn",
   "home.topRated": "Nhà hàng được đánh giá cao",
   "home.topRatedSubtitle": "Khám phá những nhà hàng được thực khách đánh giá cao",
