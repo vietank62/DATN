@@ -8,6 +8,7 @@ import { api } from "../../services/api";
 import { toast } from "sonner";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
+import { customerNotificationDestination } from "../../utils/notificationDestination";
 
 type ChatConversation = {
   unread_count: number;
@@ -119,21 +120,9 @@ export const Auth = () => {
         void notificationsQuery.refetch();
       } catch { toast.error("Chưa thể đánh dấu thông báo đã đọc."); }
     }
-
     setIsNotificationOpen(false);
-
-    if (notification.type === "chat_message") {
-      navigate(`/chat?conversation=${notification.conversationId ?? ""}`);
-      return;
-    }
-
-    if (notification.bookingId) {
-      navigate(`/account/bookings/${notification.bookingId}${notification.type === "refund_required" ? "/refund" : ""}`);
-      return;
-    }
-    navigate("/account/bookings");
+    navigate(customerNotificationDestination(notification));
   };
-
   const markAllNotificationsRead = async () => {
     if (unreadNotificationCount === 0) {
       return;

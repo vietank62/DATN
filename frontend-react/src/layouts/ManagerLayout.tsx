@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import DashboardSidebar from "../components/DashboardSidebar/DashboardSidebar";
 import type { NavItem } from "../components/DashboardSidebar/DashboardSidebar";
 import { api } from "../services/api";
+import { managerNotificationDestination } from "../utils/notificationDestination";
 
 const MANAGER_NAV: NavItem[] = [
   { label: "Tổng quan", to: "/manager", icon: "dashboard" },
@@ -98,21 +99,8 @@ export default function ManagerLayout() {
         .then(() => notificationsQuery.refetch()).catch(() => undefined);
     }
     setIsNotificationOpen(false);
-    if (notification.type === "chat_message") {
-      navigate(`/manager/chat?conversation=${notification.conversationId ?? ""}`);
-    } else if (notification.type.startsWith("withdrawal_") || notification.type === "booking_fee") {
-      navigate("/manager/finance");
-    } else if (notification.type.startsWith("approval_")) {
-      navigate("/manager/approval-status");
-    } else if (notification.type === "violation_warning") {
-      navigate("/manager/violation-reports");
-    } else {
-      navigate(notification.bookingId
-        ? `/manager/bookings?booking=${notification.bookingId}`
-        : "/manager/bookings?status=all");
-    }
+    navigate(managerNotificationDestination(notification));
   };
-
   const markAllNotificationsRead = async () => {
     if (unreadCount === 0) {
       return;

@@ -9,6 +9,7 @@ import {
   type CustomerNotification,
 } from "../hooks/useCustomerNotifications";
 import { api } from "../services/api";
+import { adminNotificationDestination } from "../utils/notificationDestination";
 
 const ADMIN_NAV: NavItem[] = [
   { label: "Tổng quan", to: "/admin", icon: "dashboard" },
@@ -34,12 +35,6 @@ const BREADCRUMB: Record<string, string> = {
   "/admin/stats": "Thống kê",
 };
 
-function notificationDestination(notification: CustomerNotification): string {
-  if (notification.type.startsWith("partner_")) return "/admin/partner-applications";
-  if (notification.type.startsWith("withdrawal_") || notification.type.startsWith("refund_")) return "/admin/withdrawals";
-  if (notification.type.startsWith("violation_")) return "/admin/violation-reports";
-  return "/admin";
-}
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -73,7 +68,7 @@ export default function AdminLayout() {
       }
     }
     setIsNotificationOpen(false);
-    navigate(notificationDestination(notification));
+    navigate(adminNotificationDestination(notification));
   };
 
   const markAllNotificationsRead = async () => {
