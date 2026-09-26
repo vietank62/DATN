@@ -181,7 +181,12 @@ export default function BookingPage() {
     && now >= bookingMealTime
     && now <= bookingMealTime + 7 * 24 * 60 * 60 * 1000;
 
-  const itemTotal = booking.booking_items.reduce(
+  // A booking can legitimately have no preselected dishes. Older API responses
+  // may omit this field, so normalize it before rendering the detail page.
+  const bookingItems = Array.isArray(booking.booking_items)
+    ? booking.booking_items
+    : [];
+  const itemTotal = bookingItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
@@ -264,13 +269,13 @@ export default function BookingPage() {
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">
                 {t("booking.items")}
               </h3>
-              {booking.booking_items.length === 0 ? (
+              {bookingItems.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-sm text-gray-500">
                   {t("booking.noItems")}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {booking.booking_items.map((item) => (
+                  {bookingItems.map((item) => (
                     <div
                       key={item.bookingItemId}
                       className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 p-4"
@@ -371,7 +376,7 @@ export default function BookingPage() {
               />
               <DetailRow
                 label={t("booking.itemCount")}
-                value={String(booking.booking_items.length)}
+                value={String(bookingItems.length)}
               />
             </div>
           </div>

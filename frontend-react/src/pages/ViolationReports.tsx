@@ -1,10 +1,10 @@
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
 import { uploadImage } from "../services/upload";
+import { ViolationBookingDetailDialog } from "../components/ViolationBookingDetailDialog";
 
 type Report = {
   id: number;
@@ -64,6 +64,7 @@ export default function ViolationReports() {
   });
 
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [appealReason, setAppealReason] = useState("");
   const [appealFiles, setAppealFiles] = useState<FileList | null>(null);
   const [appealPreviewUrls, setAppealPreviewUrls] = useState<string[]>([]);
@@ -183,7 +184,7 @@ export default function ViolationReports() {
           <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
             <div className="border-b border-gray-100 p-5"><h2 className="font-bold text-gray-900">Lịch sử cảnh báo phản hồi trễ</h2><p className="mt-1 text-xs text-gray-500">Hiển thị 5 đơn gần nhất. Bạn có thể chuyển trang để xem các cảnh báo trước đó.</p></div>
             {summaryQuery.data.late_response_history.length === 0 && <p className="p-5 text-sm text-gray-500">Chưa có lịch sử cảnh báo.</p>}
-            {summaryQuery.data.late_response_history.map(item => <article key={item.id} className="border-t border-gray-100 px-5 py-4 text-sm"><p className="font-semibold">{item.booking_id ? `Đơn #${item.booking_id}` : "Cảnh báo phản hồi trễ trước đây"}</p><p>{item.message.replaceAll("cờ phản hồi trễ", "vi phạm phản hồi trễ")}</p><p className="mt-1 text-gray-500">{new Date(item.created_at).toLocaleString("vi-VN")}</p><Link className="mt-2 inline-block font-semibold text-blue-700 underline" to={item.booking_id ? `/manager/bookings?booking=${item.booking_id}` : "/manager/bookings?status=all"}>Xem chi tiết đơn</Link></article>)}
+            {summaryQuery.data.late_response_history.map(item => <article key={item.id} className="border-t border-gray-100 px-5 py-4 text-sm"><p className="font-semibold">{item.booking_id ? `Đơn #${item.booking_id}` : "Cảnh báo phản hồi trễ trước đây"}</p><p>{item.message.replaceAll("cờ phản hồi trễ", "vi phạm phản hồi trễ")}</p><p className="mt-1 text-gray-500">{new Date(item.created_at).toLocaleString("vi-VN")}</p>{item.booking_id ? <button type="button" onClick={() => setSelectedBookingId(item.booking_id)} className="mt-2 inline-block font-semibold text-blue-700 underline">Xem chi tiết đơn</button> : <span className="mt-2 inline-block text-gray-400">Không có đơn liên quan</span>}</article>)}
             {summaryQuery.data.late_response_history_total > 5 && <nav className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4 text-sm"><button type="button" disabled={lateHistoryOffset === 0 || summaryQuery.isFetching} onClick={() => setLateHistoryOffset(value => Math.max(0, value - 5))} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang trước</button><span className="text-gray-500">Trang {lateHistoryOffset / 5 + 1}</span><button type="button" disabled={lateHistoryOffset + 5 >= summaryQuery.data.late_response_history_total || summaryQuery.isFetching} onClick={() => setLateHistoryOffset(value => value + 5)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang tiếp</button></nav>}
           </div>
         </>}
@@ -219,6 +220,13 @@ export default function ViolationReports() {
           </div>
 
           {renderImages(report.evidence_urls)}
+          <button
+            type="button"
+            onClick={() => setSelectedBookingId(report.booking_id)}
+            className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+          >
+            Xem chi tiết đơn đặt bàn
+          </button>
 
           {report.appeal_reason && (
             <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm">
@@ -262,6 +270,8 @@ export default function ViolationReports() {
           Chưa có hồ sơ báo cáo hoặc giải trình.
         </div>
       )}
+
+      {selectedBookingId !== null && <ViolationBookingDetailDialog bookingId={selectedBookingId} onClose={() => setSelectedBookingId(null)} />}
 
       {selectedReport && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">

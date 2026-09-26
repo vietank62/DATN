@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../services/api";
@@ -28,6 +28,23 @@ type FeeSummary = {
   feesDeducted: number;
   feesDirectPaid: number;
 };
+type FeeCheckout = {
+  checkoutUrl: string;
+  fields: Record<string, string>;
+  paymentId: number;
+  amount: number;
+  invoiceNumber: string;
+  expiresAt: string;
+};
+
+type FeePaymentStatus = {
+  paymentId: number;
+  status: "pending" | "completed" | "expired" | "cancelled" | "review";
+  amount: number;
+  invoiceNumber: string;
+  expiresAt: string;
+  paidAt?: string | null;
+};
 const money = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
 const dueDate = (value: string) => new Date(value).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 
@@ -48,10 +65,40 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
   const queryClient = useQueryClient();
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [selectedFee, setSelectedFee] = useState<Fee | null>(null);
+  const [handledPaymentId, setHandledPaymentId] = useState<number | null>(null);
+  const feePaymentId = Number(new URLSearchParams(window.location.search).get("feePayment")) || null;
   const fees = useQuery<Fee[]>({
     queryKey: ["booking-fees"],
     queryFn: () => api.get("/v1/booking-fees").then((response) => response.data),
   });
+  const feePaymentStatus = useQuery<FeePaymentStatus>({
+    queryKey: ["booking-fee-payment", feePaymentId],
+    queryFn: () => api.get(`/v1/booking-fees/payment/${feePaymentId}/status`).then((response) => response.data),
+    enabled: !!feePaymentId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => query.state.data?.status === "pending" ? 3000 : false,
+  });
+  useEffect(() => {
+    const status = feePaymentStatus.data?.status;
+    if (!feePaymentId || !status || handledPaymentId === feePaymentId) return;
+    if (status === "completed") {
+      setHandledPaymentId(feePaymentId);
+      toast.success("Thanh toán phí dịch vụ thành công.");
+      void queryClient.invalidateQueries({ queryKey: ["booking-fees"] });
+      void queryClient.invalidateQueries({ queryKey: ["booking-fees-summary"] });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (status === "expired" || status === "cancelled") {
+      setHandledPaymentId(feePaymentId);
+      toast.error("Phiên thanh toán phí dịch vụ đã hết hạn hoặc bị hủy.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (status === "review") {
+      setHandledPaymentId(feePaymentId);
+      toast.message("Giao dịch đang được quản trị viên kiểm tra.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [feePaymentId, feePaymentStatus.data?.status, handledPaymentId, queryClient]);
+
   const summary = useQuery<FeeSummary>({
     queryKey: ["booking-fees-summary"],
     queryFn: () => api.get("/v1/booking-fees/summary").then((response) => response.data),
@@ -67,6 +114,26 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
       void queryClient.invalidateQueries({ queryKey: ["booking-fees"] });
     },
     onError: () => toast.error("Không thể ghi nhận thanh toán. Vui lòng thử lại."),
+  });
+
+  const feeCheckout = useMutation({
+    mutationFn: () => api.post<FeeCheckout>("/v1/booking-fees/payment/checkout").then((response) => response.data),
+    onSuccess: (checkout) => {
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = checkout.checkoutUrl;
+      Object.entries(checkout.fields).forEach(([name, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    },
+    onError: () => toast.error("Không thể tạo mã QR thanh toán phí dịch vụ. Vui lòng thử lại."),
   });
 
   const items = fees.data ?? [];
@@ -116,7 +183,15 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
           <StatCard label="Đã khấu trừ cọc" value={money(overview?.feesDeducted ?? deducted)} tone="blue" />
           <StatCard label="Đã thu trực tiếp" value={money(overview?.feesDirectPaid ?? directPaid)} tone="emerald" />
         </div>
-        <p className="mt-3 text-xs leading-5 text-gray-500">Tổng phí phát sinh = đã khấu trừ cọc + đã thu trực tiếp + còn cần thu. Khoản cọc đang giữ là tổng cọc hợp lệ của các đơn đã xác nhận, hoàn thành hoặc bị giữ do vi phạm.</p>
+        <p className="mt-3 text-xs leading-5 text-gray-500">Tổng phí phát sinh = đã khấu trừ cọc + đã thu trực tiếp + còn cần thu. Khoản cọc đang giữ là tổng cọc hợp lệ của các đơn đã xác nhận, hoàn thành hoặc bị giữ do vi phạm.</p>        {!admin && (overview?.feesOutstanding ?? outstanding) > 0 && <div className="mt-5 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-amber-900">Thanh toán phí dịch vụ</p>
+            <p className="mt-1 text-sm text-amber-800">Còn cần thanh toán {money(overview?.feesOutstanding ?? outstanding)}. Mã QR có hiệu lực trong 10 phút.</p>
+          </div>
+          <button type="button" disabled={feeCheckout.isPending} onClick={() => feeCheckout.mutate()} className="rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60">
+            {feeCheckout.isPending ? "Đang tạo mã QR…" : "Thanh toán qua QR"}
+          </button>
+        </div>}
       </div>
     </section>
 

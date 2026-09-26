@@ -13,6 +13,7 @@ from models.restaurant import Restaurant
 from models.resDetail import RestaurantDetail
 from models.user import User
 from routers.deps import get_current_user
+from core.admin_notifications import notify_admins
 from schemas.partner import (
     PartnerApplicationCreate,
     PartnerOperationalUpdate,
@@ -201,6 +202,12 @@ def submit_application(data: PartnerApplicationCreate, current_user: Annotated[U
         )
 
     session.add(restaurant)
+    notify_admins(
+        session,
+        title="Có hồ sơ nhà hàng cần xét duyệt",
+        message=f"{restaurant.name} đã gửi hồ sơ đăng ký hoặc đăng ký lại. Vui lòng xem trong mục Duyệt đối tác.",
+        notification_type="partner_application_pending",
+    )
     session.commit()
     session.refresh(restaurant)
 
@@ -289,6 +296,14 @@ def update_operational(
 
     session.add(restaurant)
     session.add(detail)
+    if changed_approval_fields:
+        changed_labels = [APPROVAL_FIELD_LABELS.get(field, field) for field in sorted(changed_approval_fields)]
+        notify_admins(
+            session,
+            title="Có thay đổi nhà hàng cần xét duyệt",
+            message=f"{restaurant.name} yêu cầu xét duyệt: {', '.join(changed_labels)}.",
+            notification_type="partner_update_pending",
+        )
     session.commit()
     background_tasks.add_task(clear_restaurant_caches)
     session.refresh(restaurant)
