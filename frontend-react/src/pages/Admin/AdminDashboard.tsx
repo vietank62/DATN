@@ -1,162 +1,56 @@
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { ArrowRight, Building2, CalendarDays, CircleAlert, CircleDollarSign, ClipboardCheck, Landmark, ReceiptText, ShieldAlert, Users } from "lucide-react";
+import { api } from "../../services/api";
 import { ROLE_LABEL } from "../../utils/status";
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../services/api';
-import { toast } from 'sonner';
-import { useState } from 'react';
-import type { User } from '../../types/auth';
+import type { User } from "../../types/auth";
 
-// Shared KPI card (light)
-function KpiCard({ label, value, sub, iconBg, icon }: {
-  label: string; value: string | number; sub?: string;
-  iconBg: string; icon: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 flex items-start justify-between gap-3">
-      <div>
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-        <p className="text-2xl font-extrabold text-gray-900 leading-tight">{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-      </div>
-      <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${iconBg}`}>
-        {icon}
-      </div>
-    </div>
-  );
+type AdminStats = { totalRestaurants: number; totalUsers: number; totalBookings: number; activeRestaurants: number; newUsersThisMonth: number };
+type UserPage = { items: User[]; total: number };
+type Approval = { id: number };
+type Refund = { id: number; status: string };
+type Withdrawal = { id: number; status: string; amount: number };
+type Violation = { id: number; status?: string };
+type FeeSummary = { feesOutstanding: number; completedBookingsThisMonth: number };
+const money = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
+
+type Icon = typeof Users;
+function MetricCard({ label, value, note, icon: IconComponent, tone, to }: { label: string; value: string | number; note: string; icon: Icon; tone: "violet" | "blue" | "emerald" | "amber"; to: string }) {
+  const navigate = useNavigate();
+  const tones = { violet: "bg-violet-50 text-violet-700 ring-violet-100", blue: "bg-blue-50 text-blue-700 ring-blue-100", emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100", amber: "bg-amber-50 text-amber-700 ring-amber-100" };
+  return <button type="button" onClick={() => navigate(to)} className="group rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-violet-400"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p><p className="mt-2 text-2xl font-bold tracking-tight text-gray-900">{value}</p><p className="mt-1 text-xs text-gray-500">{note}</p></div><span className={`rounded-xl p-2.5 ring-1 ${tones[tone]}`}><IconComponent className="h-5 w-5" /></span></div><span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-violet-700">Xem chi tiết <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" /></span></button>;
 }
 
-interface AdminStats {
-  totalRestaurants: number;
-  totalUsers: number;
-  totalBookings: number;
-  activeRestaurants: number;
-  newUsersThisMonth: number;
-}
-
-interface UserPage {
-  items: User[];
-  total: number;
+function WorkItem({ title, detail, count, icon: IconComponent, tone, to }: { title: string; detail: string; count: string | number; icon: Icon; tone: "amber" | "blue" | "red" | "violet"; to: string }) {
+  const navigate = useNavigate();
+  const tones = { amber: "bg-amber-50 text-amber-700", blue: "bg-blue-50 text-blue-700", red: "bg-red-50 text-red-700", violet: "bg-violet-50 text-violet-700" };
+  return <button type="button" onClick={() => navigate(to)} className="flex w-full items-center gap-4 rounded-xl border border-gray-100 p-4 text-left transition hover:border-violet-200 hover:bg-violet-50/30"><span className={`rounded-xl p-2.5 ${tones[tone]}`}><IconComponent className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold text-gray-900">{title}</span><span className="mt-0.5 block text-xs text-gray-500">{detail}</span></span><span className="text-right"><span className="block text-xl font-bold text-gray-900">{count}</span><ArrowRight className="ml-auto mt-1 h-3.5 w-3.5 text-gray-400" /></span></button>;
 }
 
 export default function AdminDashboard() {
-  const qc = useQueryClient();
-
-  const statsQ = useQuery<AdminStats>({
-    queryKey: ['admin-stats'],
-    queryFn: () => api.get('/api/stats/admin').then(r => r.data),
-  });
-
-  const usersQ = useQuery<UserPage>({
-    queryKey: ['admin-users', 'recent'],
-    queryFn: () => api.get('/v1/users/', {
-      params: { limit: 5, offset: 0 },
-    }).then(r => r.data),
-  });
-
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const deleteUserMut = useMutation({
-    mutationFn: (id: number) => api.delete(`/v1/users/${id}`),
-    onSuccess: () => {
-      toast.success('Đã xoá tài khoản');
-      qc.invalidateQueries({ queryKey: ['admin-users'] });
-      qc.invalidateQueries({ queryKey: ['admin-stats'] });
-      setDeletingId(null);
-    },
-    onError: () => toast.error('Xoá thất bại'),
-  });
-
+  const navigate = useNavigate();
+  const statsQ = useQuery<AdminStats>({ queryKey: ["admin-stats"], queryFn: () => api.get("/api/stats/admin").then((response) => response.data) });
+  const usersQ = useQuery<UserPage>({ queryKey: ["admin-users", "recent"], queryFn: () => api.get("/v1/users/", { params: { limit: 5, offset: 0 } }).then((response) => response.data) });
+  const approvalsQ = useQuery<Approval[]>({ queryKey: ["partner-applications"], queryFn: () => api.get("/v1/partners/applications").then((response) => response.data) });
+  const refundsQ = useQuery<Refund[]>({ queryKey: ["admin-refunds", "dashboard"], queryFn: () => api.get("/v1/deposits/admin/refunds?limit=50").then((response) => response.data) });
+  const withdrawalsQ = useQuery<Withdrawal[]>({ queryKey: ["admin-withdrawals"], queryFn: () => api.get("/v1/deposits/admin/withdrawals").then((response) => response.data) });
+  const violationsQ = useQuery<Violation[]>({ queryKey: ["admin-violation-reports"], queryFn: () => api.get("/v1/violation-reports").then((response) => response.data) });
+  const feesQ = useQuery<FeeSummary>({ queryKey: ["booking-fees-summary"], queryFn: () => api.get("/v1/booking-fees/summary").then((response) => response.data) });
   const stats = statsQ.data;
-  const newestUsers = usersQ.data?.items ?? [];
+  const pendingRefunds = (refundsQ.data ?? []).filter((item) => item.status === "processing");
+  const pendingWithdrawals = (withdrawalsQ.data ?? []).filter((item) => item.status === "pending");
+  const pendingWithdrawalAmount = pendingWithdrawals.reduce((total, item) => total + item.amount, 0);
+  const openViolations = (violationsQ.data ?? []).filter((item) => item.status !== "resolved" && item.status !== "dismissed");
+  const recentUsers = usersQ.data?.items ?? [];
 
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tổng quan hệ thống</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Quản trị toàn bộ nền tảng TableNow</p>
-      </div>
+  return <div className="mx-auto max-w-7xl space-y-6">
+    <section className="rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 px-6 py-7 text-white shadow-sm"><p className="text-sm font-semibold tracking-wide text-violet-100">QUẢN TRỊ TABLE NOW</p><div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-3xl font-bold">Tổng quan vận hành</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-violet-100">Theo dõi số liệu nền tảng và đi thẳng đến các công việc cần xử lý.</p></div><button type="button" onClick={() => navigate("/admin/stats")} className="inline-flex w-fit items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-bold transition hover:bg-white/25">Xem thống kê <ArrowRight className="h-4 w-4" /></button></div></section>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label="Người dùng" value={stats?.totalUsers ?? '—'} sub={`+${stats?.newUsersThisMonth ?? 0} tháng này`}
-          iconBg="bg-violet-50"
-          icon={<svg className="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-8a4 4 0 11-8 0 4 4 0 018 0zm6 8a2 2 0 100-4 2 2 0 000 4zM3 20a2 2 0 100-4 2 2 0 000 4z"/></svg>}
-        />
-        <KpiCard label="Nhà hàng đối tác" value={stats?.totalRestaurants ?? '—'} sub={`${stats?.activeRestaurants ?? 0} đang hoạt động`}
-          iconBg="bg-blue-50"
-          icon={<svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m13-9l2 9"/></svg>}
-        />
-        <KpiCard label="Tổng đặt bàn" value={stats?.totalBookings ?? '—'}
-          iconBg="bg-emerald-50"
-          icon={<svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>}
-        />
-        <KpiCard label="NH hoạt động" value={stats?.activeRestaurants ?? '—'} sub={`/ ${stats?.totalRestaurants ?? 0} đối tác`}
-          iconBg="bg-amber-50"
-          icon={<svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
-        />
-      </div>
+    <section><div className="mb-3"><h2 className="font-bold text-gray-900">Tình hình hệ thống</h2><p className="mt-1 text-sm text-gray-500">Chọn một chỉ số để mở trang quản lý tương ứng.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><MetricCard label="Tài khoản" value={stats?.totalUsers ?? "—"} note={`+${stats?.newUsersThisMonth ?? 0} tài khoản trong tháng`} icon={Users} tone="violet" to="/admin/users" /><MetricCard label="Nhà hàng" value={stats?.totalRestaurants ?? "—"} note={`${stats?.activeRestaurants ?? 0} nhà hàng đang hoạt động`} icon={Building2} tone="blue" to="/admin/restaurants" /><MetricCard label="Đơn đặt bàn" value={stats?.totalBookings ?? "—"} note="Xem số liệu và xu hướng đặt bàn" icon={CalendarDays} tone="emerald" to="/admin/stats" /><MetricCard label="Phí còn cần thu" value={feesQ.isLoading ? "—" : money(feesQ.data?.feesOutstanding ?? 0)} note={`${feesQ.data?.completedBookingsThisMonth ?? 0} đơn hoàn thành trong tháng`} icon={ReceiptText} tone="amber" to="/admin/booking-fees" /></div></section>
 
-      {/* Recent registrations summary table */}
-      <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-800">5 tài khoản đăng ký gần nhất</h2>
-          <a href="/admin/users" className="text-xs text-violet-600 hover:underline font-medium">Xem tất cả →</a>
-        </div>
-        {usersQ.isLoading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Đang tải...</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                <th className="px-6 py-3 text-left">Tên</th>
-                <th className="px-6 py-3 text-left">Email</th>
-                <th className="px-6 py-3 text-center">Vai trò</th>
-                <th className="px-6 py-3 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {newestUsers.map(u => (
-                <tr key={u.userId} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold flex-shrink-0">
-                        {u.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-gray-800">{u.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 text-gray-500">{u.email}</td>
-                  <td className="px-6 py-3 text-center">
-                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold
-                      ${u.role === 'admin' ? 'bg-violet-100 text-violet-700'
-                        : u.role === 'manager' ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-500'}`}>
-                      {ROLE_LABEL[u.role] ?? u.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-right">
-                    {deletingId === u.userId ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-gray-400">Xác nhận xoá?</span>
-                        <button onClick={() => deleteUserMut.mutate(u.userId)}
-                          className="px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition">Xoá</button>
-                        <button onClick={() => setDeletingId(null)}
-                          className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs transition">Huỷ</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setDeletingId(u.userId)} disabled={u.role === 'admin'}
-                        className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium transition disabled:opacity-30 disabled:cursor-not-allowed">
-                        Xoá tài khoản
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {newestUsers.length === 0 && (
-                <tr><td colSpan={4} className="px-6 py-8 text-center text-gray-400 text-sm">Chưa có dữ liệu</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
+    <section className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]"><div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"><div className="mb-4"><h2 className="font-bold text-gray-900">Việc cần xử lý</h2><p className="mt-1 text-sm text-gray-500">Các mục dưới đây đều dẫn đến danh sách xử lý chi tiết.</p></div><div className="grid gap-3 sm:grid-cols-2"><WorkItem title="Hồ sơ đối tác chờ duyệt" detail="Đăng ký mới và yêu cầu thay đổi thông tin" count={approvalsQ.data?.length ?? "—"} icon={ClipboardCheck} tone="amber" to="/admin/partner-applications" /><WorkItem title="Hoàn cọc sẵn sàng xử lý" detail="Khách đã cung cấp thông tin nhận tiền" count={pendingRefunds.length} icon={CircleDollarSign} tone="blue" to="/admin/withdrawals" /><WorkItem title="Yêu cầu rút tiền" detail={pendingWithdrawalAmount ? `Cần chuyển ${money(pendingWithdrawalAmount)}` : "Nhà hàng đang chờ xử lý"} count={pendingWithdrawals.length} icon={Landmark} tone="violet" to="/admin/withdrawals" /><WorkItem title="Báo cáo và giải trình" detail="Theo dõi hồ sơ vi phạm cần xem xét" count={openViolations.length} icon={ShieldAlert} tone="red" to="/admin/violation-reports" /></div></div>
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-gray-100 px-5 py-4"><div><h2 className="font-bold text-gray-900">Tài khoản mới</h2><p className="mt-1 text-xs text-gray-500">5 tài khoản gần nhất</p></div><button type="button" onClick={() => navigate("/admin/users")} className="text-xs font-bold text-violet-700 hover:underline">Xem tất cả</button></div><div className="divide-y divide-gray-100">{usersQ.isLoading && <p className="p-6 text-center text-sm text-gray-400">Đang tải tài khoản…</p>}{!usersQ.isLoading && recentUsers.length === 0 && <p className="p-6 text-center text-sm text-gray-400">Chưa có tài khoản mới.</p>}{recentUsers.map((user) => <button type="button" key={user.userId} onClick={() => navigate("/admin/users")} className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-gray-50"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-violet-700">{user.name.charAt(0).toUpperCase()}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-gray-900">{user.name}</span><span className="block truncate text-xs text-gray-500">{user.email}</span></span><span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">{ROLE_LABEL[user.role] ?? user.role}</span></button>)}</div></div></section>
+
+    <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5"><div className="flex items-start gap-3"><CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><h2 className="font-bold text-amber-950">Lưu ý vận hành</h2><p className="mt-1 text-sm leading-6 text-amber-900">Ưu tiên xử lý hoàn cọc khi khách đã gửi thông tin nhận tiền, yêu cầu rút tiền của nhà hàng và hồ sơ vi phạm. Các thẻ trên trang giúp mở đúng khu vực xử lý trong một lần nhấn.</p></div></div></section>
+  </div>;
 }
