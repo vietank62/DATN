@@ -2,6 +2,7 @@
 import os
 import smtplib
 import ssl
+import logging
 from email.message import EmailMessage
 from email.utils import formataddr
 from datetime import datetime, timedelta, timezone
@@ -9,6 +10,8 @@ from sqlmodel import select
 from sqlalchemy import or_
 from models.bookingEmail import BookingEmail
 from models import Restaurant, Notification
+
+logger = logging.getLogger(__name__)
 
 def queue_booking_email(session, booking, event):
     if session.exec(select(BookingEmail.id).where(BookingEmail.booking_id == booking.bookingId, BookingEmail.event == event)).first():
@@ -50,6 +53,7 @@ def queue_booking_email(session, booking, event):
 def deliver_booking_emails(session):
     host, sender = os.getenv("SMTP_HOST"), os.getenv("SMTP_FROM")
     if not host or not sender:
+        logger.warning("Booking emails are not configured: SMTP_HOST and SMTP_FROM are required.")
         return 0
     now = datetime.now(timezone.utc)
     rows = session.exec(select(BookingEmail).where(BookingEmail.sent_at == None,
@@ -76,6 +80,7 @@ def deliver_booking_emails(session):
             row.sent_at = now.isoformat()
             sent += 1
         except (OSError, smtplib.SMTPException):
+            logger.exception("Unable to send booking email %s to %s; it will be retried.", row.id, row.recipient)
             row.next_attempt_at = (now + timedelta(minutes=min(1440, 2 ** min(row.attempts, 10)))).isoformat()
         session.add(row)
     session.commit()
