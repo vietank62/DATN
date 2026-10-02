@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlmodel import select  # type: ignore
 
 from database import SessionDep
-from core.booking_email import queue_booking_email
+from core.booking_email import deliver_booking_emails, queue_booking_email
 from core.booking_capacity import ensure_available_seats
 from core.booking_policy import AUTO_COMPLETE_DELAY, COMPLETION_REMINDER_DELAY, CONFIRMATION_LEAD, month_start
 from core.deposit_expiry import deposit_deadline, expire_unpaid_bookings
@@ -400,6 +400,7 @@ def _persist_booking_status(session: Any, booking: Booking, status: str) -> Book
 		booking.completedAt = datetime.now(timezone.utc).isoformat()
 	session.add(booking)
 	session.commit()
+	deliver_booking_emails(session)
 	session.refresh(booking)
 	return _serialize_booking(session, booking)
 
@@ -508,6 +509,8 @@ def create_booking(
 	if not deposit_amount:
 		queue_booking_email(session, db_booking, "pending")
 	session.commit()
+	if not deposit_amount:
+		deliver_booking_emails(session)
 
 	session.refresh(db_booking)
 	return _serialize_booking(session, db_booking)

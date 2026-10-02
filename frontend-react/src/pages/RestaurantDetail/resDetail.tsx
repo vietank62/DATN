@@ -1417,19 +1417,6 @@ export const RestaurantDetail = () => {
                       Nhà hàng sẽ dùng thông tin này để liên hệ xác nhận.
                     </p>
                   </div>
-                  {restaurantDetail.phone_number && (
-                    <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-                      <span className="font-semibold">
-                        Cần hỗ trợ đặt bàn?{" "}
-                      </span>
-                      <a
-                        href={`tel:${restaurantDetail.phone_number}`}
-                        className="cursor-pointer font-bold underline underline-offset-2"
-                      >
-                        Liên hệ nhà hàng: {restaurantDetail.phone_number}
-                      </a>
-                    </div>
-                  )}
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-gray-500 font-semibold">
                       Họ tên người nhận bàn *
