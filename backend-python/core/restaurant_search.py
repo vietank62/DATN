@@ -10,7 +10,7 @@ from models.restaurant import Restaurant
 
 PRICE_RANGES = {1: (None, 100_000), 2: (100_000, 200_000), 3: (200_000, 500_000),
                 4: (500_000, 1_000_000), 5: (1_000_000, None)}
-SPACE_RANGES = {1: (1, 5), 2: (6, 10), 3: (11, 20), 4: (21, 50), 5: (51, None)}
+SPACE_MINIMUMS = {1: 1, 2: 6, 3: 11, 4: 21, 5: 51}
 
 
 def normalize_text(value: str) -> str:
@@ -46,7 +46,7 @@ def normalize_filters(**values) -> dict:
 def restaurant_cache_key(filters: dict, limit: int, offset: int) -> str:
     payload = json.dumps({**filters, "limit": limit, "offset": offset}, sort_keys=True,
                          separators=(",", ":"), ensure_ascii=True)
-    return "cache:restaurants:v7:" + hashlib.sha256(payload.encode()).hexdigest()
+    return "cache:restaurants:v8:" + hashlib.sha256(payload.encode()).hexdigest()
 
 
 def public_restaurant_conditions():
@@ -73,10 +73,7 @@ def apply_restaurant_filters(statement, *, search=None, city=None, district=None
         if upper is not None:
             statement = statement.where(Restaurant.price_avg < upper)
     if space_level is not None:
-        lower, upper = SPACE_RANGES[space_level]
-        statement = statement.where(Restaurant.capacity >= lower)
-        if upper is not None:
-            statement = statement.where(Restaurant.capacity <= upper)
+        statement = statement.where(Restaurant.capacity >= SPACE_MINIMUMS[space_level])
     if rating is not None:
         statement = statement.where(Restaurant.rating >= rating)
 

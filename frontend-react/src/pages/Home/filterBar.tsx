@@ -33,8 +33,8 @@ const SERVICE_TYPE_OPTIONS = [
 ];
 
 const SPACE_OPTIONS = [
-  "1-5 người", "6-10 người",
-  "11-20 người", "21-50 người", "Trên 50 người",
+  "Từ 1 người", "Từ 6 người",
+  "Từ 11 người", "Từ 21 người", "Từ 51 người",
 ];
 
 type FilterKey = keyof FilterState;

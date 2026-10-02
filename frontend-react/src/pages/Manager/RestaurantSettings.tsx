@@ -155,7 +155,6 @@ export default function RestaurantSettings() {
     try {
       const url = await uploadImage(file);
       setForm((x) => ({ ...x, [key]: url }));
-      toast.success("Đã tải ảnh lên Cloudinary.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Tải ảnh thất bại.");
     }
@@ -165,7 +164,6 @@ export default function RestaurantSettings() {
     try {
       const urls = await Promise.all([...files].map(uploadImage));
       setGallery([...currentGallery, ...urls]);
-      toast.success("Đã tải ảnh lên Cloudinary.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Tải ảnh thất bại.");
     }
