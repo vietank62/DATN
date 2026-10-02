@@ -3,6 +3,7 @@ import os
 import smtplib
 import ssl
 from email.message import EmailMessage
+from email.utils import formataddr
 from datetime import datetime, timedelta, timezone
 from sqlmodel import select
 from sqlalchemy import or_
@@ -16,8 +17,31 @@ def queue_booking_email(session, booking, event):
     labels = {"pending": "Chờ xác nhận", "confirmed": "Đã xác nhận", "completed": "Hoàn thành"}
     status = labels.get(event, event)
     frontend = os.getenv("FRONTEND_URL", "").rstrip("/")
-    subject = f"TableNow - Đơn #{booking.bookingId}: {status}"
-    body = f"Xin chào {booking.contactName},\nĐơn #{booking.bookingId} tại {restaurant.name if restaurant else 'nhà hàng'}\nNgày {booking.date}, giờ {booking.time} (Việt Nam)\nSố người: {booking.guestCount}, trẻ em: {booking.childCount}\nTrạng thái: {status}\nTiền cọc: {booking.depositAmount:,}đ\nChi tiết: {frontend}/account/bookings/{booking.bookingId}"
+    restaurant_name = restaurant.name if restaurant else "nhà hàng đã chọn"
+    detail_url = f"{frontend}/account/bookings/{booking.bookingId}" if frontend else ""
+    subject = f"[TableNow] Cập nhật đơn đặt bàn #{booking.bookingId} – {status}"
+    body_lines = [
+        f"Kính gửi Quý khách {booking.contactName},",
+        "",
+        "TableNow trân trọng thông báo thông tin đơn đặt bàn của Quý khách như sau:",
+        "",
+        f"Mã đơn: #{booking.bookingId}",
+        f"Nhà hàng: {restaurant_name}",
+        f"Thời gian dùng bữa: {booking.date}, {booking.time} (giờ Việt Nam)",
+        f"Số lượng khách: {booking.guestCount} người lớn, {booking.childCount} trẻ em",
+        f"Trạng thái đơn: {status}",
+        f"Tiền đặt cọc: {booking.depositAmount:,} đ",
+    ]
+    if detail_url:
+        body_lines.extend(["", f"Quý khách vui lòng xem chi tiết đơn đặt bàn tại: {detail_url}"])
+    body_lines.extend([
+        "",
+        "Cảm ơn Quý khách đã lựa chọn TableNow. Chúng tôi rất hân hạnh được phục vụ Quý khách.",
+        "",
+        "Trân trọng,",
+        "Đội ngũ TableNow",
+    ])
+    body = "\n".join(body_lines)
     session.add(BookingEmail(booking_id=booking.bookingId,event=event,recipient=booking.contactEmail,subject=subject,body=body))
     session.add(Notification(userId=booking.userId,bookingId=booking.bookingId,title=subject,message=f"Đơn đặt bàn: {status}",type="booking_status",createdAt=datetime.now(timezone.utc).isoformat()))
     if event == "pending" and restaurant and restaurant.manager_id:
@@ -36,7 +60,9 @@ def deliver_booking_emails(session):
         row.attempts += 1
         try:
             message = EmailMessage()
-            message["From"], message["To"], message["Subject"] = sender, row.recipient, row.subject
+            sender_name = os.getenv("SMTP_FROM_NAME", "TableNow").strip() or "TableNow"
+            message["From"] = formataddr((sender_name, sender))
+            message["To"], message["Subject"] = row.recipient, row.subject
             message["Message-ID"] = f"<tablenow-booking-{row.id}@{sender.rsplit('@',1)[-1]}>"
             message.set_content(row.body)
             use_ssl = os.getenv("SMTP_SSL", "false").lower() == "true"
