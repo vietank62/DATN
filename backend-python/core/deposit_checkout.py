@@ -215,7 +215,7 @@ def process_gateway_ipn(session, data, supplied_secret):
     expire_checkout_rows(session, booking, utc_now())
     session.commit()
     if not reason:
-        deliver_booking_emails(session)
+        deliver_booking_emails(session, booking_id=booking.bookingId, ignore_retry_schedule=True)
     return {"success": True, "message": "Recorded for review" if reason else "Booking deposit processed"}
 
 

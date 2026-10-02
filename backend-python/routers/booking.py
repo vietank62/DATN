@@ -400,7 +400,7 @@ def _persist_booking_status(session: Any, booking: Booking, status: str) -> Book
 		booking.completedAt = datetime.now(timezone.utc).isoformat()
 	session.add(booking)
 	session.commit()
-	deliver_booking_emails(session)
+	deliver_booking_emails(session, booking_id=booking.bookingId, ignore_retry_schedule=True)
 	session.refresh(booking)
 	return _serialize_booking(session, booking)
 
@@ -506,11 +506,13 @@ def create_booking(
 		)
 		session.add(deposit_payment)
 
-	if not deposit_amount:
-		queue_booking_email(session, db_booking, "pending")
+	queue_booking_email(
+		session,
+		db_booking,
+		"awaiting_payment" if deposit_amount else "pending",
+	)
 	session.commit()
-	if not deposit_amount:
-		deliver_booking_emails(session)
+	deliver_booking_emails(session, booking_id=db_booking.bookingId, ignore_retry_schedule=True)
 
 	session.refresh(db_booking)
 	return _serialize_booking(session, db_booking)

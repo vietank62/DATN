@@ -19,6 +19,7 @@ def queue_booking_email(session, booking, event):
     restaurant = session.get(Restaurant, booking.restaurantId)
     labels = {
         "pending": "Chờ xác nhận",
+        "awaiting_payment": "Chờ thanh toán đặt cọc",
         "confirmed": "Đã xác nhận",
         "completed": "Hoàn thành",
         "cancelled": "Đã hủy",
@@ -56,15 +57,20 @@ def queue_booking_email(session, booking, event):
     if event == "pending" and restaurant and restaurant.manager_id:
         session.add(Notification(userId=restaurant.manager_id,bookingId=booking.bookingId,title="Có đơn đặt bàn mới",message=f"Đơn #{booking.bookingId}: {booking.date} {booking.time}. Vui lòng xác nhận trước giờ dùng bữa 2 tiếng.",type="new_booking",createdAt=datetime.now(timezone.utc).isoformat()))
 
-def deliver_booking_emails(session):
+def deliver_booking_emails(session, booking_id=None, ignore_retry_schedule=False):
     host, sender = os.getenv("SMTP_HOST"), os.getenv("SMTP_FROM")
     if not host or not sender:
         logger.warning("Booking emails are not configured: SMTP_HOST and SMTP_FROM are required.")
         return 0
     now = datetime.now(timezone.utc)
-    rows = session.exec(select(BookingEmail).where(BookingEmail.sent_at == None,
-        or_(BookingEmail.next_attempt_at == None, BookingEmail.next_attempt_at <= now.isoformat()))
-        .order_by(BookingEmail.id).limit(3).with_for_update(skip_locked=True)).all()
+    query = select(BookingEmail).where(BookingEmail.sent_at == None)
+    if booking_id is not None:
+        query = query.where(BookingEmail.booking_id == booking_id)
+    if not ignore_retry_schedule:
+        query = query.where(
+            or_(BookingEmail.next_attempt_at == None, BookingEmail.next_attempt_at <= now.isoformat())
+        )
+    rows = session.exec(query.order_by(BookingEmail.id).limit(3).with_for_update(skip_locked=True)).all()
     sent = 0
     sender_name = os.getenv("SMTP_FROM_NAME", "TableNow").strip() or "TableNow"
     for row in rows:

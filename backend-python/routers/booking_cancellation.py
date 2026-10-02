@@ -90,7 +90,7 @@ def customer_cancel(booking_id: int, data: CancellationInput, session: SessionDe
     if restaurant and restaurant.manager_id:
         notify(session, booking, restaurant.manager_id, f"Khách hàng yêu cầu huỷ đơn #{booking.bookingId}: {data.reason}", "cancellation_request")
     session.commit()
-    deliver_booking_emails(session)
+    deliver_booking_emails(session, booking_id=booking.bookingId, ignore_retry_schedule=True)
     return _serialize_booking(session, booking)
 
 @router.put("/{booking_id}/cancellation-decision")
@@ -111,7 +111,7 @@ def cancellation_decision(booking_id: int, data: CancellationDecision, session: 
         notify(session, booking, booking.userId, f"Nhà hàng từ chối yêu cầu huỷ; đơn vẫn đã xác nhận, cọc được giữ lại. Lý do: {data.reason}")
     session.commit()
     if data.approved:
-        deliver_booking_emails(session)
+        deliver_booking_emails(session, booking_id=booking.bookingId, ignore_retry_schedule=True)
     return _serialize_booking(session, booking)
 
 @router.put("/{booking_id}/cancel")
@@ -133,5 +133,5 @@ def restaurant_cancel(booking_id: int, data: CancellationInput, session: Session
     finish_cancel(session, booking, data.reason, data.source, data.evidence_url,
         failed=booking.status == "pending" and data.source == "restaurant")
     session.commit()
-    deliver_booking_emails(session)
+    deliver_booking_emails(session, booking_id=booking.bookingId, ignore_retry_schedule=True)
     return _serialize_booking(session, booking)
