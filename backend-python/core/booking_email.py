@@ -1,11 +1,8 @@
-"""Durable booking receipts. SMTP is optional; queued mail stays pending until configured."""
+"""Durable booking receipts delivered through the Resend HTTPS API."""
 import os
-import smtplib
-import ssl
 import logging
-from email.message import EmailMessage
-from email.utils import formataddr
 from datetime import datetime, timedelta, timezone
+import httpx
 from sqlmodel import select
 from sqlalchemy import or_
 from models.bookingEmail import BookingEmail
@@ -51,37 +48,34 @@ def queue_booking_email(session, booking, event):
         session.add(Notification(userId=restaurant.manager_id,bookingId=booking.bookingId,title="Có đơn đặt bàn mới",message=f"Đơn #{booking.bookingId}: {booking.date} {booking.time}. Vui lòng xác nhận trước giờ dùng bữa 2 tiếng.",type="new_booking",createdAt=datetime.now(timezone.utc).isoformat()))
 
 def deliver_booking_emails(session):
-    host, sender = os.getenv("SMTP_HOST"), os.getenv("SMTP_FROM")
-    if not host or not sender:
-        logger.warning("Booking emails are not configured: SMTP_HOST and SMTP_FROM are required.")
+    api_key = os.getenv("RESEND_API_KEY")
+    sender = os.getenv("RESEND_FROM")
+    if not api_key or not sender:
+        logger.warning("Booking emails are not configured: RESEND_API_KEY and RESEND_FROM are required.")
         return 0
     now = datetime.now(timezone.utc)
     rows = session.exec(select(BookingEmail).where(BookingEmail.sent_at == None,
         or_(BookingEmail.next_attempt_at == None, BookingEmail.next_attempt_at <= now.isoformat()))
         .order_by(BookingEmail.id).limit(3).with_for_update(skip_locked=True)).all()
     sent = 0
-    for row in rows:
-        row.attempts += 1
-        try:
-            message = EmailMessage()
-            sender_name = os.getenv("SMTP_FROM_NAME", "TableNow").strip() or "TableNow"
-            message["From"] = formataddr((sender_name, sender))
-            message["To"], message["Subject"] = row.recipient, row.subject
-            message["Message-ID"] = f"<tablenow-booking-{row.id}@{sender.rsplit('@',1)[-1]}>"
-            message.set_content(row.body)
-            use_ssl = os.getenv("SMTP_SSL", "false").lower() == "true"
-            client = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
-            with client(host, int(os.getenv("SMTP_PORT", "465" if use_ssl else "587")), timeout=10) as smtp:
-                if not use_ssl:
-                    smtp.starttls(context=ssl.create_default_context())
-                if os.getenv("SMTP_USER"):
-                    smtp.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", ""))
-                smtp.send_message(message)
-            row.sent_at = now.isoformat()
-            sent += 1
-        except (OSError, smtplib.SMTPException):
-            logger.exception("Unable to send booking email %s to %s; it will be retried.", row.id, row.recipient)
-            row.next_attempt_at = (now + timedelta(minutes=min(1440, 2 ** min(row.attempts, 10)))).isoformat()
-        session.add(row)
+    sender_name = os.getenv("RESEND_FROM_NAME", "TableNow").strip() or "TableNow"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    with httpx.Client(base_url="https://api.resend.com", headers=headers, timeout=10.0) as client:
+        for row in rows:
+            row.attempts += 1
+            try:
+                response = client.post("/emails", json={
+                    "from": f"{sender_name} <{sender}>",
+                    "to": [row.recipient],
+                    "subject": row.subject,
+                    "text": row.body,
+                })
+                response.raise_for_status()
+                row.sent_at = now.isoformat()
+                sent += 1
+            except httpx.HTTPError:
+                logger.exception("Unable to send booking email %s to %s through Resend; it will be retried.", row.id, row.recipient)
+                row.next_attempt_at = (now + timedelta(minutes=min(1440, 2 ** min(row.attempts, 10)))).isoformat()
+            session.add(row)
     session.commit()
     return sent
