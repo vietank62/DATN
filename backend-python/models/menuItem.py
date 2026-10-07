@@ -1,5 +1,6 @@
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel, Column, ARRAY, Text # type: ignore
+from sqlalchemy import text
 
 if TYPE_CHECKING:
     from .restaurant import Restaurant
@@ -14,6 +15,7 @@ class RestaurantMenuList(SQLModel, table=True):
     price: float = Field(default=0, index=True)
     description: Optional[str] = Field(default=None, max_length=500)
     image_url: Optional[str] = Field(default=None, max_length=500)
-    is_available: bool = Field(default=True, index=True) 
+    is_available: bool = Field(default=True, index=True)
+    is_deleted: bool = Field(default=False, nullable=False, sa_column_kwargs={"server_default": text("false")})
     
     restaurant: "Restaurant" = Relationship(back_populates="menus")

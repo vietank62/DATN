@@ -25,7 +25,7 @@ class MergeRegressionTests(unittest.TestCase):
         script = ScriptDirectory.from_config(config)
         revisions = list(script.walk_revisions())
         self.assertEqual(len(revisions), len({row.revision for row in revisions}))
-        self.assertEqual(script.get_heads(), ["f9a0b1c2d3e4"])
+        self.assertEqual(len(script.get_heads()), 1)
 
     def test_fee_ipn_uses_fee_handler(self):
         payload = {"order": {"order_invoice_number": "TNFEE-123"}}

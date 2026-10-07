@@ -466,7 +466,7 @@ def create_booking(
 			menu_item = menu_item_map.get(item.itemId)
 			if not menu_item or menu_item.restaurant_id != restaurant.id:
 				raise HTTPException(status_code=400, detail=f"Menu item {item.itemId} is not available for this restaurant")
-			if not menu_item.is_available:
+			if not menu_item.is_available or menu_item.is_deleted:
 				raise HTTPException(status_code=400, detail=f"Menu item {menu_item.name} is not available")
 
 	now = datetime.now(timezone.utc).isoformat()

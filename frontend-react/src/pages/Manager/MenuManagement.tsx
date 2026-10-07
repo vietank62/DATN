@@ -104,7 +104,10 @@ export default function MenuManagement() {
       invalidate();
       setDeletingId(null);
     },
-    onError: () => toast.error("Xoá thất bại"),
+    onError: (error: unknown) => {
+      const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+      toast.error(typeof detail === "string" ? detail : "Không thể xóa món ăn. Vui lòng thử lại.");
+    },
   });
 
   const openCreate = () => {

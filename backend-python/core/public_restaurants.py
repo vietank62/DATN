@@ -98,7 +98,8 @@ def get_public_restaurant_menu(restaurant_id: int, limit: int = 8) -> dict[str, 
         dishes = session.exec(
             select(RestaurantMenuList)
             .where(RestaurantMenuList.restaurant_id == restaurant_id,
-                   RestaurantMenuList.is_available == True)
+                   RestaurantMenuList.is_available == True,
+                   RestaurantMenuList.is_deleted == False)
             .order_by(RestaurantMenuList.id)
             .limit(safe_limit)
         ).all()

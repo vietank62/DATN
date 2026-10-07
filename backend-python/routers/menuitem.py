@@ -23,7 +23,7 @@ def get_menu_items_by_restaurant(
         select(Restaurant, RestaurantMenuList)
         .outerjoin(
             RestaurantMenuList,
-            RestaurantMenuList.restaurant_id == Restaurant.id,
+            (RestaurantMenuList.restaurant_id == Restaurant.id) & (RestaurantMenuList.is_deleted == False),
         )
         .where(Restaurant.id == restaurant_id)
         .order_by(
@@ -80,7 +80,7 @@ def update_menu_item_availability(
         raise HTTPException(status_code=404, detail="Restaurant not found")
 
     menu_item = session.get(RestaurantMenuList, menuitem_id)
-    if not menu_item or menu_item.restaurant_id != restaurant_id:
+    if not menu_item or menu_item.restaurant_id != restaurant_id or menu_item.is_deleted:
         raise HTTPException(status_code=404, detail="Menu item not found")
 
     menu_item.is_available = not menu_item.is_available
@@ -105,7 +105,7 @@ def update_menu_item(
 ):
     require_restaurant_owner(session, restaurant_id, current_user)
     item = session.get(RestaurantMenuList, menuitem_id)
-    if not item or item.restaurant_id != restaurant_id:
+    if not item or item.restaurant_id != restaurant_id or item.is_deleted:
         raise HTTPException(status_code=404, detail="Menu item not found")
 
     for key, value in menu_item.model_dump().items():
@@ -131,7 +131,10 @@ def delete_menu_item(
     if not item or item.restaurant_id != restaurant_id:
         raise HTTPException(status_code=404, detail="Menu item not found")
 
-    session.delete(item)
+    # Retain the row referenced by historical booking items and receipts.
+    item.is_deleted = True
+    item.is_available = False
+    session.add(item)
     session.commit()
     background_tasks.add_task(clear_restaurant_list_cache)
     return {"message": "Menu item deleted"}
