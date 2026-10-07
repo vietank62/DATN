@@ -34,6 +34,7 @@ class PartnerOperationalUpdate(BaseModel):
     zalo_number: str | None = Field(default=None, max_length=20, pattern=r"^[+0-9\s().-]*$")
     booking_lead_minutes: int | None = Field(default=None, ge=1, le=10080)
     booking_confirmation_minutes: int | None = Field(default=None, ge=0, le=10079)
+    booking_hold_minutes: int | None = Field(default=None, ge=1, le=240)
     vat_enabled: bool | None = None
     menu_prices_visible: bool | None = None
     name: Optional[str] = None

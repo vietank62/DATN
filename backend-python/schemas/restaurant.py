@@ -43,6 +43,7 @@ class RestaurantBase(BaseModel):
     capacity: int = 0
     booking_opening_time: Optional[str] = None
     booking_lead_minutes: int = 120
+    booking_hold_minutes: int = 30
     booking_closing_time: Optional[str] = None
     is_active: bool
     created_at: datetime

@@ -92,6 +92,11 @@ def arrive_online_booking(booking_id: int, data: BookingTableChoice, session: Se
     from core.booking_table_assignment import assign_booking_tables
     from core.table_reservations import sync_table_reservations
     restaurant = managed_restaurant(session, user)
+    # Enforce the deadline even if the maintenance worker has not run yet.
+    if getattr(restaurant, "booking_hold_minutes", None) is not None:
+        sync_table_reservations(session, restaurant)
+        session.commit()
+        restaurant = managed_restaurant(session, user)
     booking = session.exec(select(Booking).where(Booking.bookingId == booking_id, Booking.restaurantId == restaurant.id, Booking.userId != None).with_for_update()).first()
     if not booking or booking.status != "confirmed":
         raise HTTPException(409, "Chỉ được tiếp nhận khách của đơn đã xác nhận.")

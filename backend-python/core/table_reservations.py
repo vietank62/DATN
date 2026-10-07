@@ -111,8 +111,10 @@ def sync_table_reservations(session, restaurant):
     if repaired:
         session.flush()
     orders = workspace.get("orders", {})
+    from core.booking_hold_expiry import release_expired_holds
+    released = release_expired_holds(session, restaurant, workspace)
     reservations = reservation_conflicts(due_reservations(session, restaurant.id), orders)
-    changed = bool(repaired)
+    changed = bool(repaired or released)
     imported = {order.get("bookingId") for order in workspace.get("orders", {}).values() if order.get("preordersImported")}
     imported.update(bill.get("bookingId") for shift in workspace.get("shifts", []) for bill in shift.get("bills", []) if bill.get("preordersImported"))
     primary_tables = {}

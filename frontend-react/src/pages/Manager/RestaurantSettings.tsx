@@ -56,6 +56,7 @@ type Restaurant = {
   suitable_for?: string[];
   booking_lead_minutes?: number;
   booking_confirmation_minutes?: number;
+  booking_hold_minutes?: number;
   booking_opening_time?: string;
   booking_closing_time?: string;
   booking_duration_minutes?: number;
@@ -143,6 +144,7 @@ export default function RestaurantSettings() {
   const [priceInput, setPriceInput] = useState<string | null>(null);
   const [bookingLeadInput, setBookingLeadInput] = useState<string | null>(null);
   const [bookingConfirmationInput, setBookingConfirmationInput] = useState<string | null>(null);
+  const [bookingHoldInput, setBookingHoldInput] = useState<string | null>(null);
   const [priceFromInput, setPriceFromInput] = useState<string | null>(null);
   const [priceToInput, setPriceToInput] = useState<string | null>(null);
   const [depositInput, setDepositInput] = useState<string | null>(null);
@@ -283,7 +285,14 @@ export default function RestaurantSettings() {
       toast.error("Thời gian xác nhận phải không âm và nhỏ hơn thời gian đặt trước giờ dùng bữa.");
       return;
     }
+    const rawHold = bookingHoldInput ?? String(currentForm.booking_hold_minutes ?? 30);
+    const hold = Number(rawHold);
+    if (!/^\d+$/.test(rawHold) || !Number.isInteger(hold) || hold < 1 || hold > 240) {
+      toast.error("Thời gian giữ bàn phải từ 1 đến 240 phút.");
+      return;
+    }
     save.mutate({
+      booking_hold_minutes: hold,
       booking_lead_minutes: lead,
       booking_confirmation_minutes: confirmation,
       booking_opening_time: openingTime || null,
@@ -849,6 +858,10 @@ export default function RestaurantSettings() {
           <label className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"><span className="block min-h-10">Xác nhận đặt bàn trước giờ dùng bữa (phút)</span>
             <input type="text" inputMode="numeric" autoComplete="off" value={bookingConfirmationInput ?? String(currentForm.booking_confirmation_minutes ?? 60)} onChange={e=>{if(/^\d*$/.test(e.target.value))setBookingConfirmationInput(e.target.value);}} className="mt-2 h-12 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 outline-none focus:border-emerald-500" />
             <span className="mt-2 block text-xs leading-5 text-gray-500">Hạn phản hồi của nhà hàng và hạn khách được hủy đơn phương, không mất cọc.</span>
+          </label>
+          <label className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"><span className="block min-h-10">Giữ bàn sau giờ đặt (phút)</span>
+            <input type="text" inputMode="numeric" autoComplete="off" value={bookingHoldInput ?? String(currentForm.booking_hold_minutes ?? 30)} onChange={e=>{if(/^\d*$/.test(e.target.value))setBookingHoldInput(e.target.value);}} className="mt-2 h-12 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 outline-none focus:border-emerald-500" />
+            <span className="mt-2 block text-xs leading-5 text-gray-500">Hết hạn sẽ trả bàn nếu khách chưa được tiếp nhận. Không áp dụng cho khách đang dùng bữa.</span>
           </label>
           {timePicker(
             "booking_opening_time",

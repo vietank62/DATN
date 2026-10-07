@@ -49,6 +49,7 @@ class Restaurant(SQLModel, table=True):
     booking_opening_time: Optional[str] = Field(default=None, max_length=5)
     booking_lead_minutes: int = Field(default=120, nullable=False, sa_column_kwargs={"server_default": text("120")})
     booking_confirmation_minutes: int = Field(default=60, nullable=False, sa_column_kwargs={"server_default": text("60")})
+    booking_hold_minutes: int = Field(default=30, ge=1, le=240, nullable=False, sa_column_kwargs={"server_default": text("30")})
     booking_duration_minutes: int = Field(default=120, ge=1, nullable=False, sa_column_kwargs={"server_default": text("120")})
     booking_closing_time: Optional[str] = Field(default=None, max_length=5)
     created_at: datetime = Field(

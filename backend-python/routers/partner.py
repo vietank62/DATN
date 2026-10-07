@@ -275,8 +275,9 @@ def update_operational(
         "booking_closing_time",
         "booking_lead_minutes",
         "booking_confirmation_minutes",
+        "booking_hold_minutes",
     ):
-        if key in data.model_fields_set and (key not in {"vat_enabled", "menu_prices_visible", "booking_lead_minutes", "booking_confirmation_minutes"} or getattr(data, key) is not None):
+        if key in data.model_fields_set and (key not in {"vat_enabled", "menu_prices_visible", "booking_lead_minutes", "booking_confirmation_minutes", "booking_hold_minutes"} or getattr(data, key) is not None):
             setattr(restaurant, key, getattr(data, key))
 
     detail = session.exec(select(RestaurantDetail).where(RestaurantDetail.restaurant_id == restaurant.id)).first()
