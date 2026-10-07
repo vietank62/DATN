@@ -3,10 +3,16 @@ import base64
 import hashlib
 import hmac
 import os
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
 from fastapi import HTTPException
+from dotenv import load_dotenv
+
+# Uvicorn can be started from the repository root during development.  Load
+# the backend's own .env explicitly so checkout does not depend on cwd.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 SIGNED_FIELDS = (
     "order_amount", "merchant", "currency", "operation", "order_description",

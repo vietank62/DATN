@@ -64,10 +64,14 @@ def create_review(
         )
 
     # Create the review
-    review = Review(
-        **review_data.model_dump(),
-        createdAt=datetime.now().isoformat()
-    )
+    payload = review_data.model_dump()
+    # The public API uses camelCase while the persisted gallery follows the
+    # database's snake_case convention.
+    media_urls = [*payload.pop("imageUrls"), *payload.pop("mediaUrls")]
+    if len(media_urls) > 6:
+        raise HTTPException(status_code=422, detail="Mỗi đánh giá chỉ được tối đa 6 ảnh hoặc video")
+    payload["image_urls"] = media_urls or None
+    review = Review(**payload, createdAt=datetime.now().isoformat())
     session.add(review)
     session.flush()
 

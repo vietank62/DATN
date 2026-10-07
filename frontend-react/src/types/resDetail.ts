@@ -3,6 +3,7 @@ export interface ResDetail {
   image_urls: string[];
   image_menu: string[];
   phone_number: string;
+  zalo_number?: string | null;
   price_range: string;
   opening_time?: string[] | string | null;
   description?: string;

@@ -27,6 +27,11 @@ class Restaurant(SQLModel, table=True):
     suitable_for: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
     service_types: List[str] = Field(default=None, sa_column=Column(ARRAY(Text)))
     capacity: int = Field(default=0, index=True)
+    cashier_payment_methods: List[str] = Field(default_factory=lambda: ["Tiền mặt", "Chuyển khoản", "ATM", "Apple Pay", "Visa"], sa_column=Column(ARRAY(Text), nullable=False))
+    cashier_default_payment_method: str = Field(default="Tiền mặt", max_length=30)
+    cashier_payment_method_options: List[str] = Field(default_factory=lambda: ["Tiền mặt", "Chuyển khoản", "ATM", "Apple Pay", "Visa"], sa_column=Column(ARRAY(Text), nullable=False))
+    vat_enabled: bool = Field(default=True, nullable=False, sa_column_kwargs={"server_default": text("true")})
+    menu_prices_visible: bool = Field(default=True, nullable=False, sa_column_kwargs={"server_default": text("true")})
     is_active: bool = Field(default=True)
     is_report_suspended: bool = Field(default=False)
     late_response_strikes: int = Field(default=0)
@@ -42,8 +47,10 @@ class Restaurant(SQLModel, table=True):
     legal_documents_urls: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
     policy_accepted_at: Optional[datetime] = Field(default=None)
     booking_opening_time: Optional[str] = Field(default=None, max_length=5)
+    booking_lead_minutes: int = Field(default=120, nullable=False, sa_column_kwargs={"server_default": text("120")})
+    booking_confirmation_minutes: int = Field(default=60, nullable=False, sa_column_kwargs={"server_default": text("60")})
+    booking_duration_minutes: int = Field(default=120, ge=1, nullable=False, sa_column_kwargs={"server_default": text("120")})
     booking_closing_time: Optional[str] = Field(default=None, max_length=5)
-    booking_duration_minutes: int = Field(default=120, ge=30, le=480)
     created_at: datetime = Field(
         default_factory=datetime.utcnow, 
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}

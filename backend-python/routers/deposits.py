@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException, Security, Header
+from fastapi import APIRouter, HTTPException, Security, Header, BackgroundTasks
 from pydantic import BaseModel, Field
 from core.booking_fees import fee_totals, settle_restaurant_fees
 from sqlalchemy import or_, func  # type: ignore
@@ -122,7 +122,7 @@ def create_deposit_checkout(
 
 @router.post("/sepay/ipn")
 def gateway_ipn(
-    payload: dict, session: SessionDep,
+    payload: dict, session: SessionDep, background_tasks: BackgroundTasks,
     x_secret_key: Annotated[str | None, Header()] = None,
 ):
     """Receive the single SePay IPN URL used by both deposits and service fees."""
@@ -130,7 +130,7 @@ def gateway_ipn(
     invoice = order.get("order_invoice_number") if isinstance(order, dict) else ""
     if isinstance(invoice, str) and invoice.startswith("TNFEE"):
         return process_fee_payment_ipn(payload, session, x_secret_key)
-    return process_gateway_ipn(session, payload, x_secret_key)
+    return process_gateway_ipn(session, payload, x_secret_key, background_tasks)
 
 
 @router.get("/admin/payment-reviews")

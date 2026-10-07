@@ -5,5 +5,8 @@ export interface FilterState {
     suitableFor?: string;
     endow?: string;
     serviceType?: string;
-    space?: string;
+    rating?: string;
+    partySize?: string;
+    utility?: string;
+    deposit?: string;
 }

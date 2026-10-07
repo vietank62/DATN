@@ -18,8 +18,8 @@ interface TopRestaurant {
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string; bar: string }> = {
-  admin:    { label: 'Admin',    color: '#8b5cf6', bg: 'bg-violet-50', bar: 'bg-violet-500' },
-  manager:  { label: 'Manager',  color: '#3b82f6', bg: 'bg-blue-50',   bar: 'bg-blue-500' },
+  admin:    { label: 'Admin',    color: '#8b5cf6', bg: 'bg-red-50', bar: 'bg-red-500' },
+  manager:  { label: 'Manager',  color: '#3b82f6', bg: 'bg-red-50',   bar: 'bg-red-500' },
   customer: { label: 'Khách hàng', color: '#10b981', bg: 'bg-emerald-50', bar: 'bg-emerald-500' },
 };
 
@@ -83,8 +83,8 @@ function RestaurantDonut({ active, total }: { active: number; total: number }) {
           </svg>
           {/* Centre label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-extrabold text-gray-900">{pct}%</span>
-            <span className="text-xs text-gray-400 font-medium tracking-wide">hoạt động</span>
+            <span className="text-3xl font-normal text-gray-900">{pct}%</span>
+            <span className="text-xs text-gray-400 font-normal tracking-wide">hoạt động</span>
           </div>
         </div>
 
@@ -92,21 +92,21 @@ function RestaurantDonut({ active, total }: { active: number; total: number }) {
           <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
             <span className="w-3 h-3 rounded-full bg-emerald-500 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-emerald-700">{active}</p>
+              <p className="font-normal text-emerald-700">{active}</p>
               <p className="text-xs text-emerald-600">Đang hoạt động</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
             <span className="w-3 h-3 rounded-full bg-red-400 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-red-600">{inactive}</p>
+              <p className="font-normal text-red-600">{inactive}</p>
               <p className="text-xs text-red-500">Tạm đóng cửa</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
             <span className="w-3 h-3 rounded-full bg-gray-400 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-gray-700">{total}</p>
+              <p className="font-normal text-gray-700">{total}</p>
               <p className="text-xs text-gray-500">Tổng cộng</p>
             </div>
           </div>
@@ -128,10 +128,10 @@ function RoleBarChart({ data }: { data: RoleStat[] }) {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
-                <span className="text-sm font-medium text-gray-700">{cfg.label}</span>
+                <span className="text-sm font-normal text-gray-700">{cfg.label}</span>
               </div>
               <div className="text-right">
-                <span className="text-sm font-bold text-gray-900">{d.count.toLocaleString()}</span>
+                <span className="text-sm font-normal text-gray-900">{d.count.toLocaleString()}</span>
                 <span className="text-xs text-gray-400 ml-1">({d.percentage}%)</span>
               </div>
             </div>
@@ -167,13 +167,13 @@ function TopRestaurantsTable({ data }: { data: TopRestaurant[] }) {
           {data.map((r, idx) => (
             <tr key={r.id} className="hover:bg-gray-50/70 transition-colors">
               <td className="px-5 py-3.5">
-                <span className={`inline-flex w-6 h-6 rounded-full items-center justify-center text-xs font-bold
+                <span className={`inline-flex w-6 h-6 rounded-full items-center justify-center text-xs font-normal
                   ${idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-gray-100 text-gray-600' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-gray-50 text-gray-400'}`}>
                   {idx + 1}
                 </span>
               </td>
               <td className="px-5 py-3.5">
-                <p className="font-semibold text-gray-800">{r.name}</p>
+                <p className="font-normal text-gray-800">{r.name}</p>
                 <p className="text-xs text-gray-400">#{r.id}</p>
               </td>
               <td className="px-5 py-3.5 text-gray-500 text-xs">{r.district}{r.city ? `, ${r.city}` : ''}</td>
@@ -181,12 +181,12 @@ function TopRestaurantsTable({ data }: { data: TopRestaurant[] }) {
               <td className="px-5 py-3.5 text-center">
                 <div className="flex items-center justify-center gap-1">
                   <span className="text-amber-400">★</span>
-                  <span className="font-bold text-gray-800">{r.rating?.toFixed(1) ?? '—'}</span>
+                  <span className="font-normal text-gray-800">{r.rating?.toFixed(1) ?? '—'}</span>
                   <span className="text-gray-400 text-xs">({r.review_count ?? 0})</span>
                 </div>
               </td>
               <td className="px-5 py-3.5 text-center">
-                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-normal
                   ${r.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500'}`}>
                   {r.is_active ? 'Hoạt động' : 'Tạm đóng'}
                 </span>
@@ -207,7 +207,7 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       <div className="px-6 py-5 border-b border-gray-50">
-        <h2 className="text-base font-semibold text-gray-800">{title}</h2>
+        <h2 className="text-base font-normal text-gray-800">{title}</h2>
         {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
       </div>
       <div className="p-6">{children}</div>
@@ -250,22 +250,22 @@ export default function AdminStats() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Thống kê hệ thống</h1>
+        <h1 className="text-2xl font-normal text-gray-900">Thống kê hệ thống</h1>
         <p className="text-sm text-gray-400 mt-0.5">Tổng quan toàn bộ hoạt động nền tảng TableNow</p>
       </div>
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: 'Tổng nhà hàng', value: stats?.totalRestaurants ?? '—', iconBg: 'bg-blue-50', iconColor: 'text-blue-500', path: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m13-9l2 9' },
-          { label: 'Người dùng',    value: stats?.totalUsers ?? '—',       iconBg: 'bg-violet-50', iconColor: 'text-violet-500', path: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-8a4 4 0 11-8 0 4 4 0 018 0z' },
+          { label: 'Tổng nhà hàng', value: stats?.totalRestaurants ?? '—', iconBg: 'bg-red-50', iconColor: 'text-red-500', path: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m13-9l2 9' },
+          { label: 'Người dùng',    value: stats?.totalUsers ?? '—',       iconBg: 'bg-red-50', iconColor: 'text-red-500', path: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-8a4 4 0 11-8 0 4 4 0 018 0z' },
           { label: 'Tổng đặt bàn',  value: stats?.totalBookings ?? '—',   iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500', path: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
           { label: 'NH hoạt động',  value: stats?.activeRestaurants ?? '—', iconBg: 'bg-amber-50', iconColor: 'text-amber-500', path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
         ].map(k => (
           <div key={k.label} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{k.label}</p>
-              <p className="text-2xl font-extrabold text-gray-900">{k.value}</p>
+              <p className="text-xs font-normal text-gray-400 uppercase tracking-wider mb-1">{k.label}</p>
+              <p className="text-2xl font-normal text-gray-900">{k.value}</p>
             </div>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${k.iconBg}`}>
               <svg className={`w-5 h-5 ${k.iconColor}`} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">

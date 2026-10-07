@@ -5,6 +5,7 @@ import { MessageCircle, Send } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { useAuth } from "../../hooks/useAuth";
+import { type Discount, discountText } from "../../components/DiscountOffers";
 
 type RelatedBooking = {
   bookingId: number;
@@ -44,9 +45,12 @@ export default function ChatPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const hasCreatedConversation = useRef(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageViewport = useRef<HTMLDivElement>(null);
+  const nearLatest = useRef(true);
+  const viewedConversation = useRef<number | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
+  const discountQuery=useQuery<Discount[]>({queryKey:["manager-discounts"],enabled:user?.role==="manager",queryFn:()=>api.get("/v1/discounts/me").then(r=>r.data)});
 
   const conversationsQuery = useQuery<Conversation[]>({
     queryKey: ["chat-conversations"],
@@ -68,12 +72,22 @@ export default function ChatPage() {
     queryFn: () =>
       api
         .get(`/v1/chat/conversations/${activeConversationId}/messages`, {
-          params: { limit: 50, offset: 0 },
+          params: { limit: 50, offset: 0, latest: true },
         })
         .then((response) => response.data),
     enabled: Boolean(activeConversationId),
     refetchInterval: 5_000,
   });
+  const lastMessage = messagesQuery.data?.at(-1);
+  useEffect(() => {
+    if (!activeConversation || !messagesQuery.data || !messageViewport.current) return;
+    const changedConversation = viewedConversation.current !== activeConversationId;
+    if (changedConversation || nearLatest.current || lastMessage?.sender_id === user?.userId) {
+      messageViewport.current.scrollTop = messageViewport.current.scrollHeight;
+      nearLatest.current = true;
+    }
+    viewedConversation.current = activeConversationId;
+  }, [activeConversationId, activeConversation?.id, lastMessage?.id, lastMessage?.sender_id, user?.userId, messagesQuery.data]);
   const createConversation = useMutation({
     mutationFn: (id: number) =>
       api.post("/v1/chat/conversations", { restaurant_id: id }).then((response) => response.data as Conversation),
@@ -142,11 +156,6 @@ export default function ChatPage() {
     }
   }, [activeConversation?.unread_count, activeConversationId, markConversationRead]);
 
-  const newestMessageId = messagesQuery.data?.[messagesQuery.data.length - 1]?.id;
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: "end" });
-  }, [activeConversationId, newestMessageId]);
   const handleSend = (event: React.FormEvent) => {
     event.preventDefault();
     const content = message.trim();
@@ -167,7 +176,7 @@ export default function ChatPage() {
       <aside className={`${activeConversation ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-gray-100 md:w-80`}>
         <div className="border-b border-gray-100 p-4">
           <div className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-amber-700" />
+            <MessageCircle className="h-5 w-5 text-red-700" />
             <h1 className="font-bold text-gray-900">Tin nhắn</h1>
           </div>
           <p className="mt-1 text-xs text-gray-500">Trao đổi trực tiếp với {user?.role === "manager" ? "thực khách" : "nhà hàng"}.</p>
@@ -185,10 +194,10 @@ export default function ChatPage() {
               type="button"
               onClick={() => setSelectedConversationId(conversation.id)}
               className={`flex w-full cursor-pointer items-center gap-3 border-b border-gray-50 px-4 py-3 text-left transition ${
-                conversation.id === activeConversationId ? "bg-amber-50" : "hover:bg-gray-50"
+                conversation.id === activeConversationId ? "bg-red-50" : "hover:bg-gray-50"
               }`}
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-800">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-sm font-bold text-red-800">
                 {getConversationTitle(conversation).charAt(0).toUpperCase()}
               </span>
               <span className="min-w-0 flex-1">
@@ -214,30 +223,30 @@ export default function ChatPage() {
                 <p className="text-xs text-gray-500">Trao đổi trực tiếp trên TableNow</p>
               </div>
               {activeConversation.related_bookings.length > 0 && (
-                <Link to={bookingsLink} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100">
+                <Link to={bookingsLink} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-800 transition hover:bg-red-100">
                   Xem đơn đặt bàn ({activeConversation.related_bookings.length})
                 </Link>
               )}
               <button type="button" onClick={() => setSelectedConversationId(null)} className="ml-2 cursor-pointer text-xs font-semibold text-gray-500 md:hidden">Danh sách</button>
             </div>
-            <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/60 p-4">
+            <div ref={messageViewport} onScroll={e=>{const node=e.currentTarget;nearLatest.current=node.scrollHeight-node.scrollTop-node.clientHeight<80;}} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-gray-50/60 p-4">
               {messagesQuery.data?.map((chatMessage) => {
                 const isMine = chatMessage.sender_id === user?.userId;
                 return (
                   <div key={chatMessage.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${isMine ? "rounded-br-md bg-amber-600 text-white" : "rounded-bl-md bg-white text-gray-800"}`}>
-                      {!isMine && <p className="mb-1 text-xs font-bold text-amber-800">{chatMessage.sender_name}</p>}
+                    <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${isMine ? "rounded-br-md bg-red-600 text-white" : "rounded-bl-md bg-white text-gray-800"}`}>
+                      {!isMine && <p className="mb-1 text-xs font-bold text-red-800">{chatMessage.sender_name}</p>}
                       <p className="whitespace-pre-wrap leading-6">{chatMessage.content}</p>
-                      <p className={`mt-1 text-right text-[10px] ${isMine ? "text-amber-100" : "text-gray-400"}`}>{formatTime(chatMessage.created_at)}</p>
+                      <p className={`mt-1 text-right text-[10px] ${isMine ? "text-red-100" : "text-gray-400"}`}>{formatTime(chatMessage.created_at)}</p>
                     </div>
                   </div>
                 );
               })}
-              <div ref={messagesEndRef} />
             </div>
             <form onSubmit={handleSend} className="flex gap-2 border-t border-gray-100 p-3">
-              <input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Nhập tin nhắn..." className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white" />
-              <button type="submit" disabled={sendMessage.isPending || !message.trim()} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50">
+              {user?.role==="manager"&&<select aria-label="Chèn mã giảm giá" value="" className="max-w-36 rounded-xl border border-red-200 bg-red-50 p-2 text-xs text-red-700" onChange={e=>{const d=discountQuery.data?.find(x=>x.id===Number(e.target.value));if(d)setMessage(discountText({...d,restaurant_name:activeConversation.restaurant?.name}));}}><option value="">Gửi mã giảm giá</option>{discountQuery.data?.filter(d=>d.is_active&&new Date(d.expires_at)>new Date()).map(d=><option key={d.id} value={d.id}>{d.code} · {d.title}</option>)}</select>}
+              <input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Nhập tin nhắn..." className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-red-500 focus:bg-white" />
+              <button type="submit" disabled={sendMessage.isPending || !message.trim()} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">
                 <Send className="h-4 w-4" /> Gửi
               </button>
             </form>

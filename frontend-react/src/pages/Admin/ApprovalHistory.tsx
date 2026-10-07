@@ -45,7 +45,7 @@ export default function ApprovalHistory() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Lịch sử xét duyệt</h1>
+        <h1 className="text-2xl font-normal text-gray-900">Lịch sử xét duyệt</h1>
         <p className="mt-1 text-sm text-gray-500">
           Theo dõi 10 lần xét duyệt gần nhất trên mỗi trang.
         </p>
@@ -63,9 +63,9 @@ export default function ApprovalHistory() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-bold text-gray-900">{item.restaurant_name}</h2>
+                      <h2 className="font-normal text-gray-900">{item.restaurant_name}</h2>
                       <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                        className={`rounded-full px-2.5 py-1 text-xs font-normal ${
                           item.action === "approved"
                             ? "bg-emerald-100 text-emerald-700"
                             : item.action === "cancelled"
@@ -79,7 +79,7 @@ export default function ApprovalHistory() {
                             ? "Đã hủy yêu cầu"
                             : "Đã từ chối"}
                       </span>
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-normal text-gray-600">
                         {item.request_type === "new" ? "Thêm mới" : "Chỉnh sửa"}
                       </span>
                     </div>
@@ -88,21 +88,21 @@ export default function ApprovalHistory() {
                     </p>
                   </div>
                   {item.action === "rejected" && (
-                    <span className="text-xs font-semibold text-gray-500">
+                    <span className="text-xs font-normal text-gray-500">
                       {item.deactivate_restaurant ? "Đã tắt hoạt động" : "Giữ hoạt động"}
                     </span>
                   )}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {item.change_fields.map((field) => (
-                    <span key={field} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                    <span key={field} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-normal text-amber-800">
                       {field}
                     </span>
                   ))}
                 </div>
                 {item.rejection_reason && (
                   <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm leading-6 text-red-900">
-                    <span className="font-bold">Lý do từ chối: </span>
+                    <span className="font-normal">Lý do từ chối: </span>
                     {item.rejection_reason}
                   </div>
                 )}
@@ -119,7 +119,7 @@ export default function ApprovalHistory() {
               type="button"
               disabled={page === 1}
               onClick={() => setPage((current) => current - 1)}
-              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-normal disabled:cursor-not-allowed disabled:opacity-40"
             >
               Trước
             </button>
@@ -127,7 +127,7 @@ export default function ApprovalHistory() {
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((current) => current + 1)}
-              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-normal disabled:cursor-not-allowed disabled:opacity-40"
             >
               Sau
             </button>

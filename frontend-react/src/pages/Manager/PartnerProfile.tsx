@@ -1,5 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import AddressGeocoding from "../../components/AddressGeocoding";
+import ImageOrderControls, { moveImage } from "../../components/ImageOrderControls";
 import { Link } from "react-router-dom";
 import { citiesList } from "../../data/Location";
 import { useLocation } from "../../hooks/useLocation";
@@ -7,6 +9,7 @@ import { api } from "../../services/api";
 import { uploadImage } from "../../services/upload";
 import { RESTAURANT_CATEGORIES } from "../../utils/category";
 import { toast } from "sonner";
+import { ImagePlus, Images, Trash2 } from "lucide-react";
 
 type Application = {
   id: number;
@@ -35,7 +38,6 @@ type PartnerForm = {
   business_license_urls: string[];
   tax_code: string;
   legal_documents_urls: string[];
-  capacity: number;
   policy_accepted: boolean;
 };
 
@@ -51,13 +53,15 @@ const initialForm: PartnerForm = {
   business_license_urls: [],
   tax_code: "",
   legal_documents_urls: [],
-  capacity: 20,
   policy_accepted: false,
 };
 
 export default function PartnerProfile() {
   const { city: contextCity, getDistricts, setCity, setDistrict } = useLocation();
   const [form, setForm] = useState<PartnerForm>(initialForm);
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [locating, setLocating] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [uploadingField, setUploadingField] = useState<
     | "image_url"
@@ -86,7 +90,6 @@ export default function PartnerProfile() {
       image_url: application.image_url ?? "",
       business_license_urls: application.business_license_urls ?? [],
       tax_code: application.tax_code ?? "",
-      capacity: application.capacity,
     });
     setCity(application.city);
     setDistrict(application.district);
@@ -104,13 +107,46 @@ export default function PartnerProfile() {
   };
 
   const submit = useMutation({
-    mutationFn: () => api.post("/v1/partners/application", form),
+    mutationFn: () => {
+      const hasLatitude = latitude.trim() !== "";
+      const hasLongitude = longitude.trim() !== "";
+      const lat = Number(latitude);
+      const lng = Number(longitude);
+      if (hasLatitude !== hasLongitude || (hasLatitude && (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180))) {
+        throw new Error("Vui lòng nhập đầy đủ vĩ độ và kinh độ hợp lệ.");
+      }
+      return api.post("/v1/partners/application", {
+        ...form,
+        latitude: hasLatitude ? lat : null,
+        longitude: hasLongitude ? lng : null,
+      });
+    },
     onSuccess: () => {
       toast.success("Hồ sơ đã được gửi để TableNow xét duyệt.");
       void applicationQ.refetch();
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+    onError: (error: unknown) => toast.error(error instanceof Error && !("response" in error) ? error.message : getErrorMessage(error)),
   });
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Thiết bị không hỗ trợ xác định vị trí.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLatitude(String(coords.latitude));
+        setLongitude(String(coords.longitude));
+        setLocating(false);
+      },
+      () => {
+        setLocating(false);
+        toast.error("Không lấy được vị trí. Hãy cấp quyền vị trí hoặc nhập tọa độ thủ công.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  };
 
   const set = (key: keyof PartnerForm, value: string | number | boolean) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -175,6 +211,24 @@ export default function PartnerProfile() {
     }
   };
 
+  const uploadRestaurantImages = async (files: FileList | null) => {
+    if (!files?.length) return;
+    try {
+      setUploadingField("image_urls");
+      const imageUrls = await Promise.all([...files].map(uploadImage));
+      setForm(current => ({ ...current, image_urls: [...current.image_urls, ...imageUrls] }));
+      toast.success(`Đã tải lên ${imageUrls.length} ảnh nhà hàng.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Tải ảnh thất bại.");
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  const removeRestaurantImage = (index: number) => {
+    setForm(current => ({ ...current, image_urls: current.image_urls.filter((_, i) => i !== index) }));
+  };
+
   const removeDocumentImage = (
     key: "business_license_urls" | "legal_documents_urls",
     index: number,
@@ -195,10 +249,10 @@ export default function PartnerProfile() {
     return (
       <div className="max-w-3xl space-y-5">
         <div className="rounded-3xl border border-red-200 bg-red-50 p-7">
-          <p className="text-xs font-bold uppercase tracking-wide text-red-700">
+          <p className="text-xs font-normal uppercase tracking-wide text-red-700">
             Hồ sơ đối tác
           </p>
-          <h1 className="mt-2 text-2xl font-bold text-gray-900">{app.name}</h1>
+          <h1 className="mt-2 text-2xl font-normal text-gray-900">{app.name}</h1>
           <p className="mt-2 text-sm text-gray-600">
             Trạng thái: {" "}
             <strong>
@@ -219,7 +273,7 @@ export default function PartnerProfile() {
     key: "name" | "website_url" | "address" | "tax_code",
     label: string,
   ) => (
-    <label className="text-sm font-medium text-gray-700">
+    <label className="text-sm font-normal text-gray-700">
       {label}
       <input
         required={key !== "website_url"}
@@ -227,7 +281,7 @@ export default function PartnerProfile() {
         value={form[key]}
         onChange={(event) => set(key, event.target.value)}
         placeholder={key === "address" && !form.district ? "Chọn quận / huyện trước" : undefined}
-        className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none"
+        className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none"
       />
     </label>
   );
@@ -239,7 +293,7 @@ export default function PartnerProfile() {
       : form.city === contextCity ? getDistricts() : [];
 
     return (
-      <label className="text-sm font-medium text-gray-700">
+      <label className="text-sm font-normal text-gray-700">
         {label}
         <input
           required
@@ -255,7 +309,7 @@ export default function PartnerProfile() {
             handleDistrictChange(event.target.value);
           }}
           placeholder={key === "city" ? "Chọn hoặc nhập thành phố" : "Chọn hoặc nhập quận / huyện"}
-          className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none"
+          className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none"
         />
         <datalist id={listId}>
           {options.map((option) => (
@@ -271,8 +325,8 @@ export default function PartnerProfile() {
     label: string,
     required: boolean,
   ) => (
-    <div className="rounded-xl border border-dashed border-gray-300 bg-slate-50 p-4">
-      <p className="text-sm font-semibold text-gray-700">{label}</p>
+    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+      <p className="text-sm font-normal text-gray-700">{label}</p>
       <p className="mt-1 text-xs text-gray-500">Chọn nhiều ảnh cùng lúc từ máy tính (JPG, PNG, WEBP hoặc GIF).</p>
       <input
         id={`partner-${key}`}
@@ -285,7 +339,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor={`partner-${key}`}
-        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
+        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-normal text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
       >
         {uploadingField === key ? "Đang tải ảnh..." : "Chọn nhiều ảnh từ máy"}
       </label>
@@ -302,13 +356,13 @@ export default function PartnerProfile() {
                 <img
                   src={url}
                   alt={`${label} ${index + 1}`}
-                  className="h-24 w-full object-cover"
+                  className="aspect-square w-full object-cover"
                 />
               </button>
               <button
                 type="button"
                 onClick={() => removeDocumentImage(key, index)}
-                className="absolute right-2 top-2 rounded-md bg-black/70 px-2 py-1 text-xs font-bold text-white"
+                className="absolute right-2 top-2 rounded-md bg-black/70 px-2 py-1 text-xs font-normal text-white"
               >
                 Xóa
               </button>
@@ -319,9 +373,82 @@ export default function PartnerProfile() {
     </div>
   );
 
+  const restaurantImagesUpload = () => (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:col-span-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="rounded-xl bg-red-50 p-2 text-red-700">
+            <Images size={18} />
+          </span>
+          <p className="text-sm font-normal text-gray-800">Hình ảnh nhà hàng</p>
+        </div>
+        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-normal text-gray-600">
+          {form.image_urls.length} ảnh
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-gray-500">
+        Chọn nhiều ảnh cùng lúc từ máy tính để giới thiệu không gian và trải nghiệm tại nhà hàng.
+      </p>
+      <input
+        id="partner-restaurant-images"
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={(event) => void uploadRestaurantImages(event.target.files)}
+        className="sr-only"
+      />
+      <label
+        htmlFor="partner-restaurant-images"
+        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-red-600 bg-red-600 px-3.5 py-2.5 text-xs font-normal text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
+      >
+        <ImagePlus size={16} />
+        {uploadingField === "image_urls" ? "Đang tải ảnh..." : "Chọn nhiều ảnh từ máy"}
+      </label>
+      {form.image_urls.length > 0 && (
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {form.image_urls.map((url, index) => (
+            <div
+              key={url}
+              className={`group relative overflow-hidden rounded-xl bg-gray-100 shadow-sm ${
+                "aspect-square"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setPreviewImage(url)}
+                className="block h-full w-full cursor-zoom-in"
+                aria-label={`Xem chi tiết hình ảnh nhà hàng ${index + 1}`}
+              >
+                <img
+                  src={url}
+                  alt={`Hình ảnh nhà hàng ${index + 1}`}
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                />
+              </button>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-7">
+                <span className="text-xs font-normal text-white">
+                  {index === 0 ? "Ảnh nổi bật" : `Ảnh ${index + 1}`}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeRestaurantImage(index)}
+                className="absolute right-2 top-2 inline-flex cursor-pointer items-center gap-1 rounded-lg bg-black/70 px-2 py-1.5 text-xs font-normal text-white transition hover:bg-red-600"
+              >
+                <Trash2 size={14} />
+                Xóa
+              </button>
+              <ImageOrderControls index={index} count={form.image_urls.length} disabled={uploadingField === "image_urls"} onMove={to => setForm(current => ({ ...current, image_urls: moveImage(current.image_urls, index, to) }))} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const coverImageUpload = () => (
-    <div className="rounded-xl border border-dashed border-gray-300 bg-slate-50 p-4 sm:col-span-2">
-      <p className="text-sm font-semibold text-gray-700">Ảnh đại diện nhà hàng</p>
+    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 sm:col-span-2">
+      <p className="text-sm font-normal text-gray-700">Ảnh đại diện nhà hàng</p>
       <p className="mt-1 text-xs text-gray-500">
         Ảnh này hiển thị trên thẻ nhà hàng và kết quả tìm kiếm, tách biệt với thư viện ảnh bên dưới.
       </p>
@@ -340,7 +467,7 @@ export default function PartnerProfile() {
       />
       <label
         htmlFor="partner-restaurant-cover"
-        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
+        className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-normal text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200"
       >
         {uploadingField === "image_url" ? "Đang tải ảnh..." : "Chọn ảnh đại diện từ máy"}
       </label>
@@ -354,7 +481,7 @@ export default function PartnerProfile() {
           <img
             src={form.image_url}
             alt="Ảnh đại diện nhà hàng"
-            className="aspect-[5/3] w-full rounded-lg object-cover sm:max-w-sm"
+            className="aspect-square w-full rounded-lg object-cover sm:max-w-sm"
           />
         </button>
       )}
@@ -369,8 +496,8 @@ export default function PartnerProfile() {
             Hồ sơ trước đó cần bổ sung. Hãy kiểm tra các thông tin quan trọng bên dưới rồi gửi lại để xét duyệt.
           </p>
         )}
-        <p className="text-xs font-bold uppercase tracking-wide text-red-700">Bước 1 / 2 · Hồ sơ xét duyệt</p>
-        <h1 className="mt-1 text-2xl font-bold text-gray-900">Thiết lập hồ sơ nhà hàng</h1>
+        <p className="text-xs font-normal uppercase tracking-wide text-red-700">Bước 1 / 2 · Hồ sơ xét duyệt</p>
+        <h1 className="mt-1 text-2xl font-normal text-gray-900">Thiết lập hồ sơ nhà hàng</h1>
         <p className="mt-1 text-sm text-gray-500">
           Cung cấp đầy đủ thông tin pháp lý và nhận diện quan trọng để TableNow xét duyệt. Sau khi được duyệt, bạn có thể bổ sung mô tả, giờ hoạt động, tiện ích, thực đơn và hình ảnh giới thiệu.
         </p>
@@ -403,9 +530,28 @@ export default function PartnerProfile() {
           {field("tax_code", "Mã số thuế *")}
         </div>
 
+        <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-normal text-gray-800">Vị trí nhà hàng</h2>
+            <button type="button" onClick={useCurrentLocation} disabled={locating} className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50">
+              {locating ? "Đang lấy vị trí..." : "Dùng vị trí hiện tại"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">Lấy vị trí khi bạn đang ở nhà hàng hoặc nhập tọa độ thủ công (không bắt buộc).</p>
+          <AddressGeocoding address={form.address} district={form.district} city={form.city} onSelect={(lat, lng) => { setLatitude(String(lat)); setLongitude(String(lng)); }} />
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="text-sm text-gray-700">Vĩ độ
+              <input type="number" step="any" min={-90} max={90} value={latitude} onChange={event => setLatitude(event.target.value)} placeholder="Ví dụ: 10.7769" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" />
+            </label>
+            <label className="text-sm text-gray-700">Kinh độ
+              <input type="number" step="any" min={-180} max={180} value={longitude} onChange={event => setLongitude(event.target.value)} placeholder="Ví dụ: 106.7009" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" />
+            </label>
+          </div>
+        </section>
+
         <section>
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-sm font-semibold text-gray-800">Danh mục nhà hàng *</h2>
+            <h2 className="text-sm font-normal text-gray-800">Danh mục nhà hàng *</h2>
             <span className="text-xs text-gray-500">Chọn ít nhất một danh mục</span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -415,7 +561,7 @@ export default function PartnerProfile() {
               return (
                 <label
                   key={category.slug}
-                  className={`cursor-pointer rounded-full border px-3 py-2 text-sm font-medium transition ${
+                  className={`cursor-pointer rounded-full border px-3 py-2 text-sm font-normal transition ${
                     isSelected
                       ? "border-red-600 bg-red-600 text-white"
                       : "border-gray-200 bg-white text-gray-600 hover:border-red-300"
@@ -436,20 +582,9 @@ export default function PartnerProfile() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {coverImageUpload()}
+          {restaurantImagesUpload()}
           {documentImagesUpload("business_license_urls", "Ảnh giấy phép kinh doanh *", true)}
         </div>
-
-        <label className="block text-sm font-medium text-gray-700">
-          Sức chứa tối đa *
-          <input
-            required
-            min="1"
-            type="number"
-            value={form.capacity}
-            onChange={(event) => set("capacity", Number(event.target.value))}
-            className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm"
-          />
-        </label>
 
         <label className="flex gap-3 rounded-xl bg-red-50 p-4 text-sm text-gray-700">
           <input
@@ -460,7 +595,7 @@ export default function PartnerProfile() {
           />
           <span>
             Tôi xác nhận thông tin là chính xác và đồng ý với {" "}
-            <Link to="/partner/policy" className="font-bold text-red-700 underline">
+            <Link to="/partner/policy" className="font-normal text-red-700 underline">
               chính sách đối tác TableNow
             </Link>
             .
@@ -473,7 +608,7 @@ export default function PartnerProfile() {
 
         <button
           disabled={submit.isPending || uploadingField !== null}
-          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-normal text-white disabled:opacity-60"
         >
           {submit.isPending ? "Đang gửi..." : app?.approval_status === "rejected" ? "Gửi lại hồ sơ xét duyệt" : "Gửi hồ sơ xét duyệt"}
         </button>
@@ -499,7 +634,7 @@ export default function PartnerProfile() {
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
-              className="absolute right-3 top-3 rounded-lg bg-black/70 px-3 py-2 text-sm font-bold text-white"
+              className="absolute right-3 top-3 rounded-lg bg-black/70 px-3 py-2 text-sm font-normal text-white"
             >
               Đóng
             </button>

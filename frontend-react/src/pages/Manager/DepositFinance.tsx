@@ -84,7 +84,7 @@ export default function DepositFinance() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-normal text-gray-900">
           Tiền đặt cọc & rút tiền
         </h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -102,10 +102,10 @@ export default function DepositFinance() {
             key={String(label)}
             className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-xs font-normal uppercase tracking-wide text-gray-400">
               {label}
             </p>
-            <p className="mt-2 text-xl font-extrabold text-gray-900">
+            <p className="mt-2 text-xl font-normal text-gray-900">
               {money(Number(value))}
             </p>
           </div>
@@ -114,7 +114,7 @@ export default function DepositFinance() {
       <BookingFees />
       <div className="grid gap-6 lg:grid-cols-5">
         <section className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="font-bold text-gray-900">Tạo yêu cầu rút tiền</h2>
+          <h2 className="font-normal text-gray-900">Tạo yêu cầu rút tiền</h2>
           <p className="mt-1 text-xs leading-5 text-gray-500">
             Bạn có thể nhập tài khoản nhận hoặc tải ảnh QR. Admin sẽ chuyển
             khoản và đính kèm minh chứng.
@@ -154,7 +154,7 @@ export default function DepositFinance() {
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
             />
             <div>
-              <p className="text-sm font-medium text-gray-600">Ảnh QR nhận tiền (tuỳ chọn)</p>
+              <p className="text-sm font-normal text-gray-600">Ảnh QR nhận tiền (tuỳ chọn)</p>
               <input
                 id="withdrawal-qr-image"
                 type="file"
@@ -162,7 +162,7 @@ export default function DepositFinance() {
                 onChange={(e) => void uploadQr(e.target.files?.[0])}
                 className="sr-only"
               />
-              <label htmlFor="withdrawal-qr-image" className="mt-2 inline-flex cursor-pointer rounded-xl border-2 border-amber-600 bg-amber-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200">
+              <label htmlFor="withdrawal-qr-image" className="mt-2 inline-flex cursor-pointer rounded-xl border-2 border-red-600 bg-red-500 px-4 py-2.5 text-sm font-normal text-white shadow-sm transition hover:bg-red-600 focus-within:ring-4 focus-within:ring-red-200">
                 Chọn ảnh QR từ máy
               </label>
             </div>
@@ -176,7 +176,7 @@ export default function DepositFinance() {
             <button
               disabled={!form.amount || requestMutation.isPending}
               onClick={() => requestMutation.mutate()}
-              className="w-full rounded-xl bg-amber-600 py-3 text-sm font-bold text-white disabled:opacity-50"
+              className="w-full rounded-xl bg-red-600 py-3 text-sm font-normal text-white disabled:opacity-50"
             >
               {requestMutation.isPending
                 ? "Đang gửi..."
@@ -186,14 +186,14 @@ export default function DepositFinance() {
         </section>
         <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm lg:col-span-3">
           <div className="border-b border-gray-100 p-5">
-            <h2 className="font-bold text-gray-900">Lịch sử yêu cầu</h2>
+            <h2 className="font-normal text-gray-900">Lịch sử yêu cầu</h2>
           </div>
           <div className="divide-y divide-gray-100">
             {withdrawals.map((item) => (
               <div key={item.id} className="p-5 text-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-bold text-gray-900">
+                    <p className="font-normal text-gray-900">
                       {money(item.amount)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
@@ -202,7 +202,7 @@ export default function DepositFinance() {
                         : "Nhận bằng mã QR"}
                     </p>
                   </div>
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-normal text-gray-700">
                     {statusLabel[item.status] ?? item.status}
                   </span>
                 </div>
@@ -213,7 +213,7 @@ export default function DepositFinance() {
                 )}
                 {item.transfer_proof_url && (
                   <a
-                    className="mt-3 inline-block text-xs font-bold text-emerald-700 underline"
+                    className="mt-3 inline-block text-xs font-normal text-emerald-700 underline"
                     href={item.transfer_proof_url}
                     target="_blank"
                   >

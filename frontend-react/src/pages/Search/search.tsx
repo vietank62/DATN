@@ -1,3 +1,4 @@
+import { RestaurantDiscountBadge } from "../../components/DiscountOffers";
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom"; 
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +15,8 @@ const fetchFilteredRestaurants = async (query: string, signal: AbortSignal): Pro
 };
 
 const PRICE_LABELS = ["Dưới 100k", "100k - 200k", "200k - 500k", "500k - 1.000k", "Từ 1.000k"];
+const PARTY_SIZES = [2, 4, 6, 10];
+const UTILITIES = [{id:5,label:"Có chỗ đậu xe"},{id:7,label:"Phòng riêng"},{id:18,label:"Bàn ngoài trời"},{id:15,label:"Có Wifi"}];
 const CATEGORIES = RESTAURANT_CATEGORIES.map(({ slug, label: name }) => ({ slug, name }));
 
 const SUITABLE_FOR = [
@@ -43,13 +46,15 @@ export const SearchRestaurants = () => {
         category: "",
         suitable_for: "",
         service_type: "",
-        space_level: "",
         party_size: "",
+        utility: "",
+        requires_deposit: "",
         rating: "",
         has_exclusive: false
     });
 
     const effectiveParams = normalizeSearchParams(searchParams, city);
+    effectiveParams.delete("space_level");
     const query = effectiveParams.toString();
     const offset = Number(effectiveParams.get("offset"));
     const { data, isLoading, isFetching, isError, refetch } = useQuery<RestaurantCard[]>({
@@ -57,6 +62,11 @@ export const SearchRestaurants = () => {
         queryFn: ({ signal }) => fetchFilteredRestaurants(query, signal),
         staleTime: 1000 * 60 * 2,
         refetchOnWindowFocus: false,
+    });
+    const { data: popularKeywords = [] } = useQuery<{ keyword: string; count: number }[]>({
+        queryKey: ["popular-search-keywords"],
+        queryFn: () => api.get("/v1/restaurants/popular-keywords").then((response) => response.data),
+        staleTime: 1000 * 60 * 5,
     });
     const restaurants = data?.slice(0, SEARCH_PAGE_SIZE);
     const hasNextPage = (data?.length ?? 0) > SEARCH_PAGE_SIZE;
@@ -99,8 +109,9 @@ export const SearchRestaurants = () => {
     const currentCategory = effectiveParams.get("category") || "";
     const currentSuitableFor = effectiveParams.get("suitable_for") || "";
     const currentServiceType = effectiveParams.get("service_type") || "";
-    const currentSpaceLevel = effectiveParams.get("space_level") || "";
     const currentPartySize = effectiveParams.get("party_size") || "";
+    const currentUtility = effectiveParams.get("utility") || "";
+    const currentDeposit = effectiveParams.get("requires_deposit") || "";
 
     const hasActiveFilters = 
         currentSearch.trim() || 
@@ -111,8 +122,7 @@ export const SearchRestaurants = () => {
         currentCategory || 
         currentSuitableFor || 
         currentServiceType || 
-        currentSpaceLevel ||
-        currentPartySize;
+        currentPartySize || currentUtility || currentDeposit;
 
     const handleOpenModal = () => {
         setTempFilters({
@@ -122,8 +132,9 @@ export const SearchRestaurants = () => {
             category: currentCategory,
             suitable_for: currentSuitableFor,
             service_type: currentServiceType,
-            space_level: currentSpaceLevel,
             party_size: currentPartySize,
+            utility: currentUtility,
+            requires_deposit: currentDeposit,
             rating: currentRating,
             has_exclusive: currentHasExclusive
         });
@@ -132,6 +143,7 @@ export const SearchRestaurants = () => {
 
     const handleApplyModalFilters = () => {
         const newParams = new URLSearchParams(searchParams);
+        newParams.delete("space_level");
         
         const filterKeys = Object.keys(tempFilters) as Array<keyof typeof tempFilters>;
         
@@ -153,7 +165,7 @@ export const SearchRestaurants = () => {
     };
 
     return (
-        <div className="w-full bg-slate-50 flex justify-center">
+        <div className="w-full bg-gray-50 flex justify-center">
             <div className="max-w-7xl w-full flex flex-col m-4 md:mx-10 md:my-6 rounded-lg bg-white shadow-sm border border-gray-100 h-fit">
                 <div className="gap-4 p-6 items-center flex justify-between border-b border-gray-50">
                     <div>
@@ -171,7 +183,7 @@ export const SearchRestaurants = () => {
                         <select
                             value={currentSortBy}
                             onChange={(e) => updateParam("sort_by", e.target.value)}
-                            className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
+                            className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
                         >
                             {currentSearch && <option value="relevance">Phù hợp nhất</option>}
                             <option value="like_count">Yêu thích nhất</option>
@@ -181,7 +193,16 @@ export const SearchRestaurants = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 px-6 py-4 items-center bg-slate-50/50 border-b border-gray-50 min-h-15">
+                {!currentSearch && popularKeywords.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 border-b border-gray-50 px-6 py-3">
+                        <span className="text-xs font-semibold uppercase text-gray-500">Tìm kiếm nhiều:</span>
+                        {popularKeywords.map(({ keyword }) => (
+                            <button key={keyword} onClick={() => updateParam("search", keyword)} className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100">{keyword}</button>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 px-6 py-4 items-center bg-gray-50/50 border-b border-gray-50 min-h-15">
                     <span className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap mr-2">Bộ lọc:</span>
                     
                     {!hasActiveFilters && (
@@ -191,14 +212,15 @@ export const SearchRestaurants = () => {
                     {currentSearch.trim() && (
                         <div className="flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-lg text-xs font-medium">
                             <span>Từ khóa: "{currentSearch}"</span>
+                            <button type="button" onClick={()=>navigate(`/map?${new URLSearchParams({address:currentSearch})}`)} className="ml-2 whitespace-nowrap underline">Tìm gần địa chỉ này</button>
                             <button onClick={() => updateParam("search", null)} className="hover:bg-red-200/60 p-0.5 rounded-full text-red-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
                     {currentDistrict && (
-                        <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1 rounded-lg text-xs font-medium">
+                        <div className="flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-lg text-xs font-medium">
                             <span>Khu vực: {currentDistrict}</span>
-                            <button onClick={() => updateParam("district", null)} className="hover:bg-blue-200/60 p-0.5 rounded-full text-blue-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
+                            <button onClick={() => updateParam("district", null)} className="hover:bg-red-200/60 p-0.5 rounded-full text-red-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
@@ -210,33 +232,35 @@ export const SearchRestaurants = () => {
                     )}
 
                     {currentCategory && (
-                        <div className="flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-100 px-3 py-1 rounded-lg text-xs font-medium">
+                        <div className="flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-lg text-xs font-normal">
                             <span>Danh mục: {getCategoryLabel(currentCategory)}</span>
-                            <button onClick={() => updateParam("category", null)} className="hover:bg-purple-200/60 p-0.5 rounded-full text-purple-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
+                            <button onClick={() => updateParam("category", null)} className="hover:bg-red-200/60 p-0.5 rounded-full text-red-500 font-normal text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
                     {currentSuitableFor && (
-                        <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1 rounded-lg text-xs font-medium">
+                        <div className="flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-lg text-xs font-normal">
                             <span>Phù hợp: {getSuitableForLabel(currentSuitableFor)}</span>
-                            <button onClick={() => updateParam("suitable_for", null)} className="hover:bg-indigo-200/60 p-0.5 rounded-full text-indigo-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
+                            <button onClick={() => updateParam("suitable_for", null)} className="hover:bg-red-200/60 p-0.5 rounded-full text-red-500 font-normal text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
                     {currentServiceType && (
-                        <div className="flex items-center gap-1.5 bg-teal-50 text-teal-700 border border-teal-100 px-3 py-1 rounded-lg text-xs font-medium">
+                        <div className="flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-lg text-xs font-normal">
                             <span>Kiểu phục vụ: {getServiceTypeLabel(currentServiceType)}</span>
-                            <button onClick={() => updateParam("service_type", null)} className="hover:bg-teal-200/60 p-0.5 rounded-full text-teal-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
+                            <button onClick={() => updateParam("service_type", null)} className="hover:bg-red-200/60 p-0.5 rounded-full text-red-500 font-normal text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
                     {currentPartySize && (
-                        <div className="flex items-center gap-1.5 bg-cyan-50 text-cyan-700 border border-cyan-100 px-3 py-1 rounded-lg text-xs font-medium">
-                            <span>Số khách: {currentPartySize}</span>
-                            <button onClick={() => updateParam("party_size", null)} className="hover:bg-cyan-200/60 p-0.5 rounded-full text-cyan-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
+                        <div className="flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-lg text-xs font-normal">
+                            <span>Nhóm khách: {currentPartySize} khách</span>
+                            <button onClick={() => updateParam("party_size", null)} className="hover:bg-red-200/60 p-0.5 rounded-full text-red-500 font-normal text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
 
+                    {currentUtility && <div className="flex items-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-1 text-xs text-red-700"><span>Tiện ích: {UTILITIES.find(x=>String(x.id)===currentUtility)?.label??currentUtility}</span><button aria-label="Bỏ lọc tiện ích" onClick={()=>updateParam("utility",null)}>×</button></div>}
+                    {currentDeposit && <div className="flex items-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-1 text-xs text-red-700"><span>{currentDeposit==="true"?"Có yêu cầu cọc":"Không yêu cầu cọc"}</span><button aria-label="Bỏ lọc đặt cọc" onClick={()=>updateParam("requires_deposit",null)}>×</button></div>}
                     {currentRating && (
                         <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-100 px-3 py-1 rounded-lg text-xs font-medium">
                             <span>Đánh giá: ⭐ {currentRating}+</span>
@@ -246,7 +270,7 @@ export const SearchRestaurants = () => {
 
                     {currentHasExclusive && (
                         <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 rounded-lg text-xs font-medium">
-                            <span>Có ưu đãi đặc biệt</span>
+                            <span>Có ưu đãi đang áp dụng</span>
                             <button onClick={() => updateParam("has_exclusive", null)} className="hover:bg-emerald-200/60 p-0.5 rounded-full text-emerald-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
@@ -286,6 +310,7 @@ export const SearchRestaurants = () => {
                             {restaurants.map((res) => (
                                 <div key={res.id} onClick={() => navigate(`/restaurant/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                     <div className="relative pt-[60%] overflow-hidden bg-gray-100">
+<RestaurantDiscountBadge restaurantId={res.id} />
                                         <img src={getImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     </div>
                                     <div className="p-4 flex flex-col justify-between flex-1 bg-white">
@@ -367,7 +392,7 @@ export const SearchRestaurants = () => {
                                     maxLength={SEARCH_KEYWORD_MAX_LENGTH}
                                     value={tempFilters.search}
                                     onChange={(e) => setTempFilters(p => ({ ...p, search: e.target.value }))}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50"
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50"
                                 />
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -376,7 +401,7 @@ export const SearchRestaurants = () => {
                                     <select
                                         value={tempFilters.district}
                                         onChange={(e) => setTempFilters(p => ({ ...p, district: e.target.value }))}
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
                                     >
                                         <option value="">Tất cả khu vực</option>
                                         {(districtsMap[currentCity] || []).map((d: string) => (
@@ -390,7 +415,7 @@ export const SearchRestaurants = () => {
                                     <select
                                         value={tempFilters.price}
                                         onChange={(e) => setTempFilters(p => ({ ...p, price: e.target.value }))}
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
                                     >
                                         <option value="">Tất cả các mức giá</option>
                                         {PRICE_LABELS.map((label, idx) => (
@@ -406,7 +431,7 @@ export const SearchRestaurants = () => {
                                     <select
                                         value={tempFilters.category}
                                         onChange={(e) => setTempFilters(p => ({ ...p, category: e.target.value }))}
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
                                     >
                                         <option value="">Tất cả danh mục</option>
                                         {CATEGORIES.map(c => (
@@ -420,7 +445,7 @@ export const SearchRestaurants = () => {
                                     <select
                                         value={tempFilters.suitable_for}
                                         onChange={(e) => setTempFilters(p => ({ ...p, suitable_for: e.target.value }))}
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
                                     >
                                         <option value="">Tất cả tiêu chí</option>
                                         {SUITABLE_FOR.map(s => (
@@ -436,7 +461,7 @@ export const SearchRestaurants = () => {
                                     <select
                                         value={tempFilters.service_type}
                                         onChange={(e) => setTempFilters(p => ({ ...p, service_type: e.target.value }))}
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
                                     >
                                         <option value="">Tất cả kiểu phục vụ</option>
                                         {SERVICE_TYPES.map(s => (
@@ -446,18 +471,17 @@ export const SearchRestaurants = () => {
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Số khách</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max="1000"
-                                        inputMode="numeric"
+                                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Nhóm khách</label>
+                                    <select
                                         value={tempFilters.party_size}
-                                        onChange={(e) => setTempFilters(p => ({ ...p, party_size: e.target.value.replace(/\D/g, "") }))}
-                                        placeholder="Ví dụ: 6"
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50"
-                                    />
-                                    <p className="text-xs text-gray-500">Chỉ hiển thị nhà hàng có tổng sức chứa đủ cho số khách.</p>
+                                        onChange={(e) => setTempFilters(p => ({ ...p, party_size: e.target.value }))}
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
+                                    >
+                                        <option value="">Tất cả nhóm khách</option>
+                                        {PARTY_SIZES.map(size => (
+                                            <option key={size} value={size}>{size} khách</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
@@ -466,15 +490,19 @@ export const SearchRestaurants = () => {
                                 <select
                                     value={tempFilters.rating}
                                     onChange={(e) => setTempFilters(p => ({ ...p, rating: e.target.value }))}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-slate-50 cursor-pointer"
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500 bg-gray-50 cursor-pointer"
                                 >
                                     <option value="">Tất cả mức sao</option>
                                     <option value="4.5">⭐ 4.5 trở lên</option>
                                     <option value="4">⭐ 4.0 trở lên</option>
-                                    <option value="3.5">⭐ 3.5 trở lên</option>
+                                    <option value="3">⭐ 3 trở lên</option>
                                 </select>
                             </div>
 
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <label className="flex flex-col gap-1.5 text-gray-700">Tiện ích<select value={tempFilters.utility} onChange={e=>setTempFilters(p=>({...p,utility:e.target.value}))} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><option value="">Tất cả tiện ích</option>{UTILITIES.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+                              <label className="flex flex-col gap-1.5 text-gray-700">Đặt cọc<select value={tempFilters.requires_deposit} onChange={e=>setTempFilters(p=>({...p,requires_deposit:e.target.value}))} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"><option value="">Tất cả</option><option value="false">Không yêu cầu cọc</option><option value="true">Có yêu cầu cọc</option></select></label>
+                            </div>
                             <div className="pt-1">
                                 <label className="flex items-center gap-3 cursor-pointer select-none">
                                     <input
@@ -483,13 +511,13 @@ export const SearchRestaurants = () => {
                                         onChange={(e) => setTempFilters(p => ({ ...p, has_exclusive: e.target.checked }))}
                                         className="w-4 h-4 accent-red-600 rounded cursor-pointer"
                                     />
-                                    <span className="text-sm font-semibold text-gray-700">Chỉ hiển thị quán có ưu đãi đặc biệt</span>
+                                    <span className="text-sm font-semibold text-gray-700">Chỉ hiển thị nhà hàng có ưu đãi đang áp dụng</span>
                                 </label>
                             </div>
                         </div>
 
                         <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 shrink-0">
-                            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-200 hover:bg-slate-50 rounded-lg text-xs font-semibold text-gray-500 cursor-pointer">Hủy bỏ</button>
+                            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-200 hover:bg-gray-50 rounded-lg text-xs font-semibold text-gray-500 cursor-pointer">Hủy bỏ</button>
                             <button onClick={handleApplyModalFilters} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer">Áp dụng bộ lọc</button>
                         </div>
 

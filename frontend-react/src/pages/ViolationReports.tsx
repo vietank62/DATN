@@ -12,6 +12,7 @@ type Report = {
   reporter_id: number;
   target_type: string;
   source: string;
+  created_at?: string;
   reason: string;
   evidence_urls?: string[];
   status: string;
@@ -42,6 +43,8 @@ const STATUS_LABEL: Record<string, string> = {
   appeal_pending: "Đang chờ admin duyệt",
   dismissed: "Đã gỡ vi phạm",
   appeal_rejected: "Giải trình bị từ chối",
+  withdrawn: "Đã hủy báo cáo",
+  confirmed: "Đã dừng hoạt động – chờ giải trình",
 };
 
 export default function ViolationReports() {
@@ -116,6 +119,16 @@ export default function ViolationReports() {
     },
   });
 
+  const withdrawMutation = useMutation({
+    mutationFn: (reportId: number) => api.post(`/v1/violation-reports/${reportId}/withdraw`),
+    onSuccess: () => {
+      toast.success("Đã hủy báo cáo và khôi phục trạng thái trước khi báo cáo.");
+      void queryClient.invalidateQueries({ queryKey: ["violation-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["violation-summary"] });
+    },
+    onError: (error: unknown) => toast.error(getApiErrorDetail(error) || "Không thể hủy báo cáo này."),
+  });
+
   const reviewReport = async (report: Report, approved: boolean) => {
     const adminNote = approved
       ? "Admin đã duyệt gỡ vi phạm sau khi xem xét giải trình."
@@ -178,13 +191,13 @@ export default function ViolationReports() {
         {summaryQuery.isError && <button onClick={() => void summaryQuery.refetch()} className="text-red-600">Chưa tải được thống kê vi phạm. Thử lại</button>}
         {summaryQuery.data && <>
           <div className="grid gap-4 sm:grid-cols-3">
-            {[["Tổng vi phạm còn hiệu lực", summaryQuery.data.total_active_count, "border-red-100 bg-red-50/70 text-red-700"], ["Phản hồi trễ", summaryQuery.data.late_response_count, "border-amber-100 bg-amber-50/70 text-amber-800"], ["Bị khách báo cáo", summaryQuery.data.customer_report_count, "border-slate-200 bg-slate-50 text-slate-700"]].map(([label, count, tone]) => <div key={String(label)} className={`rounded-2xl border p-5 ${tone}`}><p className="text-xs font-bold uppercase tracking-wide opacity-75">{label}</p><p className="mt-2 text-3xl font-extrabold">{count} <span className="text-base font-semibold">lần</span></p></div>)}
+            {[["Tổng vi phạm còn hiệu lực", summaryQuery.data.total_active_count, "border-red-100 bg-red-50/70 text-red-700"], ["Phản hồi trễ", summaryQuery.data.late_response_count, "border-amber-100 bg-amber-50/70 text-amber-800"], ["Bị khách báo cáo", summaryQuery.data.customer_report_count, "border-gray-200 bg-gray-50 text-gray-700"]].map(([label, count, tone]) => <div key={String(label)} className={`rounded-2xl border p-5 ${tone}`}><p className="text-xs font-bold uppercase tracking-wide opacity-75">{label}</p><p className="mt-2 text-3xl font-extrabold">{count} <span className="text-base font-semibold">lần</span></p></div>)}
           </div>
-          <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Chỉ các báo cáo chưa được gỡ mới được tính là vi phạm còn hiệu lực. Khi nhà hàng đã bị xử lý vì 3 lần phản hồi trễ, hồ sơ xử lý đó không làm tăng thêm số vi phạm. Khách hàng này có tổng cộng <strong>{summaryQuery.data.customer_report_history_count}</strong> báo cáo trong lịch sử.</p>
+          <p className="rounded-xl bg-gray-50 p-4 text-sm leading-6 text-gray-600">Chỉ các báo cáo chưa được gỡ mới được tính là vi phạm còn hiệu lực. Khi nhà hàng đã bị xử lý vì 3 lần phản hồi trễ, hồ sơ xử lý đó không làm tăng thêm số vi phạm. Khách hàng này có tổng cộng <strong>{summaryQuery.data.customer_report_history_count}</strong> báo cáo trong lịch sử.</p>
           <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
             <div className="border-b border-gray-100 p-5"><h2 className="font-bold text-gray-900">Lịch sử cảnh báo phản hồi trễ</h2><p className="mt-1 text-xs text-gray-500">Hiển thị 5 đơn gần nhất. Bạn có thể chuyển trang để xem các cảnh báo trước đó.</p></div>
             {summaryQuery.data.late_response_history.length === 0 && <p className="p-5 text-sm text-gray-500">Chưa có lịch sử cảnh báo.</p>}
-            {summaryQuery.data.late_response_history.map(item => <article key={item.id} className="border-t border-gray-100 px-5 py-4 text-sm"><p className="font-semibold">{item.booking_id ? `Đơn #${item.booking_id}` : "Cảnh báo phản hồi trễ trước đây"}</p><p>{item.message.replaceAll("cờ phản hồi trễ", "vi phạm phản hồi trễ")}</p><p className="mt-1 text-gray-500">{new Date(item.created_at).toLocaleString("vi-VN")}</p>{item.booking_id ? <button type="button" onClick={() => setSelectedBookingId(item.booking_id)} className="mt-2 inline-block font-semibold text-blue-700 underline">Xem chi tiết đơn</button> : <span className="mt-2 inline-block text-gray-400">Không có đơn liên quan</span>}</article>)}
+            {summaryQuery.data.late_response_history.map(item => <article key={item.id} className="border-t border-gray-100 px-5 py-4 text-sm"><p className="font-semibold">{item.booking_id ? `Đơn #${item.booking_id}` : "Cảnh báo phản hồi trễ trước đây"}</p><p>{item.message.replaceAll("cờ phản hồi trễ", "vi phạm phản hồi trễ")}</p><p className="mt-1 text-gray-500">{new Date(item.created_at).toLocaleString("vi-VN")}</p>{item.booking_id ? <button type="button" onClick={() => setSelectedBookingId(item.booking_id)} className="mt-2 inline-block font-semibold text-red-700 underline">Xem chi tiết đơn</button> : <span className="mt-2 inline-block text-gray-400">Không có đơn liên quan</span>}</article>)}
             {summaryQuery.data.late_response_history_total > 5 && <nav className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4 text-sm"><button type="button" disabled={lateHistoryOffset === 0 || summaryQuery.isFetching} onClick={() => setLateHistoryOffset(value => Math.max(0, value - 5))} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang trước</button><span className="text-gray-500">Trang {lateHistoryOffset / 5 + 1}</span><button type="button" disabled={lateHistoryOffset + 5 >= summaryQuery.data.late_response_history_total || summaryQuery.isFetching} onClick={() => setLateHistoryOffset(value => value + 5)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang tiếp</button></nav>}
           </div>
         </>}
@@ -208,7 +221,7 @@ export default function ViolationReports() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-bold text-gray-900">
-                {report.source === "late_response" ? "Phản hồi trễ – hồ sơ xử lý" : report.reporter_id === user?.userId ? "Báo cáo đã gửi" : "Bị báo cáo"} · Đơn #{report.booking_id}
+                {report.source === "table_full" ? "Hết bàn tiếp nhận khách – cần giải trình" : report.source === "late_response" ? "Phản hồi trễ – hồ sơ xử lý" : report.reporter_id === user?.userId ? "Báo cáo đã gửi" : "Bị báo cáo"} · Đơn #{report.booking_id}
               </p>
               <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
                 {report.reason}
@@ -220,10 +233,11 @@ export default function ViolationReports() {
           </div>
 
           {renderImages(report.evidence_urls)}
+          {report.source === "table_full" && report.created_at && !report.appeal_reason && <p className="mt-3 text-sm text-red-700">Hạn giải trình: {new Date(new Date(/[zZ]|[+-]\d\d:\d\d$/.test(report.created_at) ? report.created_at : report.created_at + "Z").getTime() + 24 * 60 * 60 * 1000).toLocaleString("vi-VN", {timeZone: "Asia/Ho_Chi_Minh"})}</p>}
           <button
             type="button"
             onClick={() => setSelectedBookingId(report.booking_id)}
-            className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+            className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-normal text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
           >
             Xem chi tiết đơn đặt bàn
           </button>
@@ -237,18 +251,31 @@ export default function ViolationReports() {
           {renderImages(report.appeal_evidence_urls)}
 
           {report.admin_note && (
-            <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
+            <p className="mt-3 rounded-lg bg-gray-50 p-3 text-sm">
               <b>Phản hồi admin:</b> {report.admin_note}
             </p>
           )}
 
-          {!isAdmin && report.reporter_id !== user?.userId && ["open", "appeal_rejected"].includes(report.status) && (
+          {!isAdmin && (report.reporter_id !== user?.userId || report.source === "table_full") && (["open", "appeal_rejected"].includes(report.status) || report.source === "table_full" && report.status === "confirmed") && (
             <button
               type="button"
               onClick={() => setSelectedReport(report)}
-              className="mt-4 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-600"
+              className="mt-4 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-600"
             >
               Gửi giải trình
+            </button>
+          )}
+
+          {!isAdmin && report.reporter_id === user?.userId && report.status === "open" && (
+            <button
+              type="button"
+              disabled={withdrawMutation.isPending}
+              onClick={() => {
+                if (window.confirm("Hủy báo cáo này? Trạng thái đơn/nhà hàng trước lúc báo cáo sẽ được khôi phục.")) withdrawMutation.mutate(report.id);
+              }}
+              className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+            >
+              {withdrawMutation.isPending ? "Đang hủy…" : "Hủy báo cáo và khôi phục trạng thái"}
             </button>
           )}
 
@@ -279,7 +306,7 @@ export default function ViolationReports() {
             <h2 className="text-lg font-bold">Giải trình báo cáo</h2>
             <textarea value={appealReason} onChange={(event) => setAppealReason(event.target.value)} minLength={10} rows={5} className="mt-4 w-full rounded-xl border p-3" placeholder="Lý do và minh chứng giải trình..." />
             <input id="appeal-evidence-files" type="file" multiple accept="image/*" onChange={(event) => handleAppealFilesChange(event.target.files)} className="sr-only" />
-            <label htmlFor="appeal-evidence-files" className="mt-3 inline-flex cursor-pointer items-center rounded-xl border-2 border-amber-600 bg-amber-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200">
+            <label htmlFor="appeal-evidence-files" className="mt-3 inline-flex cursor-pointer items-center rounded-xl border-2 border-red-600 bg-red-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-600 focus-within:ring-4 focus-within:ring-red-200">
               Chọn ảnh minh chứng
             </label>
             {appealFiles?.length ? <p className="mt-2 text-xs text-gray-500">Đã chọn {appealFiles.length} ảnh.</p> : null}

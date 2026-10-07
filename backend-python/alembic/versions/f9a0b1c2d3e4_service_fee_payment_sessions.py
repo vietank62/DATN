@@ -6,8 +6,8 @@ therefore this migration creates or augments it safely.
 from alembic import context, op
 import sqlalchemy as sa
 
-revision = "a8f1c3d5e7b9"
-down_revision = "d4e5f6a7b8c9"
+revision = "f9a0b1c2d3e4"
+down_revision = "f8a9b0c1d2e3"
 branch_labels = None
 depends_on = None
 

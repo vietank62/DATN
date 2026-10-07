@@ -10,7 +10,7 @@ from sqlmodel import select
 from sqlalchemy import func, or_
 from concurrent.futures import ThreadPoolExecutor
 
-from core.booking_email import deliver_booking_emails, queue_booking_email
+from core.booking_email import queue_booking_email
 from core.deposit_expiry import deposit_deadline, expire_locked_deposit
 from core.sepay_gateway import checkout_form, gateway_config, cancel_gateway_order
 from models.booking import Booking
@@ -124,7 +124,7 @@ def create_checkout(session, booking_id, user_id):
     return result
 
 
-def process_gateway_ipn(session, data, supplied_secret):
+def process_gateway_ipn(session, data, supplied_secret, background_tasks=None):
     expected = os.getenv("SEPAY_IPN_SECRET_KEY", "").strip()
     if not expected:
         raise HTTPException(503, "Chưa cấu hình khóa xác thực IPN")
@@ -214,8 +214,9 @@ def process_gateway_ipn(session, data, supplied_secret):
     session.flush()
     expire_checkout_rows(session, booking, utc_now())
     session.commit()
-    if not reason:
-        deliver_booking_emails(session, booking_id=booking.bookingId, ignore_retry_schedule=True)
+    if not reason and background_tasks is not None:
+        from core.booking_email import deliver_booking_emails_background
+        background_tasks.add_task(deliver_booking_emails_background, booking.bookingId)
     return {"success": True, "message": "Recorded for review" if reason else "Booking deposit processed"}
 
 

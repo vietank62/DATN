@@ -43,17 +43,17 @@ export default function ApprovalStatus() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Trạng thái xét duyệt</h1>
+        <h1 className="text-2xl font-normal text-gray-900">Trạng thái xét duyệt</h1>
         <p className="mt-1 text-sm text-gray-500">
           Theo dõi phản hồi từ TableNow và lịch sử các lần xét duyệt hồ sơ.
         </p>
       </div>
 
       <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Trạng thái hiện tại</p>
+        <p className="text-xs font-normal uppercase tracking-wide text-gray-500">Trạng thái hiện tại</p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <span
-            className={`rounded-full px-3 py-1.5 text-sm font-bold ${
+            className={`rounded-full px-3 py-1.5 text-sm font-normal ${
               application?.approval_status === "approved"
                 ? "bg-emerald-100 text-emerald-700"
                 : application?.approval_status === "rejected"
@@ -72,7 +72,7 @@ export default function ApprovalStatus() {
 
       <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div className="border-b border-gray-100 p-5">
-          <h2 className="font-bold text-gray-900">Lịch sử phản hồi</h2>
+          <h2 className="font-normal text-gray-900">Lịch sử phản hồi</h2>
         </div>
         {historyQuery.isLoading ? (
           <p className="p-8 text-center text-sm text-gray-400">Đang tải lịch sử...</p>
@@ -83,7 +83,7 @@ export default function ApprovalStatus() {
             {historyQuery.data.map((item) => (
               <article key={item.id} className="p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-normal ${
                     item.action === "approved"
                       ? "bg-emerald-100 text-emerald-700"
                       : item.action === "cancelled"
@@ -100,14 +100,14 @@ export default function ApprovalStatus() {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {item.change_fields.map((field) => (
-                    <span key={field} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                    <span key={field} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-normal text-amber-800">
                       {field}
                     </span>
                   ))}
                 </div>
                 {item.rejection_reason && (
                   <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm leading-6 text-red-900">
-                    <span className="font-bold">Lý do cần chỉnh sửa: </span>
+                    <span className="font-normal">Lý do cần chỉnh sửa: </span>
                     {item.rejection_reason}
                   </div>
                 )}

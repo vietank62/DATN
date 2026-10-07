@@ -117,8 +117,26 @@ def list_fees(session: SessionDep, current_user: Annotated[User, Security(get_cu
         settle_restaurant_fees(session, restaurant)
     session.commit()
     restaurant_names = {restaurant.id: restaurant.name for restaurant in restaurants}
-    fees = session.exec(select(BookingFee).where(BookingFee.restaurant_id.in_(restaurant_names)).order_by(BookingFee.id.desc())).all()
-    return [{**fee.model_dump(), "restaurantName": restaurant_names.get(fee.restaurant_id, "Nhà hàng không còn hoạt động")} for fee in fees]
+    rows = session.exec(
+        select(BookingFee, Booking)
+        .join(Booking, Booking.bookingId == BookingFee.booking_id)
+        .where(BookingFee.restaurant_id.in_(restaurant_names))
+        .order_by(BookingFee.id.desc())
+    ).all()
+    return [
+        {
+            **fee.model_dump(),
+            "restaurantName": restaurant_names.get(fee.restaurant_id, "Nhà hàng không còn hoạt động"),
+            "bookingDate": booking.date,
+            "bookingTime": booking.time,
+            "bookingStatus": booking.status,
+            "guestCount": booking.guestCount,
+            "customerName": booking.contactName,
+            "customerPhone": booking.contactPhone,
+            "depositAmount": booking.depositAmount,
+        }
+        for fee, booking in rows
+    ]
 
 
 @router.post("/payment/checkout")

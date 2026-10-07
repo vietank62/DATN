@@ -1,3 +1,4 @@
+import { translateBookingNotification } from "../../utils/status";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -319,10 +320,10 @@ export const Auth = () => {
                                 } hover:bg-gray-50`}
                               >
                                 <p className="text-sm font-bold text-gray-800">
-                                  {notification.title}
+                                  {notification.type === "booking_status" ? translateBookingNotification(notification.title) : notification.title}
                                 </p>
                                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-600">
-                                  {notification.message}
+                                  {notification.type === "booking_status" ? translateBookingNotification(notification.message) : notification.message}
                                 </p>
                               </button>
                             ))}
@@ -515,7 +516,7 @@ export const Auth = () => {
                     required
                   />
                   <label htmlFor="agreeTerms" className="text-sm text-gray-700">
-                    Tôi đồng ý với các <span className="text-red-600 cursor-pointer">điều khoản và dịch vụ</span> của <span className="text-red-600">TABLE NOW</span>
+                    Tôi đồng ý với các điều khoản và dịch vụ của TABLE NOW
                   </label>
                 </div>
                 <div className="flex justify-between items-center col-span-2">

@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Depends, HTTPException, status, Security, Header
+from fastapi import Depends, HTTPException, status, Security, Header, Request
 from fastapi.security import SecurityScopes
 from core.security import oauth2_scheme, decode_token
 from database import SessionDep
@@ -9,7 +9,8 @@ from sqlmodel import select # type: ignore
 def get_current_user(
     security_scopes: SecurityScopes,
     token: Annotated[str, Depends(oauth2_scheme)],
-    session: SessionDep #type: ignore
+    session: SessionDep, #type: ignore
+    request: Request = None,
 ) -> User:
     if security_scopes.scopes:
         authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
@@ -53,6 +54,14 @@ def get_current_user(
                 detail="Phiên đăng nhập không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.",
                 headers={"WWW-Authenticate": authenticate_value},
             )
+    if request is not None and user.role == "manager" and "manager" in security_scopes.scopes:
+        path = request.url.path
+        shared = path.startswith(("/v1/cashier", "/v1/table-reservations", "/v1/management-access", "/v1/notifications"))
+        shared = shared or (request.method == "GET" and path in ("/v1/partners/application/me", "/v1/restaurant-tables/me", "/v1/discounts/me"))
+        shared = shared or path == "/v1/partners/geocode" or (request.method == "POST" and path == "/v1/partners/application")
+        if not shared:
+            from core.management_access import verify_management_token
+            verify_management_token(request.headers.get("X-Management-Token"), user, session)
     return user
 
 

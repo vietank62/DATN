@@ -15,10 +15,12 @@ export interface BookingMenuItemDetail {
 }
 
 export interface BookingDetail {
+  attendance?: "arrived" | "no_show" | null;
   bookingId: number;
-  userId: number;
+  userId: number | null;
   restaurantId: number;
   restaurantName?: string | null;
+  cancellationLeadMinutes?: number;
   date: string;
   time: string;
   guestCount: number;

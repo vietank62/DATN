@@ -4,6 +4,8 @@ from .resDetail import RestaurantDetail
 from .menuItem import RestaurantMenuList
 from .booking import Booking
 from .review import Review
+from .searchKeyword import SearchKeyword
+from .restaurantTable import RestaurantTable, BookingTable
 from .payment import Payment
 from .notification import Notification
 from .approvalHistory import ApprovalHistory
@@ -33,6 +35,8 @@ __all__ = [
     "WithdrawalRequest",
     "DepositRefund",
     "CustomerPreference",
+    "RestaurantTable",
+    "BookingTable",
 ]
 
 from .depositCheckout import DepositCheckout

@@ -11,6 +11,7 @@ from models.menuItem import RestaurantMenuList
 from models.resDetail import RestaurantDetail
 from models.restaurant import Restaurant
 from models.user import User
+from models.managementAccess import ManagementAccess
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

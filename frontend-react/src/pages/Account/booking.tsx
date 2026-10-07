@@ -44,6 +44,8 @@ export default function BookingPage() {
   const { bookingId } = useParams<{ bookingId?: string }>();
   const navigate = useNavigate();
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [bookingOffset, setBookingOffset] = useState(0);
+  const bookingPageSize = 10;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -58,9 +60,9 @@ export default function BookingPage() {
     refetchOnWindowFocus: true,
   });
 
-  const myBookingsQ = useQuery<BookingDetail[]>({
-    queryKey: ["my-bookings"],
-    queryFn: () => api.get("/v1/bookings/me").then((response) => response.data),
+  const myBookingsQ = useQuery<{ items: BookingDetail[]; total: number }>({
+    queryKey: ["my-bookings", bookingOffset],
+    queryFn: () => api.get("/v1/bookings/me", { params: { limit: bookingPageSize, offset: bookingOffset } }).then((response) => response.data),
     enabled: !bookingId,
   });
 
@@ -68,10 +70,10 @@ export default function BookingPage() {
   const statusLabel = (status: string) => status === "rejected" ? "Đặt bàn không thành công" : t(`booking.status.${status}`, { defaultValue: status });
   const currency = (amount: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(amount);
   const booking = bookingDetailQ.data;
-  const bookings = myBookingsQ.data ?? [];
+  const bookings = myBookingsQ.data?.items ?? [];
   if (bookingId && bookingDetailQ.isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center space-y-3">
           <div className="mx-auto h-10 w-10 rounded-sm border-4 border-red-600 border-t-transparent animate-spin" />
           <p className="text-sm text-gray-500 font-medium">
@@ -84,7 +86,7 @@ export default function BookingPage() {
 
   if (bookingId && bookingDetailQ.error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center bg-white border border-gray-100 rounded-xl shadow-sm p-8">
           <p className="text-4xl mb-3">📋</p>
           <h1 className="text-xl font-bold text-gray-900">
@@ -106,7 +108,7 @@ export default function BookingPage() {
 
   if (!bookingId) {
     return (
-      <div className="min-h-screen bg-slate-50 py-10 px-4">
+      <div className="min-h-screen bg-gray-50 py-10 px-4">
         <div className="max-w-5xl mx-auto space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -156,13 +158,14 @@ export default function BookingPage() {
                       {item.status === "payment_expired" && <p className="mt-2 text-xs font-medium text-red-600">{t("booking.paymentFailed")}</p>}
                     </div>
                     <div className="flex items-center gap-3">
-                      {item.depositStatus === "refund_pending" && item.refundStatus !== "processing" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">{t("booking.addRefundDetails")}</button>}
-                      {item.depositStatus === "refund_pending" && item.refundStatus === "processing" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-bold text-white">{t("booking.refundProcessing")}</button>}
+                      {item.depositStatus === "refund_pending" && item.refundStatus !== "processing" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white">{t("booking.addRefundDetails")}</button>}
+                      {item.depositStatus === "refund_pending" && item.refundStatus === "processing" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-gray-700 px-3 py-2 text-xs font-bold text-white">{t("booking.refundProcessing")}</button>}
                       {item.depositStatus === "refunded" && <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/account/bookings/${item.bookingId}/refund`); }} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">{t("booking.viewRefund")}</button>}
                       <span className="text-sm font-semibold text-red-600">{t("booking.viewDetails")}</span>
                     </div>
                   </div>
                 ))}
+                {myBookingsQ.data && myBookingsQ.data.total > bookingPageSize && <nav className="flex items-center justify-between px-5 py-4 text-sm"><button type="button" disabled={bookingOffset === 0 || myBookingsQ.isFetching} onClick={() => setBookingOffset((value) => Math.max(0, value - bookingPageSize))} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang trước</button><span className="text-gray-500">Trang {bookingOffset / bookingPageSize + 1} / {Math.ceil(myBookingsQ.data.total / bookingPageSize)}</span><button type="button" disabled={bookingOffset + bookingPageSize >= myBookingsQ.data.total || myBookingsQ.isFetching} onClick={() => setBookingOffset((value) => value + bookingPageSize)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Trang tiếp</button></nav>}
               </div>
             )}
           </div>
@@ -192,14 +195,14 @@ export default function BookingPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div className="space-y-3">
             <button
               type="button"
               onClick={() => navigate("/account/bookings")}
-              className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-red-600"
+              className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-gray-600 transition hover:text-red-600"
             >
               <span aria-hidden="true">←</span>
               {t("booking.backToList")}
@@ -218,8 +221,8 @@ export default function BookingPage() {
         <BookingActions booking={booking} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 bg-white border border-red-100 rounded-xl shadow-sm p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 rounded-xl bg-linear-to-br from-red-50 via-white to-slate-50 border border-red-100 p-5">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-linear-to-br from-red-50 via-white to-slate-50 border border-red-100 p-5">
+              <div className="min-w-0 flex-1 basis-48">
                 <h2 className="text-xl font-bold text-gray-900">
                   {booking.restaurantName ??
                     t("booking.restaurantFallback", { id: booking.restaurantId })}
@@ -230,20 +233,20 @@ export default function BookingPage() {
               </div>
               <button
                 onClick={() => navigate(`/restaurant/${booking.restaurantId}`)}
-                className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors"
+                className="shrink-0 whitespace-nowrap px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-normal hover:bg-red-700 transition-colors"
               >
                 {t("booking.viewRestaurant")}
               </button>
               {booking.restaurantReportStatus ? (
-                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-sm">
+                <div className="flex w-full basis-full flex-wrap items-center gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-sm">
                   <span className="font-semibold text-amber-900">✓ Đã gửi báo cáo</span>
                   <span className="text-amber-800">{REPORT_STATUS_LABEL[booking.restaurantReportStatus] ?? booking.restaurantReportStatus}</span>
-                  <Link to="/account/violation-reports" className="font-bold text-red-700 underline hover:text-red-800">Theo dõi xử lý</Link>
+                  <Link to="/account/violation-reports" className="sm:ml-auto whitespace-nowrap font-bold text-red-700 underline hover:text-red-800">Theo dõi xử lý</Link>
                 </div>
               ) : canReportRestaurant && (
                 <button
                   onClick={() => setIsReportOpen(true)}
-                  className="mt-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                  className="shrink-0 whitespace-nowrap rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                 >
                   {t("booking.reportRestaurant")}
                 </button>
@@ -307,7 +310,7 @@ export default function BookingPage() {
                 <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">
                   {t("booking.note")}
                 </h3>
-                <div className="rounded-xl bg-slate-50 border border-gray-100 p-4 text-sm text-gray-700 whitespace-pre-line">
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 text-sm text-gray-700 whitespace-pre-line">
                   {booking.note}
                 </div>
               </div>
@@ -325,7 +328,7 @@ export default function BookingPage() {
             </div>
 
             {booking.depositStatus !== "not_required" && (
-              <div className="bg-white border border-violet-100 rounded-xl shadow-sm p-5 space-y-3">
+              <div className="bg-white border border-red-100 rounded-xl shadow-sm p-5 space-y-3">
                 <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
                   {t("booking.deposit")}
                 </h3>
@@ -336,7 +339,9 @@ export default function BookingPage() {
                 <DetailRow
                   label={t("booking.status")}
                   value={
-                    ["paid", "forfeited"].includes(booking.depositStatus)
+                    booking.depositStatus === "forfeited"
+                      ? "Nhà hàng giữ tiền cọc"
+                      : booking.depositStatus === "paid"
                       ? t("booking.deposit.paid")
                       : booking.depositStatus === "refund_pending"
                         ? t("booking.deposit.refundPending")

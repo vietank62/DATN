@@ -103,7 +103,7 @@ export default function PartnerRegister() {
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-red-600"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-normal text-gray-500 hover:text-red-600"
       >
         <ChevronLeft className="h-4 w-4" />
         Quay lại
@@ -114,7 +114,7 @@ export default function PartnerRegister() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
             <Building2 className="h-6 w-6" />
           </div>
-          <h1 className="mt-7 text-3xl font-black tracking-tight">
+          <h1 className="mt-7 text-3xl font-normal tracking-tight">
             Trở thành đối tác TableNow
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-red-50">
@@ -137,26 +137,26 @@ export default function PartnerRegister() {
 
         <div className="p-7 sm:p-10">
           <div className="mb-7">
-            <h2 className="text-2xl font-bold text-gray-900">Tạo tài khoản quản lý</h2>
+            <h2 className="text-2xl font-normal text-gray-900">Tạo tài khoản quản lý</h2>
             <p className="mt-2 text-sm text-gray-500">
               Sau khi đăng nhập, bạn sẽ hoàn thiện thông tin pháp lý và hồ sơ nhà hàng.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-normal text-gray-700">
               Họ tên người đại diện
               <input
                 required
                 value={form.name}
                 onChange={(event) => updateField("name", event.target.value)}
                 placeholder="Nguyễn Văn A"
-                className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 font-normal outline-none transition focus:border-red-500 focus:bg-white"
+                className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-normal outline-none transition focus:border-red-500 focus:bg-white"
               />
             </label>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-normal text-gray-700">
                 Email
                 <input
                   required
@@ -164,10 +164,10 @@ export default function PartnerRegister() {
                   value={form.email}
                   onChange={(event) => updateField("email", event.target.value)}
                   placeholder="partner@restaurant.com"
-                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 font-normal outline-none transition focus:border-red-500 focus:bg-white"
+                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-normal outline-none transition focus:border-red-500 focus:bg-white"
                 />
               </label>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-normal text-gray-700">
                 Số điện thoại
                 <input
                   required
@@ -178,13 +178,13 @@ export default function PartnerRegister() {
                   value={form.phone}
                   onChange={(event) => updateField("phone", event.target.value)}
                   placeholder="090 123 4567"
-                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 font-normal outline-none transition focus:border-red-500 focus:bg-white"
+                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-normal outline-none transition focus:border-red-500 focus:bg-white"
                 />
               </label>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-normal text-gray-700">
                 Mật khẩu
                 <div className="relative mt-1.5">
                   <input
@@ -194,7 +194,7 @@ export default function PartnerRegister() {
                     value={form.password}
                     onChange={(event) => updateField("password", event.target.value)}
                     placeholder="Tối thiểu 6 ký tự"
-                    className="w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 pr-11 font-normal outline-none transition focus:border-red-500 focus:bg-white"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pr-11 font-normal outline-none transition focus:border-red-500 focus:bg-white"
                   />
                   <button
                     type="button"
@@ -206,7 +206,7 @@ export default function PartnerRegister() {
                   </button>
                 </div>
               </label>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-normal text-gray-700">
                 Xác nhận mật khẩu
                 <div className="relative mt-1.5">
                   <input
@@ -216,7 +216,7 @@ export default function PartnerRegister() {
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder="Nhập lại mật khẩu"
-                    className="w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 pr-11 font-normal outline-none transition focus:border-red-500 focus:bg-white"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pr-11 font-normal outline-none transition focus:border-red-500 focus:bg-white"
                   />
                   <button
                     type="button"
@@ -230,7 +230,7 @@ export default function PartnerRegister() {
               </label>
             </div>
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-slate-50 p-3 text-sm text-gray-600">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
               <input
                 required
                 type="checkbox"
@@ -242,7 +242,7 @@ export default function PartnerRegister() {
                 Tôi đồng ý với {" "}
                 <Link
                   to="/partner/policy"
-                  className="font-bold text-red-700 underline"
+                  className="font-normal text-red-700 underline"
                 >
                   chính sách đối tác TableNow
                 </Link>
@@ -253,7 +253,7 @@ export default function PartnerRegister() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-sm font-normal text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <ShieldCheck className="h-5 w-5" />
               {isSubmitting ? "Đang tạo tài khoản..." : "Tạo tài khoản đối tác"}
@@ -265,7 +265,7 @@ export default function PartnerRegister() {
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="font-bold text-red-600 hover:text-red-700"
+              className="font-normal text-red-600 hover:text-red-700"
             >
               Về trang chủ để đăng nhập
             </button>

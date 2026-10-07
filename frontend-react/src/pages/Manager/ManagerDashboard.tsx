@@ -35,12 +35,14 @@ interface ManagerFinanceResponse { summary: FeeStats; }
 
 // ── Light KPI Card ─────────────────────────────────────────────────────────────
 function KpiCard({
+  to,
   label,
   value,
   sub,
   iconBg,
   icon,
 }: {
+  to: string;
   label: string;
   value: string | number;
   sub?: string;
@@ -48,12 +50,12 @@ function KpiCard({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 flex items-start justify-between gap-3">
+    <Link to={to} aria-label={`Xem ${label.toLowerCase()}`} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 flex items-start justify-between gap-3 transition hover:border-red-200 hover:bg-red-50/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
       <div>
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
+        <p className="text-xs font-normal text-gray-400 uppercase tracking-wider mb-1">
           {label}
         </p>
-        <p className="text-2xl font-extrabold text-gray-900 leading-tight">
+        <p className="text-2xl font-normal text-gray-900 leading-tight">
           {value}
         </p>
         {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
@@ -63,7 +65,7 @@ function KpiCard({
       >
         {icon}
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -111,7 +113,7 @@ function DonutChart({ data, total }: { data: StatusStat[]; total: number }) {
           style={{ transform: "rotate(90deg)", transformOrigin: "60px 60px" }}
           fill="#111827"
           fontSize="13"
-          fontWeight="700"
+          fontWeight="400"
         >
           {total}
         </text>
@@ -126,7 +128,7 @@ function DonutChart({ data, total }: { data: StatusStat[]; total: number }) {
             <span className="text-gray-600">
               {STATUS_LABEL[d.status] ?? d.status}
             </span>
-            <span className="ml-auto pl-4 font-semibold text-gray-800">
+            <span className="ml-auto pl-4 font-normal text-gray-800">
               {d.count}
             </span>
             <span className="text-gray-400 text-xs">({d.percentage}%)</span>
@@ -152,10 +154,10 @@ function HBarChart({ data }: { data: MenuStat[] }) {
       {data.map((d, i) => (
         <li key={i}>
           <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-            <span className="truncate max-w-[60%] font-medium">
+            <span className="truncate max-w-[60%] font-normal">
               {getCategoryLabel(d.category)}
             </span>
-            <span className="font-semibold text-gray-700">
+            <span className="font-normal text-gray-700">
               {d.count} món ({d.percentage}%)
             </span>
           </div>
@@ -238,7 +240,7 @@ export default function ManagerDashboard() {
             d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m13-9l2 9"
           />
         </svg>
-        <p className="text-lg font-semibold text-gray-700">
+        <p className="text-lg font-normal text-gray-700">
           Tài khoản chưa liên kết nhà hàng
         </p>
         <p className="text-sm text-gray-400">
@@ -246,7 +248,7 @@ export default function ManagerDashboard() {
         </p>
         <Link
           to="/manager/partner"
-          className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white"
+          className="rounded-xl bg-red-500 px-4 py-2 text-sm font-normal text-white"
         >
           Tạo hồ sơ đối tác
         </Link>
@@ -260,7 +262,7 @@ export default function ManagerDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tổng quan nhà hàng</h1>
+        <h1 className="text-2xl font-normal text-gray-900">Tổng quan nhà hàng</h1>
         <p className="text-sm text-gray-400 mt-0.5">
           Dữ liệu thời gian thực và thông tin vận hành.
         </p>
@@ -269,16 +271,16 @@ export default function ManagerDashboard() {
       <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-red-600">
+            <p className="text-xs font-normal uppercase tracking-wide text-red-600">
               Hồ sơ nhà hàng
             </p>
-            <h2 className="mt-1 text-xl font-bold text-gray-900">
+            <h2 className="mt-1 text-xl font-normal text-gray-900">
               {profileQ.data?.name}
             </h2>
           </div>
           <Link
             to="/manager/restaurant-settings"
-            className="w-fit rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white"
+            className="w-fit rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white"
           >
             Chỉnh sửa thông tin
           </Link>
@@ -286,26 +288,26 @@ export default function ManagerDashboard() {
         <dl className="mt-6 grid grid-cols-1 gap-5 border-t border-gray-100 pt-5 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-gray-400">Địa chỉ</dt>
-            <dd className="mt-1 font-semibold text-gray-800">
+            <dd className="mt-1 font-normal text-gray-800">
               {profileQ.data?.address}, {profileQ.data?.district},{" "}
               {profileQ.data?.city}
             </dd>
           </div>
           <div>
             <dt className="text-gray-400">Mã số thuế</dt>
-            <dd className="mt-1 font-semibold text-gray-800">
+            <dd className="mt-1 font-normal text-gray-800">
               {profileQ.data?.tax_code || "—"}
             </dd>
           </div>
           <div>
             <dt className="text-gray-400">Sức chứa</dt>
-            <dd className="mt-1 font-semibold text-gray-800">
+            <dd className="mt-1 font-normal text-gray-800">
               {profileQ.data?.capacity} chỗ
             </dd>
           </div>
           <div>
             <dt className="text-gray-400">Giờ nhận khách</dt>
-            <dd className="mt-1 font-semibold text-gray-800">
+            <dd className="mt-1 font-normal text-gray-800">
               {profileQ.data?.booking_opening_time &&
               profileQ.data?.booking_closing_time
                 ? `${profileQ.data.booking_opening_time} – ${profileQ.data.booking_closing_time}`
@@ -319,12 +321,13 @@ export default function ManagerDashboard() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           label="Tổng đơn đặt"
+          to="/manager/bookings?status=all"
           value={stats?.totalBookings ?? "—"}
           sub={`Hôm nay: ${stats?.todayBookings ?? 0}`}
-          iconBg="bg-violet-50"
+          iconBg="bg-red-50"
           icon={
             <svg
-              className="w-5 h-5 text-violet-500"
+              className="w-5 h-5 text-red-500"
               fill="none"
               stroke="currentColor"
               strokeWidth={1.8}
@@ -340,6 +343,7 @@ export default function ManagerDashboard() {
         />
         <KpiCard
           label="Đơn chờ duyệt"
+          to="/manager/bookings?status=active"
           value={stats?.pendingBookings ?? "—"}
           sub={`Đã xác nhận: ${stats?.confirmedBookings ?? 0}`}
           iconBg="bg-amber-50"
@@ -361,6 +365,7 @@ export default function ManagerDashboard() {
         />
         <KpiCard
           label="Đánh giá TB"
+          to={`/restaurant/${restaurantId}#reviews`}
           value={stats ? `${stats.avgRating} ★` : "—"}
           iconBg="bg-yellow-50"
           icon={
@@ -375,6 +380,7 @@ export default function ManagerDashboard() {
         />
         <KpiCard
           label="Số dư đặt cọc có thể rút"
+          to="/manager/finance"
           value={fees ? `${fees.availableBalance.toLocaleString("vi-VN")}đ` : "—"}
           sub={`${fees?.completedBookings ?? 0} đơn hoàn thành có đặt cọc`}
           iconBg="bg-emerald-50"
@@ -399,7 +405,7 @@ export default function ManagerDashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6">
-          <h2 className="text-base font-semibold text-gray-800 mb-5">
+          <h2 className="text-base font-normal text-gray-800 mb-5">
             Tỉ lệ trạng thái đặt bàn
           </h2>
           {statusQ.isLoading ? (
@@ -417,7 +423,7 @@ export default function ManagerDashboard() {
         </div>
 
         <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6">
-          <h2 className="text-base font-semibold text-gray-800 mb-5">
+          <h2 className="text-base font-normal text-gray-800 mb-5">
             Phân bổ danh mục thực đơn
           </h2>
           {menuQ.isLoading ? (

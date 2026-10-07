@@ -15,6 +15,9 @@ frontend-react/*.log
 .pnpm-store/
 
 # Backend (Python)
+**/__pycache__/
+*.py[cod]
+backend-python/.venv*/
 backend-python/__pycache__/
 backend-python/*.pyc
 backend-python/*.pyo

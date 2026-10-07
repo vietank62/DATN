@@ -40,6 +40,9 @@ const serviceTypeLabels = new Map([
   ["omakase", "Omakase"],
 ]);
 
+export const SUITABLE_FOR_OPTIONS = Array.from(suitableForLabels, ([value, label]) => ({ value, label }));
+export const SERVICE_TYPE_OPTIONS = Array.from(serviceTypeLabels, ([value, label]) => ({ value, label }));
+
 export function getCategoryLabel(category?: string | null): string {
   if (!category) {
     return "Khác";

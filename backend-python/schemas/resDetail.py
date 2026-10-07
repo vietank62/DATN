@@ -7,6 +7,7 @@ class RestaurantDetailCreate(BaseModel):
     image_menu: Optional[List[str]] = None
     price_range: Optional[str] = None
     phone_number: Optional[str] = None
+    zalo_number: Optional[str] = None
     description: Optional[str] = None
     opening_time: Optional[List[str]] = None
     parking_info: Optional[str] = None

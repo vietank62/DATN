@@ -42,7 +42,7 @@ export function ViolationReportModal({ bookingId, target, onClose, onSuccess }: 
       <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-gray-900">{title}</h2>
         <p className="mt-1 text-sm leading-6 text-gray-500">Báo cáo có hiệu lực ngay. Bạn có thể tải tối đa 10 ảnh minh chứng.</p>
-        <textarea value={reason} onChange={(event) => setReason(event.target.value)} required minLength={10} rows={5} placeholder="Mô tả sự việc và lý do báo cáo..." className="mt-4 w-full resize-none rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm outline-none focus:border-red-500" />
+        <textarea value={reason} onChange={(event) => setReason(event.target.value)} required minLength={10} rows={5} placeholder="Mô tả sự việc và lý do báo cáo..." className="mt-4 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-red-500" />
         <input id="violation-evidence-files" type="file" multiple accept="image/*" onChange={(event) => handleFilesChange(event.target.files)} className="sr-only" />
         <label htmlFor="violation-evidence-files" className="mt-3 inline-flex cursor-pointer rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-red-300 hover:bg-red-50">Chọn ảnh minh chứng</label>
         {files?.length ? <p className="mt-2 text-xs font-semibold text-gray-500">Đã chọn {files.length} ảnh.</p> : null}

@@ -21,6 +21,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "Rút tiền / Hoàn cọc", to: "/admin/withdrawals", icon: "wallet" },
   { label: "Phí dịch vụ", to: "/admin/booking-fees", icon: "receipt" },
   { label: "Thống kê", to: "/admin/stats", icon: "stats" },
+  { label: "Xung đột bàn", to: "/admin/table-incidents", icon: "shield" },
 ];
 
 const BREADCRUMB: Record<string, string> = {
@@ -43,7 +44,7 @@ export default function AdminLayout() {
   const crumb = BREADCRUMB[location.pathname] ?? "Admin";
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const notificationsQuery = useCustomerNotifications(user?.userId);
+  const notificationsQuery = useCustomerNotifications(user?.userId, "admin-notifications");
   const notifications = notificationsQuery.data?.items ?? [];
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
 
@@ -93,7 +94,7 @@ export default function AdminLayout() {
             <svg className="h-3 w-3 text-gray-300" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-            <span className="font-semibold text-gray-800">{crumb}</span>
+            <span className="font-normal text-gray-800">{crumb}</span>
           </div>
 
           <div ref={notificationRef} className="relative ml-auto flex items-center gap-2">

@@ -17,6 +17,12 @@ class ViolationReport(SQLModel, table=True):
     source: str = Field(default="customer_report", max_length=30)
     reason: str = Field(sa_column=Column(Text, nullable=False))
     evidence_urls: Optional[list[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
+    # State before moderation is kept so an open report can be withdrawn safely.
+    booking_status_before_report: Optional[str] = Field(default=None, max_length=30)
+    booking_deposit_status_before_report: Optional[str] = Field(default=None, max_length=30)
+    payment_status_before_report: Optional[str] = Field(default=None, max_length=30)
+    restaurant_active_before_report: Optional[bool] = Field(default=None)
+    restaurant_suspended_before_report: Optional[bool] = Field(default=None)
     status: str = Field(default="open", max_length=30, index=True)
     appeal_reason: Optional[str] = Field(default=None, sa_column=Column(Text))
     appeal_evidence_urls: Optional[list[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))

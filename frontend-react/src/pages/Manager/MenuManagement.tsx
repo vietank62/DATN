@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../services/api";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { uploadImage } from "../../services/upload";
 import { getCategoryLabel } from "../../utils/category";
 
@@ -36,9 +37,9 @@ const EMPTY_FORM: MenuItemForm = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Khai vị": "bg-orange-100 text-orange-700",
-  "Món chính": "bg-blue-100 text-blue-700",
+  "Món chính": "bg-red-100 text-red-700",
   "Tráng miệng": "bg-pink-100 text-pink-700",
-  "Đồ uống": "bg-teal-100 text-teal-700",
+  "Đồ uống": "bg-red-100 text-red-700",
   "Đặc sản": "bg-amber-100 text-amber-700",
 };
 
@@ -51,10 +52,17 @@ export default function MenuManagement() {
   const restaurantId = profileQ.data?.id;
 
   const [showForm, setShowForm] = useState(false);
+  useEffect(() => {
+    if (!showForm) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [showForm]);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [form, setForm] = useState<MenuItemForm>(EMPTY_FORM);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
 
   const menuQ = useQuery<MenuItem[]>({
     queryKey: ["manager-menu-items", restaurantId],
@@ -140,24 +148,29 @@ export default function MenuManagement() {
   };
 
   const q = search.toLowerCase();
+  const items = menuQ.data ?? [];
+  const categories = [...new Set(items.map(item => item.category).filter((value): value is string => !!value))].sort((a, b) => getCategoryLabel(a).localeCompare(getCategoryLabel(b), "vi"));
   const filtered = (menuQ.data ?? []).filter(
     (m) =>
-      m.name.toLowerCase().includes(q) ||
-      (m.category ?? "").toLowerCase().includes(q),
+      (!category || m.category === category) && (
+        m.name.toLowerCase().includes(q) ||
+        getCategoryLabel(m.category ?? "").toLowerCase().includes(q) ||
+        (m.category ?? "").toLowerCase().includes(q)
+      ),
   );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý thực đơn</h1>
+          <h1 className="text-lg font-normal text-gray-900">Quản lý thực đơn</h1>
           <p className="text-sm text-gray-400 mt-0.5">
             Thêm, sửa, xoá các món ăn trong thực đơn
           </p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition shadow-sm"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-normal transition shadow-sm"
         >
           <svg
             className="w-4 h-4"
@@ -177,11 +190,11 @@ export default function MenuManagement() {
       </div>
 
       {/* Modal Form */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-lg">
+      {showForm && createPortal(
+        <div role="dialog" aria-modal="true" aria-labelledby="menu-form-title" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-lg">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-800">
+              <h3 id="menu-form-title" className="text-base font-normal text-gray-800">
                 {editingItem ? "Sửa món ăn" : "Thêm món ăn mới"}
               </h3>
               <button
@@ -205,7 +218,7 @@ export default function MenuManagement() {
             </div>
             <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
+                <label className="block text-xs font-normal text-gray-500 mb-1">
                   Tên món *
                 </label>
                 <input
@@ -220,7 +233,7 @@ export default function MenuManagement() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                  <label className="block text-xs font-normal text-gray-500 mb-1">
                     Giá (VNĐ) *
                   </label>
                   <input
@@ -236,7 +249,7 @@ export default function MenuManagement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                  <label className="block text-xs font-normal text-gray-500 mb-1">
                     Danh mục
                   </label>
                   <input
@@ -256,7 +269,7 @@ export default function MenuManagement() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
+                <label className="block text-xs font-normal text-gray-500 mb-1">
                   Mô tả
                 </label>
                 <textarea
@@ -271,7 +284,7 @@ export default function MenuManagement() {
               </div>
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <label className="block text-xs font-medium text-gray-500">
+                  <label className="block text-xs font-normal text-gray-500">
                     Ảnh món ăn
                   </label>
                   <input
@@ -290,7 +303,7 @@ export default function MenuManagement() {
                       }
                     }}
                   />
-                  <label htmlFor="menu-item-image-file" className="cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200">
+                  <label htmlFor="menu-item-image-file" className="cursor-pointer rounded-lg border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-normal text-white shadow-sm transition hover:bg-red-700 focus-within:ring-4 focus-within:ring-red-200">
                     Chọn tệp
                   </label>
                 </div>
@@ -305,7 +318,7 @@ export default function MenuManagement() {
                   }
                   className="w-4 h-4 rounded accent-red-600"
                 />
-                <span className="text-sm text-gray-700 font-medium">
+                <span className="text-sm text-gray-700 font-normal">
                   Hiển thị (còn phục vụ)
                 </span>
               </label>
@@ -313,7 +326,7 @@ export default function MenuManagement() {
                 <button
                   type="submit"
                   disabled={createMut.isPending || updateMut.isPending}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-normal transition disabled:opacity-50"
                 >
                   {createMut.isPending || updateMut.isPending
                     ? "Đang lưu..."
@@ -324,20 +337,29 @@ export default function MenuManagement() {
                 <button
                   type="button"
                   onClick={closeForm}
-                  className="px-5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium transition"
+                  className="px-5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-normal transition"
                 >
                   Huỷ
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Search + grid */}
+      <section className="rounded-2xl border border-gray-200 bg-white p-4" aria-label="Danh mục món ăn">
+        <h2 className="mb-3 text-xs font-normal text-gray-800">Danh mục món ăn</h2>
+        <div className="flex flex-wrap gap-2">
+          {[{ value: "", label: "Tất cả", count: items.length }, ...categories.map(value => ({ value, label: getCategoryLabel(value), count: items.filter(item => item.category === value).length }))].map(option => <button key={option.value} type="button" aria-pressed={category === option.value} onClick={() => setCategory(option.value)} className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${category === option.value ? "border-red-600 bg-red-600 text-white" : "border-gray-200 bg-white text-gray-600 hover:border-red-300 hover:bg-red-50"}`}>
+            {option.label}<span className={`rounded-md px-1.5 py-0.5 text-xs ${category === option.value ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>{option.count}</span>
+          </button>)}
+        </div>
+      </section>
       <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-          <p className="text-sm font-medium text-gray-600">
+          <p className="text-sm font-normal text-gray-600">
             {filtered.length} món ăn
           </p>
           <div className="relative">
@@ -371,29 +393,32 @@ export default function MenuManagement() {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-4xl mb-3">🍽️</p>
-            <p className="text-gray-500 font-medium">Chưa có món ăn nào</p>
+            <p className="text-gray-500 font-normal">{items.length ? "Không có món phù hợp với tìm kiếm hoặc danh mục đã chọn." : "Chưa có món ăn nào"}</p>
             <button
               onClick={openCreate}
-              className="mt-3 text-sm text-red-600 hover:underline font-medium"
+              className="mt-3 text-sm text-red-600 hover:underline font-normal"
             >
               + Thêm món đầu tiên
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 p-5">
-            {filtered.map((item) => (
+          <div className="space-y-6 p-5">
+            {[...new Set(filtered.map(item => item.category ?? ""))].sort((a, b) => getCategoryLabel(a).localeCompare(getCategoryLabel(b), "vi")).map(group => <section key={group}>
+              <h2 className="mb-3 border-b border-gray-100 pb-2 text-xs font-normal text-gray-800">{group ? getCategoryLabel(group) : "Chưa phân loại"} <span className="text-xs text-gray-400">({filtered.filter(item => (item.category ?? "") === group).length} món)</span></h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.filter(item => (item.category ?? "") === group).map((item) => (
               <div
                 key={item.id}
-                className={`rounded-xl border ${item.is_available ? "border-gray-100" : "border-gray-100 opacity-60"} bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden`}
+                className={`flex flex-col rounded-xl border ${item.is_available ? "border-gray-100" : "border-gray-100 opacity-60"} bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden`}
               >
                 {item.image_url ? (
                   <img
                     src={item.image_url}
                     alt={item.name}
-                    className="w-full h-36 object-cover"
+                    className="w-full h-36 shrink-0 object-cover"
                   />
                 ) : (
-                  <div className="w-full h-36 bg-linear-to-br from-gray-100 to-gray-50 flex items-center justify-center text-gray-300">
+                  <div className="w-full h-36 shrink-0 bg-linear-to-br from-gray-100 to-gray-50 flex items-center justify-center text-gray-300">
                     <svg
                       className="w-10 h-10"
                       fill="none"
@@ -409,14 +434,14 @@ export default function MenuManagement() {
                     </svg>
                   </div>
                 )}
-                <div className="p-4">
+                <div className="flex flex-1 flex-col p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="font-semibold text-gray-800 text-sm leading-tight">
+                    <h3 className="font-normal text-gray-800 text-xs leading-5">
                       {item.name}
                     </h3>
                     {item.category && (
                       <span
-                        className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[item.category] ?? "bg-gray-100 text-gray-500"}`}
+                        className={`shrink-0 text-[10px] font-normal px-2 py-0.5 rounded-full ${CATEGORY_COLORS[item.category] ?? "bg-gray-100 text-gray-500"}`}
                       >
                         {getCategoryLabel(item.category)}
                       </span>
@@ -427,20 +452,20 @@ export default function MenuManagement() {
                       {item.description}
                     </p>
                   )}
-                  <p className="text-base font-bold text-amber-600 mb-3">
+                  <p className="mt-auto pt-2 text-[13px] font-normal text-amber-600 mb-3">
                     {item.price.toLocaleString("vi-VN")}đ
                   </p>
 
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-xs font-medium ${item.is_available ? "text-emerald-600" : "text-gray-400"}`}
+                      className={`text-xs font-normal ${item.is_available ? "text-emerald-600" : "text-gray-400"}`}
                     >
                       {item.is_available ? "● Đang phục vụ" : "○ Tạm ngừng"}
                     </span>
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => openEdit(item)}
-                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition"
+                        className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition"
                       >
                         <svg
                           className="w-3.5 h-3.5"
@@ -496,6 +521,8 @@ export default function MenuManagement() {
                 </div>
               </div>
             ))}
+              </div>
+            </section>)}
           </div>
         )}
       </div>

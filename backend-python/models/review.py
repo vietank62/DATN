@@ -1,5 +1,6 @@
 from typing import Optional, TYPE_CHECKING
-from sqlmodel import SQLModel, Field, Relationship  # type: ignore
+from sqlalchemy import Column, Text
+from sqlmodel import ARRAY, SQLModel, Field, Relationship  # type: ignore
 
 if TYPE_CHECKING:
     from .user import User
@@ -13,6 +14,7 @@ class Review(SQLModel, table=True):
     bookingId: Optional[int] = Field(default=None, foreign_key="booking.bookingId", unique=True)
     rating: int
     comment: Optional[str] = None
+    image_urls: Optional[list[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
     createdAt: Optional[str] = None
 
     user: Optional["User"] = Relationship()

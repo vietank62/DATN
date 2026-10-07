@@ -117,16 +117,16 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
       <div className="mx-auto max-w-4xl">
         <div className="mb-7">
           <p className="text-sm font-semibold text-red-700">{t("profile.kicker")}</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">
             {t("profile.title")}
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-gray-600">
             {t("profile.description")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
-          <section className="border-b border-slate-100 p-6 sm:p-8">
+          <section className="border-b border-gray-100 p-6 sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
               <div className="relative mx-auto h-28 w-28 shrink-0 sm:mx-0">
                 {avatar ? (
@@ -152,8 +152,8 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
                 </label>
               </div>
               <div className="text-center sm:text-left">
-                <h2 className="text-lg font-bold text-slate-900">{t("profile.avatar")}</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
+                <h2 className="text-lg font-bold text-gray-900">{t("profile.avatar")}</h2>
+                <p className="mt-1 text-sm leading-6 text-gray-500">
                   {t("profile.avatarHelp")}
                 </p>
                 {isUploading && <p className="mt-2 text-sm font-medium text-red-700">{t("profile.uploading")}</p>}
@@ -163,96 +163,96 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
 
           <section className="grid gap-5 p-6 sm:grid-cols-2 sm:p-8">
             <label className="block sm:col-span-2">
-              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <UserRound size={16} /> {t("profile.fullName")}
               </span>
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                 placeholder={t("profile.fullNamePlaceholder")}
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Phone size={16} /> {t("profile.phone")}
               </span>
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 inputMode="tel"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                 placeholder={t("profile.phonePlaceholder")}
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Mail size={16} /> Email
               </span>
               <input
                 value={initialUser.email}
                 readOnly
-                className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500 outline-none"
+                className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500 outline-none"
               />
-              <span className="mt-2 block text-xs text-slate-500">{t("profile.emailLocked")}</span>
+              <span className="mt-2 block text-xs text-gray-500">{t("profile.emailLocked")}</span>
             </label>
           </section>
 
-          <section className="border-t border-slate-100 bg-slate-50/70 p-6 sm:p-8">
+          <section className="border-t border-gray-100 bg-gray-50/70 p-6 sm:p-8">
             <div className="mb-5 flex items-center gap-3">
               <div className="rounded-xl bg-red-100 p-2 text-red-700"><KeyRound size={20} /></div>
               <div>
-                <h2 className="font-bold text-slate-900">{t("profile.changePassword")}</h2>
-                <p className="text-sm text-slate-500">{t("profile.changePasswordHelp")}</p>
+                <h2 className="font-bold text-gray-900">{t("profile.changePassword")}</h2>
+                <p className="text-sm text-gray-500">{t("profile.changePasswordHelp")}</p>
               </div>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="block sm:col-span-2">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Mật khẩu hiện tại</span>
+                <span className="mb-2 block text-sm font-semibold text-gray-700">Mật khẩu hiện tại</span>
                 <div className="relative">
                   <input
                     type={showCurrentPassword ? "text" : "password"}
                     value={currentPassword}
                     onChange={(event) => setCurrentPassword(event.target.value)}
                     autoComplete="current-password"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 text-gray-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                     placeholder="Nhập mật khẩu hiện tại để đổi mật khẩu"
                   />
-                  <button type="button" onClick={() => setShowCurrentPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-red-600" aria-label={showCurrentPassword ? "Ẩn mật khẩu hiện tại" : "Xem mật khẩu hiện tại"}>
+                  <button type="button" onClick={() => setShowCurrentPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-gray-500 hover:text-red-600" aria-label={showCurrentPassword ? "Ẩn mật khẩu hiện tại" : "Xem mật khẩu hiện tại"}>
                     {showCurrentPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                   </button>
                 </div>
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">{t("profile.newPassword")}</span>
+                <span className="mb-2 block text-sm font-semibold text-gray-700">{t("profile.newPassword")}</span>
                 <div className="relative">
                   <input
                     type={showNewPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(event) => setNewPassword(event.target.value)}
                     autoComplete="new-password"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 text-gray-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                     placeholder={t("profile.passwordMinimum")}
                   />
-                  <button type="button" onClick={() => setShowNewPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-red-600" aria-label={showNewPassword ? "Ẩn mật khẩu mới" : "Xem mật khẩu mới"}>
+                  <button type="button" onClick={() => setShowNewPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-gray-500 hover:text-red-600" aria-label={showNewPassword ? "Ẩn mật khẩu mới" : "Xem mật khẩu mới"}>
                     {showNewPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                   </button>
                 </div>
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">{t("profile.confirmPassword")}</span>
+                <span className="mb-2 block text-sm font-semibold text-gray-700">{t("profile.confirmPassword")}</span>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     autoComplete="new-password"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 text-gray-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                     placeholder={t("profile.confirmPasswordPlaceholder")}
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-slate-500 hover:text-red-600" aria-label={showConfirmPassword ? "Ẩn xác nhận mật khẩu" : "Xem xác nhận mật khẩu"}>
+                  <button type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} className="absolute inset-y-0 right-0 px-4 text-gray-500 hover:text-red-600" aria-label={showConfirmPassword ? "Ẩn xác nhận mật khẩu" : "Xem xác nhận mật khẩu"}>
                     {showConfirmPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                   </button>
                 </div>
@@ -260,11 +260,11 @@ function ProfileForm({ initialUser }: ProfileFormProps) {
             </div>
           </section>
 
-          <div className="flex justify-end border-t border-slate-100 p-6 sm:px-8">
+          <div className="flex justify-end border-t border-gray-100 p-6 sm:px-8">
             <button
               type="submit"
               disabled={updateProfile.isPending || isUploading}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-normal text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Save size={17} />
               {updateProfile.isPending ? t("profile.saving") : t("profile.save")}
@@ -290,7 +290,7 @@ export default function AccountProfile() {
   if (profileQuery.isError || !profileQuery.data) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-red-50/40 px-4">
-        <p className="rounded-xl bg-white px-6 py-4 text-sm text-slate-600 shadow-sm">
+        <p className="rounded-xl bg-white px-6 py-4 text-sm text-gray-600 shadow-sm">
           {t("profile.loadFailed")}
         </p>
       </main>

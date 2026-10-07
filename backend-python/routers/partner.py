@@ -15,6 +15,7 @@ from models.user import User
 from routers.deps import get_current_user
 from core.admin_notifications import notify_admins
 from schemas.partner import (
+    PartnerGeocodeRequest,
     PartnerApplicationCreate,
     PartnerOperationalUpdate,
     PartnerRejectRequest,
@@ -22,6 +23,14 @@ from schemas.partner import (
 
 router = APIRouter(prefix="/v1/partners", tags=["Partner"])
 CACHE_KEY_SET = "cache:restaurants:keys"
+
+
+def notify_admins_of_application(session, restaurant, is_new=False):
+    for admin in session.exec(select(User).where(User.role == "admin")).all():
+        session.add(Notification(userId=admin.userId,
+            title="Hồ sơ đối tác mới cần duyệt" if is_new else "Nhà hàng cập nhật hồ sơ cần duyệt",
+            message=f"{restaurant.name} đã gửi {'hồ sơ đăng ký đối tác' if is_new else 'thay đổi thông tin nhà hàng'}. Vui lòng xem danh sách duyệt đối tác.",
+            type="approval_pending", createdAt=datetime.now(timezone.utc).isoformat()))
 NEW_APPLICATION_FIELD = "__new__"
 
 APPROVAL_FIELD_LABELS = {
@@ -156,6 +165,12 @@ def create_available_slug(session: SessionDep, name: str) -> str:
     return slug
 
 
+@router.post("/geocode")
+def find_address_location(data: PartnerGeocodeRequest, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    from core.address_geocoding import geocode_address
+    return {"results": geocode_address(data.address, data.district, data.city)}
+
+
 @router.post("/application", response_model=Restaurant)
 def submit_application(data: PartnerApplicationCreate, current_user: Annotated[User, Security(get_current_user, scopes=["manager"])], session: SessionDep):
     if not data.policy_accepted:
@@ -237,6 +252,10 @@ def update_operational(
         raise HTTPException(404, "Restaurant application not found")
 
     changed_approval_fields: set[str] = set()
+    lead = data.booking_lead_minutes if data.booking_lead_minutes is not None else restaurant.booking_lead_minutes
+    confirmation = data.booking_confirmation_minutes if data.booking_confirmation_minutes is not None else restaurant.booking_confirmation_minutes
+    if not 0 <= confirmation < lead:
+        raise HTTPException(422, "Thời gian xác nhận đặt bàn phải không âm và nhỏ hơn thời gian đặt trước giờ dùng bữa.")
 
     for key in RESTAURANT_APPROVAL_FIELDS:
         if key not in data.model_fields_set:
@@ -249,15 +268,22 @@ def update_operational(
             setattr(restaurant, key, value)
 
     for key in (
-        "capacity",
         "price_avg",
+        "vat_enabled",
+        "menu_prices_visible",
         "booking_opening_time",
         "booking_closing_time",
+        "booking_lead_minutes",
+        "booking_confirmation_minutes",
     ):
-        if key in data.model_fields_set:
+        if key in data.model_fields_set and (key not in {"vat_enabled", "menu_prices_visible", "booking_lead_minutes", "booking_confirmation_minutes"} or getattr(data, key) is not None):
             setattr(restaurant, key, getattr(data, key))
 
     detail = session.exec(select(RestaurantDetail).where(RestaurantDetail.restaurant_id == restaurant.id)).first()
+    for key in ("service_types", "suitable_for"):
+        value = getattr(data, key)
+        if key in data.model_fields_set and value is not None:
+            setattr(restaurant, key, list(dict.fromkeys(value)))
     if not detail:
         detail = RestaurantDetail(restaurant_id=restaurant.id)
 
@@ -265,6 +291,9 @@ def update_operational(
         detail.description = data.description
     if data.price_range is not None:
         detail.price_range = data.price_range
+    for contact_field in ("phone_number", "zalo_number"):
+        if contact_field in data.model_fields_set:
+            setattr(detail, contact_field, (getattr(data, contact_field) or "").strip() or None)
     if data.opening_time is not None:
         detail.opening_time = data.opening_time
     if data.image_urls is not None:
@@ -310,12 +339,17 @@ def update_operational(
     return restaurant
 
 
-@router.get("/applications", response_model=list[dict])
-def pending_applications(current_user: Annotated[User, Security(get_current_user, scopes=["admin"])], session: SessionDep):
+@router.get("/applications", response_model=dict)
+def pending_applications(
+    current_user: Annotated[User, Security(get_current_user, scopes=["admin"])],
+    session: SessionDep,
+    limit: int = Query(default=10, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+):
+    base = select(Restaurant).where(Restaurant.approval_status == "pending")
+    total = session.exec(select(func.count(Restaurant.id)).where(Restaurant.approval_status == "pending")).one()
     applications = session.exec(
-        select(Restaurant)
-        .where(Restaurant.approval_status == "pending")
-        .order_by(Restaurant.created_at.desc())
+        base.order_by(Restaurant.created_at.desc()).offset(offset).limit(limit)
     ).all()
     restaurant_ids = [restaurant.id for restaurant in applications if restaurant.id]
     details = session.exec(
@@ -352,7 +386,7 @@ def pending_applications(current_user: Annotated[User, Security(get_current_user
             else None
         )
         result.append(application)
-    return result
+    return {"items": result, "total": int(total or 0), "limit": limit, "offset": offset}
 
 
 @router.delete("/application/me/pending-approval", response_model=Restaurant)

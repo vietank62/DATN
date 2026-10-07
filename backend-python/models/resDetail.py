@@ -13,6 +13,7 @@ class RestaurantDetail(SQLModel, table=True):
     image_menu: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
     price_range: Optional[str] = Field(default=None, max_length=50)
     phone_number: Optional[str] = Field(default=None, max_length=20)
+    zalo_number: Optional[str] = Field(default=None, max_length=20)
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     opening_time: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(Text)))
     parking_info: Optional[str] = Field(default=None, sa_column=Column(Text))

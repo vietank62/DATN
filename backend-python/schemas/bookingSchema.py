@@ -20,10 +20,12 @@ class BookingItemOut(BaseModel):
 
 
 class BookingResponse(BaseModel):
+    attendance: Optional[str] = None
     bookingId: int
-    userId: int
+    userId: Optional[int] = None
     restaurantId: int
     restaurantName: Optional[str] = None
+    cancellationLeadMinutes: int = 120
     date: str
     time: str
     guestCount: int

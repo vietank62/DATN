@@ -24,7 +24,9 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
 MAX_IMAGE_UPLOAD_BYTES = int(os.getenv("MAX_IMAGE_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+MAX_VIDEO_UPLOAD_BYTES = int(os.getenv("MAX_VIDEO_UPLOAD_BYTES", str(50 * 1024 * 1024)))
 
 
 async def read_upload_with_limit(file: UploadFile) -> bytes:
@@ -90,3 +92,47 @@ async def upload_image(current_user: Annotated[User, Depends(get_current_user)],
         raise HTTPException(status_code=502, detail="Image upload failed. Please try again.")
     finally:
         await file.close()
+
+
+@router.post("/api/upload-review-media/", tags=["Upload"])
+async def upload_review_media(current_user: Annotated[User, Depends(get_current_user)], file: UploadFile = File(...)):
+    """Upload an image or a short video used only in a verified booking review."""
+    content_type = (file.content_type or "").lower()
+    is_video = content_type in ALLOWED_VIDEO_TYPES
+    if content_type not in ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES:
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ ảnh JPEG/PNG/GIF/WebP hoặc video MP4/WebM/MOV")
+    try:
+        if not all((os.getenv("CLOUDINARY_CLOUD_NAME"), os.getenv("CLOUDINARY_API_KEY"), os.getenv("CLOUDINARY_API_SECRET"))):
+            raise HTTPException(status_code=503, detail="Dịch vụ tải tệp chưa được cấu hình")
+        limit = MAX_VIDEO_UPLOAD_BYTES if is_video else MAX_IMAGE_UPLOAD_BYTES
+        if file.size is not None and file.size > limit:
+            raise HTTPException(status_code=413, detail=f"Tệp vượt quá giới hạn {limit // (1024 * 1024)} MB")
+        content = await read_upload_with_limit(file) if not is_video else await _read_media_with_limit(file, limit)
+        response = await run_in_threadpool(
+            cloudinary.uploader.upload,
+            content,
+            folder="review_media",
+            public_id=f"review-{uuid.uuid4()}",
+            resource_type="video" if is_video else "image",
+        )
+        return {"url": response.get("secure_url"), "resource_type": "video" if is_video else "image", "size": response.get("bytes")}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Cloudinary review media upload failed")
+        raise HTTPException(status_code=502, detail="Không thể tải tệp đánh giá. Vui lòng thử lại.")
+    finally:
+        await file.close()
+
+
+async def _read_media_with_limit(file: UploadFile, limit: int) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(1024 * 1024):
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(status_code=413, detail=f"Tệp vượt quá giới hạn {limit // (1024 * 1024)} MB")
+        chunks.append(chunk)
+    if not chunks:
+        raise HTTPException(status_code=400, detail="Tệp tải lên đang trống")
+    return b"".join(chunks)

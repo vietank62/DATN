@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 class Booking(SQLModel, table=True):
     bookingId: Optional[int] = Field(default=None, primary_key=True)
-    userId: int = Field(foreign_key="user.userId")
+    userId: Optional[int] = Field(default=None, foreign_key="user.userId")
     restaurantId: int = Field(foreign_key="restaurants.id")
     date: str
     time: str
@@ -32,6 +32,7 @@ class Booking(SQLModel, table=True):
     cancellationActor: Optional[str] = None
     expiredAt: Optional[str] = None
     completedAt: Optional[str] = None
+    attendance: Optional[str] = Field(default=None, max_length=20)
 
     user: Optional["User"] = Relationship()
     restaurant: Optional["Restaurant"] = Relationship()

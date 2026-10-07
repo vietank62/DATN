@@ -17,10 +17,10 @@ type NotificationSnapshot = {
   unreadCount: number;
 };
 
-export function useCustomerNotifications(userId: number | undefined) {
+export function useCustomerNotifications(userId: number | undefined, namespace = "customer-notifications") {
   const queryClient = useQueryClient();
   const query = useQuery<NotificationSnapshot>({
-    queryKey: ["customer-notifications", userId],
+    queryKey: [namespace, userId],
     queryFn: ({ signal }) => api.get("/v1/notifications/snapshot", { signal })
       .then(response => response.data),
     enabled: userId !== undefined,
@@ -39,7 +39,7 @@ export function useCustomerNotifications(userId: number | undefined) {
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let watchdog: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
-    const queryKey = ["customer-notifications", userId];
+    const queryKey = [namespace, userId];
     const refresh = () => {
       void queryClient.invalidateQueries({ queryKey });
       void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
@@ -104,7 +104,7 @@ export function useCustomerNotifications(userId: number | undefined) {
       document.removeEventListener("visibilitychange", resume);
       queryClient.removeQueries({ queryKey, exact: true });
     };
-  }, [queryClient, userId]);
+  }, [queryClient, userId, namespace]);
 
   return query;
 }

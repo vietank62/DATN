@@ -1,5 +1,6 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column, ARRAY, Text  # type: ignore
+from sqlalchemy import JSON
 
 class CustomerPreference(SQLModel, table=True):
     __tablename__ = "customer_preferences"
@@ -10,3 +11,5 @@ class CustomerPreference(SQLModel, table=True):
     price_level: Optional[int] = Field(default=None, ge=1, le=5)
     city: Optional[str] = Field(default=None, max_length=100)
     updated_at: Optional[str] = None
+    survey: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    ai_matches: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))

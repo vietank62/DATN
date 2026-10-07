@@ -19,6 +19,11 @@ export const BOOKING_STATUS_COLOR: Record<string, string> = {
   expired: "#ef4444",
 };
 
+// Translate status codes in notifications saved before Vietnamese labels existed.
+export function translateBookingNotification(text: string): string {
+  return text.replace(/\b(awaiting_payment|payment_expired|rejected|pending|confirmed|completed|cancelled|expired)\b/g, status => BOOKING_STATUS_LABEL[status] ?? status);
+}
+
 // Statistics can return translated labels instead of status codes.
 for (const [status, label] of Object.entries(BOOKING_STATUS_LABEL)) {
   BOOKING_STATUS_COLOR[label] = BOOKING_STATUS_COLOR[status];

@@ -23,6 +23,12 @@ export function normalizeSearchParams(input: URLSearchParams, fallbackCity = "")
   const rating = Number(input.get("rating"));
   if (rating > 0 && rating <= 5) params.set("rating", String(rating));
   if (input.get("has_exclusive") === "true") params.set("has_exclusive", "true");
+  for (const [key, maximum] of [["party_size", 1000], ["utility", 21]] as const) {
+    const value = Number(input.get(key));
+    if (Number.isInteger(value) && value >= 1 && value <= maximum) params.set(key, String(value));
+  }
+  const deposit = input.get("requires_deposit");
+  if (deposit === "true" || deposit === "false") params.set("requires_deposit", deposit);
 
   const hasKeyword = params.has("search");
   const sort = input.get("sort_by");

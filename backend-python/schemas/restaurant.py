@@ -21,6 +21,7 @@ class RestaurantCreate(BaseModel):
     manager_id: int
     
 class RestaurantBase(BaseModel):
+    menu_prices_visible: bool = True
     id: int
     name: str
     slug: str
@@ -41,6 +42,7 @@ class RestaurantBase(BaseModel):
     service_types: Optional[List[str]] = None
     capacity: int = 0
     booking_opening_time: Optional[str] = None
+    booking_lead_minutes: int = 120
     booking_closing_time: Optional[str] = None
     is_active: bool
     created_at: datetime

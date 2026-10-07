@@ -46,7 +46,7 @@ function Card({
     <div className="bg-white border border-gray-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-gray-800">{title}</h2>
+          <h2 className="text-base font-normal text-gray-800">{title}</h2>
           {subtitle && (
             <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
           )}
@@ -222,7 +222,7 @@ function LineChart({ data }: { data: MonthlyBookingStat[] }) {
                   textAnchor="middle"
                   fill="white"
                   fontSize="11"
-                  fontWeight="700"
+                  fontWeight="400"
                 >
                   {pt.count} đơn
                 </text>
@@ -279,7 +279,7 @@ function StatusDonut({ data, total }: { data: StatusStat[]; total: number }) {
           style={{ transform: "rotate(90deg)", transformOrigin: "60px 60px" }}
           fill="#111827"
           fontSize="13"
-          fontWeight="700"
+          fontWeight="400"
         >
           {total}
         </text>
@@ -294,7 +294,7 @@ function StatusDonut({ data, total }: { data: StatusStat[]; total: number }) {
                 style={{ background: color }}
               />
               <span className="text-gray-600 flex-1">{STATUS_LABEL[d.status] ?? d.status}</span>
-              <span className="font-bold text-gray-800">{d.count}</span>
+              <span className="font-normal text-gray-800">{d.count}</span>
               <span className="text-gray-400 text-xs w-12 text-right">
                 ({d.percentage}%)
               </span>
@@ -314,7 +314,7 @@ function FeeSummaryCard({ data }: { data: FeeStats }) {
       { label: "Có thể rút", amount: data.availableBalance }].map(item => (
         <div key={item.label} className="rounded-xl bg-emerald-50 p-4">
           <p className="text-sm text-gray-600">{item.label}</p>
-          <p className="text-lg font-bold text-emerald-700">{item.amount.toLocaleString("vi-VN")}đ</p>
+          <p className="text-lg font-normal text-emerald-700">{item.amount.toLocaleString("vi-VN")}đ</p>
         </div>
       ))}
   </div>;
@@ -369,7 +369,7 @@ export default function ManagerStats() {
             d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
           />
         </svg>
-        <p className="font-semibold text-gray-600">
+        <p className="font-normal text-gray-600">
           Tài khoản chưa liên kết nhà hàng
         </p>
       </div>
@@ -382,7 +382,7 @@ export default function ManagerStats() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Thống kê nhà hàng</h1>
+        <h1 className="text-2xl font-normal text-gray-900">Thống kê nhà hàng</h1>
         <p className="text-sm text-gray-400 mt-0.5">
           Phân tích dữ liệu hoạt động · Nhà hàng #{restaurantId}
         </p>

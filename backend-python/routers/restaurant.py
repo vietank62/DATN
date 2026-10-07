@@ -2,16 +2,18 @@ import asyncio
 import json
 import os
 import time
+from datetime import datetime, timezone
 from typing import Annotated, List, Optional, Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, Security
 from fastapi.encoders import jsonable_encoder
 from starlette.concurrency import run_in_threadpool
-from models import Restaurant, User, Favorite
+from models import Restaurant, User, Favorite, SearchKeyword
 from models.resDetail import RestaurantDetail
 from database import SessionDep, redis_client
 from sqlmodel import select  # type: ignore
 from schemas.restaurant import RestaurantCreate, RestaurantBase, RestaurantUpdate
 from sqlalchemy import desc, func, or_  # type: ignore
+from sqlalchemy.dialects.postgresql import insert
 from routers.deps import get_current_user, get_optional_current_user
 from core.public_restaurants import card_columns
 from core.restaurant_search import apply_restaurant_filters, normalize_filters, restaurant_cache_key
@@ -72,6 +74,37 @@ async def cache_restaurant_list(cache_key: str, payload: str) -> None:
         print(f"Redis Error (Set): {error}")
 
 router = APIRouter(prefix="/v1/restaurants", tags=["Restaurant"])
+
+
+def record_search_keyword(session: SessionDep, keyword: str) -> None:
+    """Keep a small aggregate only; never store a user id or search history."""
+    if not keyword:
+        return
+    try:
+        statement = insert(SearchKeyword).values(
+            keyword=keyword[:100], search_count=1, last_searched_at=datetime.now(timezone.utc)
+        ).on_conflict_do_update(
+            index_elements=[SearchKeyword.keyword],
+            set_={
+                "search_count": SearchKeyword.search_count + 1,
+                "last_searched_at": datetime.now(timezone.utc),
+            },
+        )
+        session.execute(statement)
+        session.commit()
+    except Exception as error:
+        session.rollback()
+        print(f"Cannot record popular search keyword: {error}")
+
+
+@router.get("/popular-keywords", response_model=list[dict])
+def get_popular_keywords(session: SessionDep, limit: int = Query(default=8, ge=1, le=20)):
+    rows = session.exec(
+        select(SearchKeyword)
+        .order_by(desc(SearchKeyword.search_count), desc(SearchKeyword.last_searched_at))
+        .limit(limit)
+    ).all()
+    return [{"keyword": row.keyword, "count": row.search_count} for row in rows]
 
 
 @router.get("/all", response_model=dict)
@@ -175,13 +208,18 @@ async def get_restaurants(
     service_type: Optional[str] = Query(None, max_length=100, description="Service type slug"),
     space_level: Optional[int] = Query(None, ge=1, le=5, description="Space level: 1, 2, 3, 4, 5"),
     party_size: Optional[int] = Query(None, ge=1, le=1000, description="Minimum party size"),
+    utility: Optional[int] = Query(None, ge=1, le=21, description="Restaurant utility id"),
+    requires_deposit: Optional[bool] = Query(None, description="Whether a deposit is required"),
     search: Optional[str] = Query(None, max_length=100, description="Search by restaurant, address, description or menu"),
     rating: Optional[float] = Query(None, ge=0, le=5, description="Minimum rating"),
     current_user: Annotated[User | None, Depends(get_optional_current_user)] = None
 ):
     filters = normalize_filters(sort_by=sort_by, has_exclusive=has_exclusive, city=city,
         district=district, price=price, category=category, suitable_for=suitable_for,
-        service_type=service_type, space_level=space_level, search=search, rating=rating)
+        service_type=service_type, space_level=space_level, search=search, rating=rating,
+        utility=utility, requires_deposit=requires_deposit)
+    if filters["search"]:
+        await run_in_threadpool(record_search_keyword, session, filters["search"])
     cache_key = restaurant_cache_key(filters, limit, offset) + f":party:{party_size or 0}"
     request_started_at = time.perf_counter()
 
@@ -316,6 +354,12 @@ async def get_nearby_restaurants(
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Vary"] = "Authorization"
     return await run_in_threadpool(lambda: add_favorite_state(results, current_user, session))
+
+
+@router.get("/address-location")
+def customer_address_location(current_user: Annotated[User, Security(get_current_user, scopes=["customer"])], address: str = Query(..., min_length=5, max_length=500)):
+    from core.customer_geocoding import find_customer_address
+    return {"results": find_customer_address(current_user.userId, address)}
 
 
 @router.get("/{id}/overview", response_model=dict)

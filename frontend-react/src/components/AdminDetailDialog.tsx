@@ -24,8 +24,8 @@ function dateLabel(value: string | null) {
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="min-w-0"><dt className="text-xs font-medium text-gray-500">{label}</dt>
-    <dd className="mt-1 break-words text-sm font-semibold text-gray-900">{children === null || children === undefined || children === "" ? "Chưa có thông tin" : children}</dd></div>;
+  return <div className="min-w-0"><dt className="text-xs font-normal text-gray-500">{label}</dt>
+    <dd className="mt-1 break-words text-sm font-normal text-gray-900">{children === null || children === undefined || children === "" ? "Chưa có thông tin" : children}</dd></div>;
 }
 
 function DetailDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -48,12 +48,12 @@ function DetailDialog({ title, onClose, children }: { title: string; onClose: ()
     className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-2xl bg-white p-0 shadow-2xl backdrop:bg-black/50">
     <div className="p-6">
       <div className="mb-5 flex items-center justify-between gap-4 border-b border-gray-100 pb-4">
-        <h2 id={titleId} className="text-lg font-bold text-gray-900">{title}</h2>
+        <h2 id={titleId} className="text-lg font-normal text-gray-900">{title}</h2>
         <button type="button" onClick={onClose} aria-label="Đóng chi tiết" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"><X size={20} /></button>
       </div>
       {children}
       <div className="mt-6 flex justify-end border-t border-gray-100 pt-4">
-        <button type="button" onClick={onClose} className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200">Đóng</button>
+        <button type="button" onClick={onClose} className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-normal text-gray-700 hover:bg-gray-200">Đóng</button>
       </div>
     </div>
   </dialog>;
@@ -63,7 +63,7 @@ function QueryStatus({ loading, error, retry }: { loading: boolean; error: boole
   if (loading) return <p role="status" className="py-8 text-center text-sm text-gray-500">Đang tải thông tin...</p>;
   if (error) return <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
     Không thể tải chi tiết. Dữ liệu có thể đã bị xóa hoặc kết nối bị gián đoạn.
-    <button type="button" onClick={retry} className="ml-2 font-bold underline">Thử lại</button>
+    <button type="button" onClick={retry} className="ml-2 font-normal underline">Thử lại</button>
   </div>;
   return null;
 }
@@ -75,7 +75,7 @@ export function AdminUserDetail({ id, onClose }: { id: number; onClose: () => vo
   return <DetailDialog title="Chi tiết người dùng" onClose={onClose}>
     <QueryStatus loading={query.isPending} error={query.isError} retry={() => void query.refetch()} />
     {user && !query.isError && <>
-      <p className="text-xl font-bold text-gray-900">{user.name}</p>
+      <p className="text-xl font-normal text-gray-900">{user.name}</p>
       <p className="mt-1 text-xs text-gray-500">Mã người dùng #{user.userId}</p>
       <dl className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
         <Field label="Email">{user.email}</Field><Field label="Số điện thoại">{user.phone}</Field>
@@ -98,7 +98,7 @@ export function AdminRestaurantDetail({ id, onClose }: { id: number; onClose: ()
   return <DetailDialog title="Thông tin chính của nhà hàng" onClose={onClose}>
     <QueryStatus loading={query.isPending} error={query.isError} retry={() => void query.refetch()} />
     {restaurant && !query.isError && <>
-      <p className="text-xl font-bold text-gray-900">{restaurant.name}</p>
+      <p className="text-xl font-normal text-gray-900">{restaurant.name}</p>
       <p className="mt-1 text-xs text-gray-500">Mã nhà hàng #{restaurant.id}</p>
       <dl className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
         <Field label="Trạng thái hoạt động">{restaurant.is_report_suspended ? "Tạm ngưng do vi phạm" : restaurant.is_active ? "Đang hoạt động" : "Tạm đóng"}</Field>
@@ -111,7 +111,7 @@ export function AdminRestaurantDetail({ id, onClose }: { id: number; onClose: ()
         <Field label="Ngày tạo">{dateLabel(restaurant.created_at)}</Field>
       </dl>
       <div className="mt-5 rounded-xl bg-gray-50 p-4">
-        <h3 className="text-sm font-bold text-gray-900">Người quản lý</h3>
+        <h3 className="text-sm font-normal text-gray-900">Người quản lý</h3>
         {restaurant.manager ? <dl className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Họ tên">{restaurant.manager.name} (#{restaurant.manager.userId})</Field>
           <Field label="Số điện thoại">{restaurant.manager.phone}</Field>
