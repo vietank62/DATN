@@ -212,7 +212,6 @@ export const SearchRestaurants = () => {
                     {currentSearch.trim() && (
                         <div className="flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-100 px-3 py-1 rounded-lg text-xs font-medium">
                             <span>Từ khóa: "{currentSearch}"</span>
-                            <button type="button" onClick={()=>navigate(`/map?${new URLSearchParams({address:currentSearch})}`)} className="ml-2 whitespace-nowrap underline">Tìm gần địa chỉ này</button>
                             <button onClick={() => updateParam("search", null)} className="hover:bg-red-200/60 p-0.5 rounded-full text-red-500 font-semibold text-sm leading-none cursor-pointer">&times;</button>
                         </div>
                     )}
