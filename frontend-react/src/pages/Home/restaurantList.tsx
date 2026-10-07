@@ -1,3 +1,4 @@
+import { RestaurantDiscountBadge, type Discount } from "../../components/DiscountOffers";
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Splide, SplideSlide } from "@splidejs/react-splide";
@@ -33,7 +34,7 @@ const getCardImageUrl = (url?: string | null): string => {
 
 export const Home = () => {
     const navigate = useNavigate();
-    const { city } = useLocation(); 
+    const { city } = useLocation();
     const { t } = useTranslation();
     const recommendedRef = useRef<SplideType>(null);
     const hotDealsRef = useRef<SplideType>(null);
@@ -58,11 +59,23 @@ export const Home = () => {
         ...queryConfig,
     });
 
-    const { data: hotDealsData, isLoading: loadDeals } = useQuery<RestaurantCard[]>({
+    const publicOffers = useQuery<Discount[]>({
+        queryKey: ["public-discounts"],
+        queryFn: () => api.get("/v1/discounts/public").then(r => r.data),
+        refetchInterval: 30_000,
+        refetchOnMount: "always",
+        refetchOnWindowFocus: true,
+    });
+    const { data: hotDealsCandidates, isLoading: loadDeals } = useQuery<RestaurantCard[]>({
         queryKey: ["restaurants", { has_exclusive: true, limit: 8, city }],
         queryFn: () => fetchRestaurants(`?has_exclusive=true&limit=8&city=${city}`),
         ...queryConfig,
     });
+
+    const currentOfferRestaurantIds = new Set((publicOffers.data ?? [])
+        .filter(d => d.is_public && d.is_active && new Date(d.expires_at).getTime() > Date.now())
+        .map(d => d.restaurant_id));
+    const hotDealsData = hotDealsCandidates?.filter(restaurant => currentOfferRestaurantIds.has(restaurant.id));
 
     const { data: topRatedData, isLoading: loadRated } = useQuery<RestaurantCard[]>({
         queryKey: ["restaurants", { sort_by: "rating", limit: 8, city }],
@@ -81,7 +94,7 @@ export const Home = () => {
         gap: "1.25rem",
         arrows: false,
         pagination: false,
-        rewind: false, 
+        rewind: false,
         updateOnMove: true,
         breakpoints: {
             1024: { perPage: 3 },
@@ -96,7 +109,7 @@ export const Home = () => {
         setArrows: (state: ArrowState) => void,
     ): void => {
         const { index, Components } = splide;
-        const maxIndex = Components.Controller.getEnd(); 
+        const maxIndex = Components.Controller.getEnd();
         setArrows({
             prev: index > 0,
             next: index < maxIndex,
@@ -129,12 +142,12 @@ export const Home = () => {
         },
         onMutate: async (restaurantId: number) => {
             await queryClient.cancelQueries({ queryKey: ["restaurants"] });
-            const previousQueries = queryClient.getQueriesData<{ id: number; is_favorite: boolean }[]>({ 
-                queryKey: ["restaurants"] 
+            const previousQueries = queryClient.getQueriesData<{ id: number; is_favorite: boolean }[]>({
+                queryKey: ["restaurants"]
             });
             queryClient.setQueriesData<RestaurantCard[]>({ queryKey: ["restaurants"] }, (oldData) => {
                 if (!oldData) return [];
-                return oldData.map((res) => 
+                return oldData.map((res) =>
                     res.id === restaurantId ? { ...res, is_favorite: !res.is_favorite } : res
                 );
             });
@@ -161,7 +174,7 @@ export const Home = () => {
 
             const axiosError = error as { response?: { data?: unknown; status?: number } };
             console.error("Favorite Error Details:", axiosError.response?.data);
-            
+
             if (axiosError.response?.status === 401) {
                 toast.error("Vui lòng đăng nhập để thực hiện chức năng này.");
             } else {
@@ -179,7 +192,7 @@ export const Home = () => {
                 toggleFavoriteMutation.mutate(restaurant.id);
             }}
             aria-label={restaurant.is_favorite ? "Hủy yêu thích" : "Yêu thích"}
-            className={`absolute top-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`absolute bottom-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                 restaurant.is_favorite
                     ? "bg-red-50 text-red-500"
                     : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white"
@@ -203,7 +216,7 @@ export const Home = () => {
     );
 
     return (
-        <div className="w-full bg-slate-50 min-h-screen py-10 flex justify-center">
+        <div className="w-full bg-gray-50 min-h-screen py-10 flex justify-center">
             <div className="max-w-7xl w-full px-4 sm:px-6 lg:px-8 flex flex-col gap-12">
 
                 {/* Section 1: Đề xuất */}
@@ -227,8 +240,8 @@ export const Home = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                             </button>
-                            <Splide 
-                                ref={recommendedRef} 
+                            <Splide
+                                ref={recommendedRef}
                                 options={splideOptions}
                                 onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setRecArrows)}
                                 onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setRecArrows)}
@@ -237,6 +250,7 @@ export const Home = () => {
                                     <SplideSlide key={res.id}>
                                         <div onClick={() => navigate(`/restaurant/${res.id}`)} className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer">
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
+<RestaurantDiscountBadge restaurantId={res.id} />
                                                 <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">
                                                     Được đề xuất
                                                 </span>
@@ -246,29 +260,29 @@ export const Home = () => {
                                                         e.stopPropagation(); // Ngăn chặn chuyển hướng trang
                                                         toggleFavoriteMutation.mutate(res.id);
                                                     }}
-                                                    className={`absolute top-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                                                        res.is_favorite 
+                                                    className={`absolute bottom-3 right-3 z-20 p-2 backdrop-blur-sm rounded-full shadow-md transition-all duration-200 group/heart cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                                                        res.is_favorite
                                                             ? "bg-red-50 text-red-500" // Class khi ĐÃ YÊU THÍCH
                                                             : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white" // Class khi CHƯA YÊU THÍCH
                                                     }`}
                                                 >
-                                                    <svg 
-                                                        xmlns="http://www.w3.org/2000/svg" 
-                                                        fill={res.is_favorite ? "currentColor" : "none"} 
-                                                        viewBox="0 0 24 24" 
-                                                        strokeWidth={2} 
-                                                        stroke="currentColor" 
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill={res.is_favorite ? "currentColor" : "none"}
+                                                        viewBox="0 0 24 24"
+                                                        strokeWidth={2}
+                                                        stroke="currentColor"
                                                         className="w-5 h-5 transition-transform group-hover/heart:scale-110"
                                                     >
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
                                                     </svg>
                                                 </button>
 
-                                                <img 
-                                                    src={getCardImageUrl(res.image_url)} 
-                                                    alt={res.name} 
+                                                <img
+                                                    src={getCardImageUrl(res.image_url)}
+                                                    alt={res.name}
                                                     loading="lazy"
-                                                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 />
                                             </div>
                                             <div className="p-4 flex flex-col justify-between flex-1 bg-white">
@@ -286,9 +300,9 @@ export const Home = () => {
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                                                         </svg>
                                                         <span className="truncate">
                                                             <span className="text-gray-700 font-semibold">{res.district}</span>
@@ -333,8 +347,8 @@ export const Home = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                             </button>
-                            <Splide 
-                                ref={hotDealsRef} 
+                            <Splide
+                                ref={hotDealsRef}
                                 options={splideOptions}
                                 onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setDealsArrows)}
                                 onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setDealsArrows)}
@@ -346,7 +360,8 @@ export const Home = () => {
                                             className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
                                         >
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
-                                                <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Ưu đãi</span>
+<RestaurantDiscountBadge restaurantId={res.id} />
+
                                                 {renderFavoriteButton(res)}
                                                 <img src={getCardImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
@@ -365,9 +380,9 @@ export const Home = () => {
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                                                         </svg>
                                                         <span className="truncate">
                                                             <span className="font-semibold text-gray-700">{res.district}</span>
@@ -412,8 +427,8 @@ export const Home = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                             </button>
-                            <Splide 
-                                ref={topRatedRef} 
+                            <Splide
+                                ref={topRatedRef}
                                 options={splideOptions}
                                 onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setRatedArrows)}
                                 onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setRatedArrows)}
@@ -425,6 +440,7 @@ export const Home = () => {
                                             className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
                                         >
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
+<RestaurantDiscountBadge restaurantId={res.id} />
                                                 <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Đánh giá tốt</span>
                                                 {renderFavoriteButton(res)}
                                                 <img src={getCardImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -444,9 +460,9 @@ export const Home = () => {
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                                                         </svg>
                                                         <span className="truncate">
                                                             <span className="font-semibold text-gray-700">{res.district}</span>
@@ -491,8 +507,8 @@ export const Home = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                             </button>
-                            <Splide 
-                                ref={newArrivalsRef} 
+                            <Splide
+                                ref={newArrivalsRef}
                                 options={splideOptions}
                                 onMoved={(splide: SplideType) => handleNavigationVisibility(splide, setNewArrows)}
                                 onMounted={(splide: SplideType) => handleNavigationVisibility(splide, setNewArrows)}
@@ -504,6 +520,7 @@ export const Home = () => {
                                             className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
                                         >
                                             <div className="relative pt-[60%] overflow-hidden bg-gray-100">
+<RestaurantDiscountBadge restaurantId={res.id} />
                                                 <span className="promo-badge absolute top-3 left-3 text-[10px] font-sans px-2 py-0.5 rounded shadow z-10 uppercase tracking-wide">Mới</span>
                                                 {renderFavoriteButton(res)}
                                                 <img src={getCardImageUrl(res.image_url)} alt={res.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -523,9 +540,9 @@ export const Home = () => {
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center text-xs text-gray-600 min-w-0 gap-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-4">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                                                         </svg>
                                                         <span className="truncate">
                                                             <span className="font-semibold text-gray-700">{res.district}</span>

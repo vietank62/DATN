@@ -75,17 +75,17 @@ export default function RestaurantManagement() {
     <div className="space-y-6">
       {selectedId !== null && <AdminRestaurantDetail key={selectedId} id={selectedId} onClose={() => setSelectedId(null)} />}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Quản lý nhà hàng</h1>
+        <h1 className="text-2xl font-normal text-gray-900">Quản lý nhà hàng</h1>
         <p className="text-sm text-gray-400 mt-0.5">Phê duyệt và điều chỉnh trạng thái hoạt động của nhà hàng</p>
       </div>
 
       {/* Summary badges */}
       <div className="flex flex-wrap gap-3">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-100 shadow-sm text-sm text-gray-600 font-medium">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-100 shadow-sm text-sm text-gray-600 font-normal">
           <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
           {restaurantsQ.data?.active_total ?? 0} đang hoạt động
         </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-100 shadow-sm text-sm text-gray-600 font-medium">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-100 shadow-sm text-sm text-gray-600 font-normal">
           <span className="w-2 h-2 rounded-full bg-gray-300 inline-block"></span>
           {restaurantsQ.data?.inactive_total ?? '—'} tạm đóng
         </span>
@@ -94,7 +94,7 @@ export default function RestaurantManagement() {
       <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
         {/* Toolbar */}
         <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-          <p className="text-sm font-medium text-gray-600">
+          <p className="text-sm font-normal text-gray-600">
             {restaurantsQ.data?.total ?? 0} nhà hàng{search ? ' phù hợp' : ' tổng cộng'}
           </p>
           <div className="relative">
@@ -133,13 +133,13 @@ export default function RestaurantManagement() {
                   <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-3.5 font-mono text-gray-400 text-xs">#{r.id}</td>
                     <td className="px-6 py-3.5">
-                      <p className="font-semibold text-gray-800">{r.name}</p>
+                      <p className="font-normal text-gray-800">{r.name}</p>
                       <p className="text-xs text-gray-400">{r.district}{r.city ? `, ${r.city}` : ''}</p>
                     </td>
                     <td className="px-6 py-3.5 text-gray-500 max-w-50 truncate">{r.address}</td>
-                    <td className="px-6 py-3.5 text-center text-gray-600 font-medium">{r.capacity}</td>
+                    <td className="px-6 py-3.5 text-center text-gray-600 font-normal">{r.capacity}</td>
                     <td className="px-6 py-3.5 text-center">
-                      <span className="text-amber-500 font-semibold">{r.rating?.toFixed(1) ?? '—'}</span>
+                      <span className="text-amber-500 font-normal">{r.rating?.toFixed(1) ?? '—'}</span>
                       <span className="text-gray-300 text-xs ml-1">({r.review_count ?? 0})</span>
                     </td>
                     <td className="px-6 py-3.5 text-center">
@@ -149,13 +149,13 @@ export default function RestaurantManagement() {
                           disabled={toggleMut.isPending && togglingId === r.id}
                           onChange={() => { setTogglingId(r.id); toggleMut.mutate(r.id); }}
                         />
-                        <span className={`text-xs font-medium ${r.is_active ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        <span className={`text-xs font-normal ${r.is_active ? 'text-emerald-600' : 'text-gray-400'}`}>
                           {r.is_active ? 'Hoạt động' : 'Tạm đóng'}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-3.5 text-right whitespace-nowrap"><button type="button" onClick={() => setSelectedId(r.id)}
-                        className="mr-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                        className="mr-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-normal text-red-700 transition hover:bg-red-100">
                         Xem chi tiết
                       </button></td>
                   </tr>
@@ -176,7 +176,7 @@ export default function RestaurantManagement() {
               type="button"
               disabled={page === 1 || restaurantsQ.isFetching}
               onClick={() => setPage(current => current - 1)}
-              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-normal text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Trước
             </button>
@@ -184,7 +184,7 @@ export default function RestaurantManagement() {
               type="button"
               disabled={page >= totalPages || restaurantsQ.isFetching}
               onClick={() => setPage(current => current + 1)}
-              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="cursor-pointer rounded-lg border border-gray-200 px-3 py-2 text-xs font-normal text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Sau
             </button>

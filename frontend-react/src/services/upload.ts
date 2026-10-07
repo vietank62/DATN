@@ -25,3 +25,15 @@ export async function uploadImage(file: File): Promise<string> {
     throw error instanceof Error ? error : new Error("Không thể tải ảnh lên.");
   }
 }
+
+export async function uploadReviewMedia(file: File): Promise<string> {
+  const isImage = file.type.startsWith("image/");
+  const isVideo = ["video/mp4", "video/webm", "video/quicktime"].includes(file.type);
+  if (!isImage && !isVideo) throw new Error("Chỉ hỗ trợ ảnh hoặc video MP4/WebM/MOV.");
+  if (file.size > (isVideo ? 50 : 10) * 1024 * 1024) throw new Error(isVideo ? "Video không được vượt quá 50 MB." : "Ảnh không được vượt quá 10 MB.");
+  const body = new FormData();
+  body.append("file", file);
+  const { data } = await api.post<{ url?: string }>("/api/upload-review-media/", body);
+  if (!data.url) throw new Error("Dịch vụ tải tệp không trả về đường dẫn.");
+  return data.url;
+}

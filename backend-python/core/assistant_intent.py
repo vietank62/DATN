@@ -3,17 +3,25 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from pathlib import Path
 from core.restaurant_search import normalize_text
 
 LOCATIONS = json.loads(Path(__file__).with_name("assistant_locations.json").read_text(encoding="utf-8"))
 CITY_ALIASES = {"Hồ Chí Minh": ("ho chi minh", "tp hcm", "tphcm", "hcm", "sai gon", "saigon"),
                 "Hà Nội": ("ha noi", "hanoi"), "Đà Nẵng": ("da nang", "danang")}
-FOODS = ("hai san", "mon nhat", "mon han", "mon viet", "mon thai", "mon trung", "mon au",
-         "mon chay", "lau", "nuong", "buffet", "sushi", "pizza", "steak", "pho", "bun bo",
-         "dim sum", "dimsum", "tom hum", "ca hoi", "bbq", "chay")
+FOODS = ("hai san", "do bien", "mon nhat", "mon han", "mon viet", "mon thai", "mon trung", "mon au",
+         "mon chay", "do chay", "lau", "nuong", "do nuong", "buffet", "sushi", "ramen", "pizza",
+         "steak", "mi y", "pho", "bun bo", "com tam", "dim sum", "dimsum", "tom hum", "ca hoi", "bbq", "chay")
 OCCASIONS = {"gia dinh": "gia-dinh", "hen ho": "hen-ho", "sinh nhat": "sinh-nhat", "ban be": "ban-be"}
 SERVICES = {"phuc vu tai ban": "phuc-vu-tai-ban", "tu phuc vu": "tu-phuc-vu", "bang chuyen": "bang-chuyen", "omakase": "omakase"}
+FOOD_QUERY_ALIASES = {"do nuong": "nuong", "do bien": "hai san", "do chay": "mon chay", "dimsum": "dim sum"}
+CUISINE_CATEGORIES = {
+    "mon nhat": "mon-nhat", "do nhat": "mon-nhat", "nuong nhat": "mon-nhat", "sushi": "mon-nhat", "ramen": "mon-nhat",
+    "mon han": "mon-han", "do han": "mon-han", "nuong han": "mon-han",
+    "mon viet": "mon-viet", "mon thai": "mon-thai", "mon trung": "mon-trung", "mon au": "mon-au",
+    "mon chay": "mon-chay", "do chay": "mon-chay", "hai san": "hai-san", "do bien": "hai-san",
+}
 NUMBER = r"\d+(?:[.,]\d+)*"
 UNIT = r"(?:trieu|nghin|ngan|tr|k|dong|vnd|đ)"
 
@@ -42,6 +50,32 @@ class SearchIntent:
     labels: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     question: str | None = None
+
+
+def parse_booking_slot(message: str, now: datetime | None = None) -> tuple[str, str] | None:
+    """Read a Vietnamese date/time only when both parts are explicit enough."""
+    raw = fold(message)
+    time_match = re.search(r"\b([01]?\d|2[0-3])\s*(?::|h|gio)\s*([0-5]\d)?\b", raw)
+    if not time_match:
+        return None
+    hour = int(time_match.group(1))
+    minute = int(time_match.group(2) or 0)
+    current = now or datetime.now()
+    if "ngay mai" in raw or re.search(r"\bmai\b", raw):
+        date = current.date() + timedelta(days=1)
+    elif "hom nay" in raw or "toi nay" in raw or "trua nay" in raw:
+        date = current.date()
+    else:
+        date_match = re.search(r"\b(?:ngay\s*)?(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?\b", raw)
+        if not date_match:
+            return None
+        day, month = int(date_match.group(1)), int(date_match.group(2))
+        year = int(date_match.group(3) or current.year)
+        try:
+            date = datetime(year, month, day).date()
+        except ValueError:
+            return None
+    return date.isoformat(), f"{hour:02d}:{minute:02d}"
 
 
 def parse_restaurant_request(message: str, fallback_city: str | None = None) -> SearchIntent:
@@ -84,18 +118,23 @@ def parse_restaurant_request(message: str, fallback_city: str | None = None) -> 
         result.filters["city"] = city
         result.labels.append(city)
 
-    party = re.search(r"\b(\d{1,4})\s*(?:nguoi|khach|thanh vien)\b", text)
+    # Accept forms people naturally type: "bàn 4", "4 chỗ", "nhóm 6 đứa"
+    # as well as the more formal "4 người".
+    party_candidates = list(re.finditer(r"\b(\d{1,4})\s*(?:nguoi|khach|thanh vien|ban|cho|nguoi lon|ban minh|dua)\b", text))
+    # Do not mistake "Quận 1 cho ..." for a one-person party. Prefer the
+    # most recent valid group-size phrase when a sentence has several numbers.
+    party = next((candidate for candidate in reversed(party_candidates)
+                  if not re.search(r"(?:quan|huyen|q)\s*$", text[:candidate.start()])), None)
     if party:
         size = int(party[1])
         children = re.search(r"\b(\d{1,4})\s*(?:tre em|tre nho|be)\b", text)
-        if children and re.search(r"\bnguoi lon\b", party[0] + text[party.end():party.end()+5]):
+        if children and re.search(r"\bnguoi lon\b", text):
             size += int(children[1])
         if not 1 <= size <= 1000:
             result.question = "Bạn cho mình số người dự kiến từ 1 đến 1.000 nhé."
             return result
         result.filters["party_size"] = size
         result.labels.append(f"nhóm {size} người")
-        result.notes.append("Sức chứa phù hợp không đồng nghĩa còn bàn; cần xác nhận khi đặt bàn.")
 
     # Preserve decimal punctuation until money and ratings have been parsed.
     span = re.search(rf"\b(?:tu\s+)?({NUMBER})\s*({UNIT})?\s*(?:den|toi|[-–])\s*({NUMBER})\s*({UNIT})\b", raw)
@@ -161,6 +200,11 @@ def parse_restaurant_request(message: str, fallback_city: str | None = None) -> 
         result.filters["rating"] = value
         result.labels.append(f"đánh giá từ {value:g} sao")
 
+    cuisine = next((category for phrase, category in CUISINE_CATEGORIES.items() if contains(text, phrase)), None)
+    if cuisine:
+        result.filters["category"] = cuisine
+        category_labels = {"mon-nhat": "món Nhật", "mon-han": "món Hàn", "mon-viet": "món Việt", "mon-thai": "món Thái", "mon-trung": "món Trung", "mon-au": "món Âu", "mon-chay": "món chay", "hai-san": "hải sản"}
+        result.labels.append(category_labels.get(cuisine, cuisine))
     quoted = re.search(r'["“]([^"”]+)["”]', message)
     food_hits = [food for food in FOODS if contains(text, food)]
     food_hits = [food for food in food_hits if not any(food != other and food in other for other in food_hits)]
@@ -175,8 +219,10 @@ def parse_restaurant_request(message: str, fallback_city: str | None = None) -> 
         return result
     if quoted:
         result.filters["keyword"] = quoted[1].strip()
-    elif food_hits:
-        result.filters["keyword"] = " ".join(food_hits)
+    elif food_hits and not cuisine:
+        # The search index usually contains "nướng" rather than the filler
+        # word in "đồ nướng". Canonical terms avoid an over-strict AND query.
+        result.filters["keyword"] = " ".join(FOOD_QUERY_ALIASES.get(food, food) for food in food_hits)
     else:
         named = re.search(r"\b(?:ten la|ten)\s+(.+?)(?=\s+(?:o|tai|gia|ngan sach|cho|duoi)\b|$)", text)
         if not named:
@@ -189,7 +235,7 @@ def parse_restaurant_request(message: str, fallback_city: str | None = None) -> 
         return result
     if result.filters.get("keyword"):
         display = result.filters["keyword"]
-        for plain, accented in sorted({"hai san":"hải sản", "lau":"lẩu", "nuong":"nướng", "mon nhat":"món Nhật", "mon han":"món Hàn", "mon viet":"món Việt", "mon chay":"món chay", "chay":"chay", "pho":"phở", "tom hum":"tôm hùm", "ca hoi":"cá hồi"}.items(), key=lambda item: -len(item[0])):
+        for plain, accented in sorted({"hai san":"hải sản", "do bien":"đồ biển", "lau":"lẩu", "nuong":"nướng", "do nuong":"đồ nướng", "mon nhat":"món Nhật", "mon han":"món Hàn", "mon viet":"món Việt", "mon chay":"món chay", "do chay":"đồ chay", "mi y":"mì Ý", "com tam":"cơm tấm", "chay":"chay", "pho":"phở", "tom hum":"tôm hùm", "ca hoi":"cá hồi"}.items(), key=lambda item: -len(item[0])):
             display = re.sub(r"\b" + re.escape(plain) + r"\b", accented, display)
         result.labels.insert(0, display)
     for mapping, key in ((OCCASIONS, "suitable_for"), (SERVICES, "service_type")):

@@ -9,7 +9,7 @@ from models import Booking, Restaurant, User, Notification
 from models.depositPayment import DepositPayment
 from models.depositRefund import DepositRefund
 from core.deposit_checkout import lock_booking, expire_checkout_rows
-from core.booking_policy import CUSTOMER_CANCEL_LEAD
+from core.booking_policy import confirmation_lead
 from routers.deps import get_current_user
 from routers.booking import _serialize_booking, _ensure_restaurant_access, get_booking_meal_time, APP_TIME_ZONE
 
@@ -24,6 +24,7 @@ class CancellationInput(BaseModel):
 
 class CancellationDecision(BaseModel):
     approved: bool
+    keep_deposit: bool = False
     reason: str = Field(min_length=3, max_length=2000)
 
 def notify(session, booking, user_id, message, kind="booking_cancelled"):
@@ -74,9 +75,13 @@ def customer_cancel(booking_id: int, data: CancellationInput, session: SessionDe
         raise HTTPException(409, "Đơn không còn có thể huỷ")
     restaurant = session.get(Restaurant, booking.restaurantId)
     meal = get_booking_meal_time(booking)
-    if not meal or meal - datetime.now(APP_TIME_ZONE) <= CUSTOMER_CANCEL_LEAD:
-        raise HTTPException(409, "Còn 1 giờ hoặc ít hơn: vui lòng nhắn tin hoặc gọi hotline nhà hàng để yêu cầu huỷ")
-    if booking.status == "confirmed":
+    if not restaurant:
+        raise HTTPException(404, "Không tìm thấy nhà hàng của đơn đặt bàn")
+    lead = confirmation_lead(restaurant)
+    if not meal:
+        raise HTTPException(409, "Ngày giờ dùng bữa không hợp lệ.")
+    late = meal - datetime.now(APP_TIME_ZONE) <= lead
+    if late and booking.status == "confirmed":
         if booking.cancellationStatus == "requested":
             raise HTTPException(409, "Yêu cầu huỷ đang chờ nhà hàng xử lý")
         booking.cancellationStatus = "requested"
@@ -100,7 +105,19 @@ def cancellation_decision(booking_id: int, data: CancellationDecision, session: 
     if booking.status != "confirmed" or booking.cancellationStatus != "requested":
         raise HTTPException(409, "Không có yêu cầu huỷ đang chờ xử lý")
     if data.approved:
+        if data.keep_deposit:
+            restaurant = session.get(Restaurant, booking.restaurantId)
+            meal = get_booking_meal_time(booking)
+            if not meal or meal - datetime.now(APP_TIME_ZONE) > confirmation_lead(restaurant):
+                raise HTTPException(409, "Chỉ được giữ cọc khi khách yêu cầu hủy sau hạn hủy đơn phương.")
+            payment = session.exec(select(DepositPayment).where(DepositPayment.booking_id == booking.bookingId).with_for_update()).first()
+            if booking.depositStatus == "refund_pending" or (payment and payment.status == "refund_pending"):
+                raise HTTPException(409, "Tiền cọc đã chờ hoàn, không thể chuyển sang giữ cọc.")
+            if payment and payment.status == "paid":
+                booking.depositStatus = "forfeited"
         finish_cancel(session, booking, data.reason, "customer")
+        if booking.depositStatus == "forfeited":
+            notify(session, booking, booking.userId, "Nhà hàng đã chấp nhận hủy đơn và giữ tiền cọc vì yêu cầu hủy sau thời hạn.")
     else:
         booking.cancellationStatus = "rejected"
         booking.cancellationReason = data.reason

@@ -43,6 +43,8 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+    const managementToken = sessionStorage.getItem('management-token');
+    if (managementToken) config.headers['X-Management-Token'] = managementToken;
   }
   // Let the browser generate the multipart boundary for image uploads.
   if (config.data instanceof FormData && config.headers) {
@@ -59,6 +61,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as AuthRequestConfig | undefined;
     const status = error.response?.status;
+    if (status === 403 && error.response?.headers?.['x-error-code'] === 'MANAGEMENT_LOCKED') {
+      sessionStorage.removeItem('management-token');
+      window.dispatchEvent(new Event('management:lock'));
+    }
     const requestUrl = originalRequest?.url ?? '';
     const isAuthEndpoint = requestUrl.includes('/v1/auth/login') || requestUrl.includes('/v1/auth/refresh');
 

@@ -1,5 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
+
+
+class PartnerGeocodeRequest(BaseModel):
+    address: str = Field(min_length=5, max_length=500)
+    district: str = Field(min_length=2, max_length=100)
+    city: str = Field(min_length=2, max_length=100)
 
 
 class PartnerApplicationCreate(BaseModel):
@@ -18,11 +24,18 @@ class PartnerApplicationCreate(BaseModel):
     tax_code: str = Field(min_length=5, max_length=50)
     legal_documents_url: Optional[str] = None
     legal_documents_urls: Optional[list[str]] = None
-    capacity: int = Field(gt=0)
     policy_accepted: bool
 
 
 class PartnerOperationalUpdate(BaseModel):
+    service_types: list[Literal["phuc-vu-tai-ban", "tu-phuc-vu", "quay-line", "bang-chuyen", "omakase"]] | None = Field(default=None, max_length=5)
+    suitable_for: list[Literal["tiec-hoi-nghi", "gia-dinh", "hien-dai", "truyen-thong", "sang-trong", "co-dien", "thien-nhien", "hen-ho", "sinh-nhat", "ban-be"]] | None = Field(default=None, max_length=10)
+    phone_number: str | None = Field(default=None, max_length=20, pattern=r"^[+0-9\s().-]*$")
+    zalo_number: str | None = Field(default=None, max_length=20, pattern=r"^[+0-9\s().-]*$")
+    booking_lead_minutes: int | None = Field(default=None, ge=1, le=10080)
+    booking_confirmation_minutes: int | None = Field(default=None, ge=0, le=10079)
+    vat_enabled: bool | None = None
+    menu_prices_visible: bool | None = None
     name: Optional[str] = None
     address: Optional[str] = None
     district: Optional[str] = None
@@ -37,7 +50,6 @@ class PartnerOperationalUpdate(BaseModel):
     image_url: Optional[str] = None
     image_urls: Optional[list[str]] = None
     legal_documents_urls: Optional[list[str]] = None
-    capacity: Optional[int] = None
     price_avg: Optional[int] = Field(default=None, ge=0)
     price_range: Optional[str] = Field(default=None, max_length=50)
     description: Optional[str] = None

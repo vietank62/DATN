@@ -9,7 +9,7 @@ function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      <h1 className="text-4xl font-extrabold text-gray-800 mb-4">
+      <h1 className="text-4xl font-normal text-gray-800 mb-4">
         Admin Dashboard
       </h1>
     </div>

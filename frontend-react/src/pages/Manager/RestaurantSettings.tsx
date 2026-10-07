@@ -1,4 +1,7 @@
 import { useState } from "react";
+import AddressGeocoding from "../../components/AddressGeocoding";
+import { SERVICE_TYPE_OPTIONS, SUITABLE_FOR_OPTIONS } from "../../utils/category";
+import ImageOrderControls, { moveImage } from "../../components/ImageOrderControls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../services/api";
 import axios from "axios";
@@ -46,12 +49,20 @@ type Restaurant = {
   business_license_url?: string;
   tax_code?: string;
   capacity: number;
+  vat_enabled: boolean;
+  menu_prices_visible?: boolean;
   price_avg?: number;
+  service_types?: string[];
+  suitable_for?: string[];
+  booking_lead_minutes?: number;
+  booking_confirmation_minutes?: number;
   booking_opening_time?: string;
   booking_closing_time?: string;
 };
 
 type RestaurantDetailContent = {
+  phone_number?: string | null;
+  zalo_number?: string | null;
   image_urls?: string[];
   price_range?: string;
   description?: string;
@@ -127,7 +138,14 @@ export default function RestaurantSettings() {
     enabled: !!restaurantQ.data?.id,
   });
   const [form, setForm] = useState<Partial<Restaurant>>({});
-  const [gallery, setGallery] = useState<string[]>([]);
+  const [priceInput, setPriceInput] = useState<string | null>(null);
+  const [bookingLeadInput, setBookingLeadInput] = useState<string | null>(null);
+  const [bookingConfirmationInput, setBookingConfirmationInput] = useState<string | null>(null);
+  const [priceFromInput, setPriceFromInput] = useState<string | null>(null);
+  const [priceToInput, setPriceToInput] = useState<string | null>(null);
+  const [depositInput, setDepositInput] = useState<string | null>(null);
+  const [depositGuestsInput, setDepositGuestsInput] = useState<string | null>(null);
+  const [gallery, setGallery] = useState<string[] | null>(null);
   const [detailForm, setDetailForm] = useState<RestaurantDetailContent>({});
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const save = useMutation({
@@ -137,6 +155,9 @@ export default function RestaurantSettings() {
       toast.success("Đã lưu thay đổi.");
       qc.invalidateQueries({ queryKey: ["partner-application"] });
       qc.invalidateQueries({ queryKey: ["partner-gallery"] });
+      qc.invalidateQueries({ queryKey: ["cashier-restaurant-detail"] });
+      qc.invalidateQueries({ queryKey: ["restaurant-base"] });
+      qc.invalidateQueries({ queryKey: ["restaurant-detail"] });
     },
     onError: (error: unknown) => {
       const message = axios.isAxiosError(error)
@@ -162,7 +183,7 @@ export default function RestaurantSettings() {
     if (!files?.length) return;
     try {
       const urls = await Promise.all([...files].map(uploadImage));
-      setGallery([...currentGallery, ...urls]);
+      setGallery(current => [...(current ?? galleryQ.data?.image_urls ?? []), ...urls]);
       toast.success("Đã tải ảnh lên Cloudinary.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Tải ảnh thất bại.");
@@ -173,7 +194,7 @@ export default function RestaurantSettings() {
   if (!restaurantQ.data) {
     return (
       <div className="max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-6">
-        <h1 className="text-lg font-bold text-gray-900">
+        <h1 className="text-lg font-normal text-gray-900">
           Chưa có hồ sơ nhà hàng
         </h1>
         <p className="mt-2 text-sm leading-6 text-gray-600">
@@ -182,7 +203,7 @@ export default function RestaurantSettings() {
         </p>
         <a
           href="/manager/partner"
-          className="mt-4 inline-flex rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white"
+          className="mt-4 inline-flex rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white"
         >
           Hoàn tất hồ sơ nhà hàng
         </a>
@@ -190,10 +211,11 @@ export default function RestaurantSettings() {
     );
   }
   const currentForm = { ...restaurantQ.data, ...form } as Partial<Restaurant>;
-  const currentGallery = gallery.length
-    ? gallery
-    : (galleryQ.data?.image_urls ?? []);
+  const currentGallery = gallery ?? galleryQ.data?.image_urls ?? [];
   const currentDetail = { ...galleryQ.data, ...detailForm };
+  const savedRange = currentDetail.price_range?.match(/\d[\d.,]*/g) ?? [];
+  const priceFrom = priceFromInput ?? savedRange[0] ?? "";
+  const priceTo = priceToInput ?? savedRange[1] ?? "";
 
   const saveContentField = (
     key: "description" | "parking_info" | "regulations",
@@ -234,24 +256,60 @@ export default function RestaurantSettings() {
       return;
     }
 
+    const rawLead = bookingLeadInput ?? String(currentForm.booking_lead_minutes ?? 120);
+    const rawConfirmation = bookingConfirmationInput ?? String(currentForm.booking_confirmation_minutes ?? 60);
+    const lead = Number(rawLead);
+    if (!/^\d+$/.test(rawLead) || !Number.isInteger(lead) || lead < 1 || lead > 10080) {
+      toast.error("Thời gian đặt trước phải từ 1 đến 10080 phút.");
+      return;
+    }
+    const confirmation = Number(rawConfirmation);
+    if (!/^\d+$/.test(rawConfirmation) || !Number.isInteger(confirmation) || confirmation < 0 || confirmation >= lead) {
+      toast.error("Thời gian xác nhận phải không âm và nhỏ hơn thời gian đặt trước giờ dùng bữa.");
+      return;
+    }
     save.mutate({
-      capacity: currentForm.capacity,
+      booking_lead_minutes: lead,
+      booking_confirmation_minutes: confirmation,
       booking_opening_time: openingTime || null,
       booking_closing_time: closingTime || null,
     });
   };
 
   const savePricing = () => {
-    const priceAverage = Number(currentForm.price_avg ?? 0);
+    const rawPrice = (priceInput ?? String(currentForm.price_avg ?? 0)).trim().replace(/\s/g, "");
+    if (!rawPrice || !/^\d+$|^\d{1,3}([.,])\d{3}(?:\1\d{3})*$/.test(rawPrice)) {
+      toast.error("Nhập số tiền nguyên, ví dụ 250000 hoặc 250.000.");
+      return;
+    }
+    const priceAverage = Number(rawPrice.replace(/[.,]/g, ""));
 
-    if (!Number.isFinite(priceAverage) || priceAverage < 0) {
+    if (!Number.isSafeInteger(priceAverage) || priceAverage < 0 || priceAverage > 2147483647) {
       toast.error("Chi tiêu trung bình phải là một số tiền hợp lệ.");
       return;
     }
 
+    let priceRange = currentDetail.price_range?.trim() ?? "";
+    if (priceFromInput !== null || priceToInput !== null) {
+      const from = priceFrom.trim().replace(/\s/g, "");
+      const to = priceTo.trim().replace(/\s/g, "");
+      const moneyPattern = /^\d+$|^\d{1,3}([.,])\d{3}(?:\1\d{3})*$/;
+      if (!from && !to) {
+        priceRange = "";
+      } else {
+        const minimum = Number(from.replace(/[.,]/g, ""));
+        const maximum = Number(to.replace(/[.,]/g, ""));
+        if (!moneyPattern.test(from) || !moneyPattern.test(to) || !Number.isSafeInteger(minimum) || !Number.isSafeInteger(maximum) || maximum > 2147483647 || minimum > maximum) {
+          toast.error("Nhập đủ giá từ và đến hợp lệ; giá từ không được lớn hơn giá đến.");
+          return;
+        }
+        priceRange = `${minimum.toLocaleString("vi-VN")}đ - ${maximum.toLocaleString("vi-VN")}đ`;
+      }
+    }
     save.mutate({
+      vat_enabled: currentForm.vat_enabled ?? true,
       price_avg: Math.round(priceAverage),
-      price_range: currentDetail.price_range?.trim() ?? "",
+      price_range: priceRange,
     });
   };
 
@@ -269,6 +327,10 @@ export default function RestaurantSettings() {
   };
 
   const saveCoordinates = () => {
+    if (currentForm.latitude == null || currentForm.longitude == null) {
+      toast.error("Vui lòng nhập đầy đủ vĩ độ và kinh độ.");
+      return;
+    }
     const latitude = Number(currentForm.latitude);
     const longitude = Number(currentForm.longitude);
 
@@ -292,7 +354,7 @@ export default function RestaurantSettings() {
   };
 
   const text = (key: keyof Restaurant, label: string) => (
-    <label className="text-sm font-medium text-gray-700">
+    <label className="text-sm font-normal text-gray-700">
       {label}
       <input
         value={String(currentForm[key] ?? "")}
@@ -303,7 +365,7 @@ export default function RestaurantSettings() {
             [key]: key === "capacity" ? Number(e.target.value) : e.target.value,
           }))
         }
-        className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm"
+        className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm"
       />
     </label>
   );
@@ -318,7 +380,7 @@ export default function RestaurantSettings() {
           : [];
 
     return (
-      <label className="text-sm font-medium text-gray-700">
+      <label className="text-sm font-normal text-gray-700">
         {label}
         <input
           list={listId}
@@ -337,7 +399,7 @@ export default function RestaurantSettings() {
               ? "Chọn hoặc nhập thành phố"
               : "Chọn hoặc nhập quận / huyện"
           }
-          className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm"
+          className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm"
         />
         <datalist id={listId}>
           {options.map((option) => (
@@ -355,14 +417,14 @@ export default function RestaurantSettings() {
     const value = getTimeValue(key);
 
     return (
-      <label className="rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm font-medium text-gray-700">
-        <span>{label}</span>
+      <label className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm font-normal text-gray-700">
+        <span className="block min-h-10 sm:min-h-6">{label}</span>
         <input
           type="time"
           step="1800"
           value={value}
           onChange={(event) => setTimeValue(key, event.target.value)}
-          className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+          className="mt-2 h-12 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-emerald-500"
         />
         <span className="mt-2 block text-xs font-normal leading-5 text-gray-500">
           {description}
@@ -373,7 +435,7 @@ export default function RestaurantSettings() {
               key={time}
               type="button"
               onClick={() => setTimeValue(key, time)}
-              className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+              className={`rounded-md px-2 py-1 text-xs font-normal transition ${
                 value === time
                   ? "bg-emerald-600 text-white"
                   : "bg-white text-gray-600 hover:bg-emerald-100"
@@ -392,7 +454,7 @@ export default function RestaurantSettings() {
     placeholder: string,
   ) => (
     <div>
-      <label htmlFor={`restaurant-${key}`} className="block text-sm font-medium text-gray-700">
+      <label htmlFor={`restaurant-${key}`} className="block text-sm font-normal text-gray-700">
         {label}
       </label>
       <textarea
@@ -406,7 +468,7 @@ export default function RestaurantSettings() {
           }))
         }
         placeholder={placeholder}
-        className="mt-1.5 w-full resize-y rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm leading-6 whitespace-pre-wrap outline-none focus:border-red-500 focus:bg-white"
+        className="mt-1.5 w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-6 whitespace-pre-wrap outline-none focus:border-red-500 focus:bg-white"
       />
       <span className="mt-1 block text-xs font-normal text-gray-500">
         Các đoạn và dòng trống sẽ được giữ nguyên khi hiển thị cho khách hàng.
@@ -415,7 +477,7 @@ export default function RestaurantSettings() {
         type="button"
         onClick={() => saveContentField(key)}
         disabled={save.isPending}
-        className="mt-3 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-3 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {save.isPending ? "Đang lưu..." : `Lưu ${label.toLowerCase()}`}
       </button>
@@ -429,7 +491,7 @@ export default function RestaurantSettings() {
     const isCoverImage = key === "image_url";
 
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 p-4 text-sm font-semibold text-gray-600">
+      <div className="rounded-xl border border-dashed border-gray-300 p-4 text-sm font-normal text-gray-600">
         <p>{label}</p>
         {isCoverImage && (
           <p className="mt-1 text-xs font-normal leading-5 text-gray-500">
@@ -449,7 +511,7 @@ export default function RestaurantSettings() {
         />
         <label
           htmlFor={id}
-          className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-amber-600 bg-amber-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
+          className="mt-3 inline-flex cursor-pointer rounded-lg border-2 border-red-600 bg-red-500 px-3 py-2 text-xs font-normal text-white shadow-sm transition hover:bg-red-600 focus-within:ring-4 focus-within:ring-red-200"
         >
           Chọn tệp
         </label>
@@ -465,8 +527,8 @@ export default function RestaurantSettings() {
               alt={label}
               className={
                 isCoverImage
-                  ? "aspect-5/3 w-full rounded-lg object-cover"
-                  : "h-24 w-full rounded-lg object-cover"
+                  ? "aspect-square w-full rounded-lg object-cover"
+                  : "aspect-square w-full rounded-lg object-cover"
               }
             />
           </button>
@@ -475,12 +537,12 @@ export default function RestaurantSettings() {
     );
   };
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="restaurant-settings max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Chỉnh sửa thông tin nhà hàng</h1>
+        <h1 className="text-2xl font-normal">Chỉnh sửa thông tin nhà hàng</h1>
       </div>
       <section className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
-        <h2 className="font-bold text-red-700">Thông tin nhà hàng</h2>
+        <h2 className="font-normal text-red-700">Thông tin nhà hàng</h2>
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {text("name", "Tên nhà hàng")}
           {locationText("city", "Thành phố")}
@@ -490,14 +552,15 @@ export default function RestaurantSettings() {
         </div>
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div><h3 className="font-semibold text-amber-950">Vị trí trên bản đồ</h3><p className="mt-1 text-xs leading-5 text-amber-800">Dùng vị trí hiện tại khi bạn đang ở nhà hàng, hoặc nhập tọa độ chính xác. Khách sẽ thấy nhà hàng trên bản đồ sau khi admin xét duyệt.</p></div>
-            <button type="button" onClick={useCurrentLocation} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"><LocateFixed size={16} />Dùng vị trí hiện tại</button>
+            <div><h3 className="font-normal text-amber-950">Vị trí trên bản đồ</h3><p className="mt-1 text-xs leading-5 text-amber-800">Dùng vị trí hiện tại khi bạn đang ở nhà hàng, hoặc nhập tọa độ chính xác. Khách sẽ thấy nhà hàng trên bản đồ sau khi admin xét duyệt.</p></div>
+            <button type="button" onClick={useCurrentLocation} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-normal text-amber-800 hover:bg-amber-100"><LocateFixed size={16} />Dùng vị trí hiện tại</button>
           </div>
+          <AddressGeocoding address={currentForm.address ?? ""} district={currentForm.district ?? ""} city={currentForm.city ?? ""} onSelect={(latitude, longitude) => setForm(current => ({ ...current, latitude, longitude }))} />
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="text-sm font-medium text-gray-700">Vĩ độ<input type="number" step="any" value={currentForm.latitude ?? ""} onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value === "" ? null : Number(event.target.value) }))} placeholder="Ví dụ: 10.7769" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" /></label>
-            <label className="text-sm font-medium text-gray-700">Kinh độ<input type="number" step="any" value={currentForm.longitude ?? ""} onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value === "" ? null : Number(event.target.value) }))} placeholder="Ví dụ: 106.7009" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" /></label>
+            <label className="text-sm font-normal text-gray-700">Vĩ độ<input type="number" step="any" value={currentForm.latitude ?? ""} onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value === "" ? null : Number(event.target.value) }))} placeholder="Ví dụ: 10.7769" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" /></label>
+            <label className="text-sm font-normal text-gray-700">Kinh độ<input type="number" step="any" value={currentForm.longitude ?? ""} onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value === "" ? null : Number(event.target.value) }))} placeholder="Ví dụ: 106.7009" className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" /></label>
           </div>
-          <button type="button" onClick={saveCoordinates} disabled={save.isPending} className="mt-3 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-60">{save.isPending ? "Đang lưu..." : "Gửi vị trí để xét duyệt"}</button>
+          <button type="button" onClick={saveCoordinates} disabled={save.isPending} className="mt-3 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white hover:bg-red-700 disabled:opacity-60">{save.isPending ? "Đang lưu..." : "Gửi vị trí để xét duyệt"}</button>
         </div>
 
         <div className="mt-4 grid sm:grid-cols-2 gap-4">
@@ -518,7 +581,7 @@ export default function RestaurantSettings() {
               Object.fromEntries(approvalFields.map((k) => [k, form[k]])),
             )
           }
-          className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white"
+          className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white"
         >
           Gửi thay đổi để xét duyệt
         </button>
@@ -530,14 +593,14 @@ export default function RestaurantSettings() {
               <span className="rounded-xl bg-amber-50 p-2 text-amber-700">
                 <Images size={19} />
               </span>
-              <h2 className="font-bold text-gray-900">Thư viện ảnh nhà hàng</h2>
+              <h2 className="font-normal text-gray-900">Thư viện ảnh nhà hàng</h2>
             </div>
             <p className="mt-2 text-sm leading-6 text-gray-500">
               Thêm ảnh không gian, món ăn và trải nghiệm thực tế để khách dễ
               hình dung hơn.
             </p>
           </div>
-          <span className="w-fit rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600">
+          <span className="w-fit rounded-full bg-gray-100 px-3 py-1.5 text-xs font-normal text-gray-600">
             {currentGallery.length} ảnh
           </span>
         </div>
@@ -551,14 +614,14 @@ export default function RestaurantSettings() {
         />
         <label
           htmlFor="restaurant-gallery-files"
-          className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-amber-600 bg-amber-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-amber-600 focus-within:ring-4 focus-within:ring-amber-200"
+          className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-red-600 bg-red-500 px-4 py-2.5 text-sm font-normal text-white shadow-sm transition hover:bg-red-600 focus-within:ring-4 focus-within:ring-red-200"
         >
           <ImagePlus size={17} />
           Thêm ảnh từ máy
         </label>
-        <div className="mt-5 grid auto-rows-33 grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
           {currentGallery.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-slate-50 px-4 text-center text-sm text-gray-500">
+            <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center text-sm text-gray-500">
               <Images size={28} className="mb-2 text-gray-400" />
               Nhà hàng chưa có ảnh nào. Hãy thêm những hình ảnh đẹp nhất của
               bạn.
@@ -568,7 +631,7 @@ export default function RestaurantSettings() {
             <div
               key={url}
               className={`group relative overflow-hidden rounded-2xl bg-gray-100 shadow-sm ${
-                index === 0 ? "col-span-2 row-span-2" : "col-span-1 row-span-1"
+                "aspect-square"
               }`}
             >
               <button
@@ -584,10 +647,11 @@ export default function RestaurantSettings() {
                 />
               </button>
               <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-3 pb-2 pt-8">
-                <span className="text-xs font-semibold text-white">
+                <span className="text-xs font-normal text-white">
                   {index === 0 ? "Ảnh nổi bật" : `Ảnh ${index + 1}`}
                 </span>
               </div>
+              <ImageOrderControls index={index} count={currentGallery.length} disabled={save.isPending} onMove={to => setGallery(current => moveImage(current ?? currentGallery, index, to))} />
               <button
                 type="button"
                 onClick={() =>
@@ -597,7 +661,7 @@ export default function RestaurantSettings() {
                     ),
                   )
                 }
-                className="absolute right-2 top-2 inline-flex cursor-pointer items-center gap-1 rounded-lg bg-black/70 px-2 py-1.5 text-xs font-bold text-white opacity-100 transition hover:bg-red-600 md:opacity-0 md:group-hover:opacity-100"
+                className="absolute right-2 top-2 inline-flex cursor-pointer items-center gap-1 rounded-lg bg-black/70 px-2 py-1.5 text-xs font-normal text-white opacity-100 transition hover:bg-red-600 md:opacity-0 md:group-hover:opacity-100"
               >
                 <Trash2 size={14} />
                 Xóa
@@ -609,13 +673,13 @@ export default function RestaurantSettings() {
           type="button"
           onClick={() => save.mutate({ image_urls: currentGallery })}
           disabled={save.isPending}
-          className="mt-5 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {save.isPending ? "Đang lưu..." : "Lưu thay đổi thư viện"}
         </button>
       </section>
       <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h2 className="font-bold text-gray-900">
+        <h2 className="font-normal text-gray-900">
           Nội dung hiển thị cho khách hàng
         </h2>
         <p className="mt-2 text-sm text-gray-500">
@@ -640,7 +704,7 @@ export default function RestaurantSettings() {
           )}
           <div>
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-sm font-semibold text-gray-800">
+              <h3 className="text-sm font-normal text-gray-800">
                 Tiện ích nhà hàng
               </h3>
               <span className="text-xs text-gray-500">
@@ -656,7 +720,7 @@ export default function RestaurantSettings() {
                     key={id}
                     type="button"
                     onClick={() => toggleUtility(id)}
-                    className={`flex min-h-20 items-center gap-2 rounded-xl border p-3 text-left text-xs font-semibold transition ${
+                    className={`flex min-h-20 items-center gap-2 rounded-xl border p-3 text-left text-xs font-normal transition ${
                       isSelected
                         ? "border-red-600 bg-red-50 text-red-700"
                         : "border-gray-200 bg-white text-gray-600 hover:border-red-300"
@@ -672,70 +736,104 @@ export default function RestaurantSettings() {
               type="button"
               onClick={saveUtilities}
               disabled={save.isPending}
-              className="mt-4 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-4 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {save.isPending ? "Đang lưu..." : "Lưu tiện ích"}
             </button>
           </div>
         </div>
       </section>
+      <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <h2 className="font-normal text-gray-900">Kiểu phục vụ và phù hợp với</h2>
+        <div className="mt-5 grid gap-6 sm:grid-cols-2">
+          {([{ key: "service_types", title: "Kiểu phục vụ", options: SERVICE_TYPE_OPTIONS }, { key: "suitable_for", title: "Phù hợp với", options: SUITABLE_FOR_OPTIONS }] as const).map(group => (
+            <fieldset key={group.key}>
+              <legend className="text-sm text-gray-700">{group.title}</legend>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {group.options.map(option => {
+                  const selected = currentForm[group.key] ?? [];
+                  const active = selected.includes(option.value);
+                  return <label key={option.value} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${active ? "border-red-300 bg-red-50 text-red-700" : "border-gray-200 text-gray-700"}`}>
+                    <input type="checkbox" disabled={save.isPending} checked={active} onChange={event => setForm(current => ({ ...current, [group.key]: event.target.checked ? [...(current[group.key] ?? selected), option.value] : (current[group.key] ?? selected).filter(value => value !== option.value) }))} className="accent-red-600" />
+                    {option.label}
+                  </label>;
+                })}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+        <button type="button" disabled={save.isPending} onClick={() => save.mutate({ service_types: currentForm.service_types ?? [], suitable_for: currentForm.suitable_for ?? [] })} className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-sm text-white hover:bg-red-700 disabled:opacity-60">{save.isPending ? "Đang lưu..." : "Lưu kiểu phục vụ và đối tượng"}</button>
+      </section>
       <section className="rounded-3xl border border-amber-100 bg-white p-6 shadow-sm">
-        <h2 className="font-bold text-amber-900">Mức giá hiển thị</h2>
+        <h2 className="font-normal text-amber-900">Mức giá hiển thị</h2>
         <p className="mt-2 text-sm leading-6 text-gray-500">
           Chi tiêu trung bình dùng để lọc nhà hàng và hiển thị theo mỗi khách.
           Khoảng giá là mức giá tham khảo hiển thị ở trang chi tiết.
         </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-medium text-gray-700">
+          <label className="self-end text-sm font-normal text-gray-700">
             Chi tiêu trung bình / khách (VNĐ)
             <input
-              type="number"
-              min="0"
-              step="1000"
-              value={currentForm.price_avg ?? 0}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  price_avg: Number(event.target.value) || 0,
-                }))
-              }
+              type="text"
+              inputMode="numeric"
+              value={priceInput ?? String(currentForm.price_avg ?? 0)}
+              onChange={(event) => setPriceInput(event.target.value)}
               placeholder="Ví dụ: 250000"
-              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
+              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
             />
           </label>
-          <label className="text-sm font-medium text-gray-700">
-            Khoảng giá tham khảo
-            <input
-              value={currentDetail.price_range ?? ""}
-              onChange={(event) =>
-                setDetailForm((current) => ({
-                  ...current,
-                  price_range: event.target.value,
-                }))
-              }
-              placeholder="Ví dụ: 150.000đ - 450.000đ"
-              maxLength={50}
-              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-            />
-          </label>
+          <fieldset className="text-sm font-normal text-gray-700">
+            <legend>Khoảng giá tham khảo (VNĐ)</legend>
+            <div className="mt-1.5 grid grid-cols-2 gap-3">
+              <label className="block">Từ<input type="text" inputMode="numeric" value={priceFrom} onChange={event => setPriceFromInput(event.target.value)} placeholder="150.000" maxLength={20} className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white" /></label>
+              <label className="block">Đến<input type="text" inputMode="numeric" value={priceTo} onChange={event => setPriceToInput(event.target.value)} placeholder="450.000" maxLength={20} className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white" /></label>
+            </div>
+          </fieldset>
         </div>
         <button
           type="button"
           onClick={savePricing}
           disabled={save.isPending}
-          className="mt-5 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {save.isPending ? "Đang lưu..." : "Lưu mức giá"}
         </button>
       </section>
+      <section className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+        <h2 className="font-normal text-red-900">Thông tin liên hệ</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label>Hotline nhà hàng<input type="tel" maxLength={20} value={currentDetail.phone_number??""} onChange={e=>setDetailForm(x=>({...x,phone_number:e.target.value}))} className="mt-2 w-full rounded-xl border border-gray-200 p-3" /></label>
+          <label>Số điện thoại Zalo<input type="tel" maxLength={20} value={currentDetail.zalo_number??""} onChange={e=>setDetailForm(x=>({...x,zalo_number:e.target.value}))} className="mt-2 w-full rounded-xl border border-gray-200 p-3" /></label>
+        </div>
+        <button disabled={save.isPending} onClick={()=>save.mutate({phone_number:currentDetail.phone_number?.trim()??"",zalo_number:currentDetail.zalo_number?.trim()??""})} className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-white hover:bg-red-700 disabled:opacity-60">Lưu thông tin liên hệ</button>
+      </section>
+      <section className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+        <h2 className="font-normal text-red-900">Hiển thị giá menu</h2>
+        <label className="mt-4 flex items-center gap-3 text-gray-800">
+          <input type="checkbox" className="h-5 w-5 accent-red-600" checked={currentForm.menu_prices_visible ?? true} onChange={e=>setForm(x=>({...x,menu_prices_visible:e.target.checked}))} />
+          Hiển thị giá món ăn trên trang khách hàng
+        </label>
+        <button disabled={save.isPending} onClick={()=>save.mutate({menu_prices_visible:currentForm.menu_prices_visible ?? true})} className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-white hover:bg-red-700 disabled:opacity-60">Lưu hiển thị giá menu</button>
+      </section>
+      <section className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+        <h2 className="font-normal text-red-900">Thuế VAT</h2>
+        <label className="mt-4 flex cursor-pointer items-center gap-3 text-sm font-normal text-gray-800">
+          <input type="checkbox" className="h-5 w-5 accent-red-600" checked={currentForm.vat_enabled ?? true} onChange={e=>setForm(x=>({...x,vat_enabled:e.target.checked}))} />
+          Tính VAT 8% trên hóa đơn
+        </label>
+        <button disabled={save.isPending} onClick={()=>save.mutate({vat_enabled:currentForm.vat_enabled ?? true})} className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white hover:bg-red-700 disabled:opacity-60">Lưu thiết lập VAT</button>
+      </section>
       <section className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
-        <h2 className="font-bold text-emerald-700">Thông tin vận hành</h2>
-        <p className="mt-2 text-sm text-gray-500">
-          Đây là khung giờ nhà hàng nhận đặt bàn, không phải giờ mở cửa. Để
-          trống một ô để dùng giờ mở/đóng cửa của nhà hàng.
-        </p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          {text("capacity", "Sức chứa")}
+        <h2 className="font-normal text-emerald-700">Thông tin vận hành</h2>
+        <div className="mt-5 grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2">
+          <label className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"><span className="block min-h-10">Đặt trước giờ dùng bữa (phút)</span>
+            <input type="text" inputMode="numeric" autoComplete="off" value={bookingLeadInput ?? String(currentForm.booking_lead_minutes ?? 120)} onChange={e=>{if(/^\d*$/.test(e.target.value))setBookingLeadInput(e.target.value);}} className="mt-2 h-12 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 outline-none focus:border-emerald-500" />
+            <span className="mt-2 block text-xs leading-5 text-gray-500">Ví dụ: 60 phút nghĩa là khách phải đặt trước ít nhất 1 giờ.</span>
+          </label>
+          <label className="min-w-0 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"><span className="block min-h-10">Xác nhận đặt bàn trước giờ dùng bữa (phút)</span>
+            <input type="text" inputMode="numeric" autoComplete="off" value={bookingConfirmationInput ?? String(currentForm.booking_confirmation_minutes ?? 60)} onChange={e=>{if(/^\d*$/.test(e.target.value))setBookingConfirmationInput(e.target.value);}} className="mt-2 h-12 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 outline-none focus:border-emerald-500" />
+            <span className="mt-2 block text-xs leading-5 text-gray-500">Hạn phản hồi của nhà hàng và hạn khách được hủy đơn phương, không mất cọc.</span>
+          </label>
           {timePicker(
             "booking_opening_time",
             "Bắt đầu nhận khách",
@@ -749,17 +847,17 @@ export default function RestaurantSettings() {
         </div>
         <button
           onClick={saveOperationalSettings}
-          className="mt-5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white"
+          className="mt-5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-normal text-white"
         >
           Lưu thông tin vận hành
         </button>
       </section>
-      <section className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-        <h2 className="font-bold text-violet-900">Đặt cọc khi đặt bàn</h2>
+      <section className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+        <h2 className="font-normal text-red-900">Đặt cọc khi đặt bàn</h2>
         <p className="mt-2 text-sm leading-6 text-gray-500">
           Bật tính năng này nếu yêu cầu khách hàng thanh toán trước một khoản đặt cọc khi đặt bàn. Khoản đặt cọc sẽ được hoàn trả nếu khách hủy đặt bàn theo chính sách của nhà hàng.
         </p>
-        <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm font-semibold text-gray-800">
+        <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm font-normal text-gray-800">
           <input
             type="checkbox"
             checked={Boolean(currentDetail.requires_deposit)}
@@ -769,44 +867,29 @@ export default function RestaurantSettings() {
                 requires_deposit: event.target.checked,
               }))
             }
-            className="h-4 w-4 accent-violet-600"
+            className="h-4 w-4 accent-red-600"
           />
           Yêu cầu khách thanh toán đặt cọc
         </label>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-medium text-gray-700">
+          <label className="text-sm font-normal text-gray-700">
             Số tiền đặt cọc (VNĐ)
             <input
-              type="number"
-              min="0"
-              step="1000"
-              value={currentDetail.deposit_amount ?? 0}
-              onChange={(event) =>
-                setDetailForm((current) => ({
-                  ...current,
-                  deposit_amount: Number(event.target.value) || 0,
-                }))
-              }
-              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+              type="text"
+              inputMode="numeric"
+              value={depositInput ?? String(currentDetail.deposit_amount ?? 0)}
+              onChange={(event) => setDepositInput(event.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-red-500"
             />
           </label>
-          <label className="text-sm font-medium text-gray-700">
+          <label className="text-sm font-normal text-gray-700">
             Áp dụng từ số khách
             <input
-              type="number"
-              min="1"
-              step="1"
-              value={currentDetail.deposit_min_guests ?? 1}
-              onChange={(event) =>
-                setDetailForm((current) => ({
-                  ...current,
-                  deposit_min_guests: Math.max(
-                    1,
-                    Number(event.target.value) || 1,
-                  ),
-                }))
-              }
-              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+              type="text"
+              inputMode="numeric"
+              value={depositGuestsInput ?? String(currentDetail.deposit_min_guests ?? 1)}
+              onChange={(event) => setDepositGuestsInput(event.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-red-500"
             />
           </label>
         </div>
@@ -814,7 +897,18 @@ export default function RestaurantSettings() {
           type="button"
           disabled={save.isPending}
           onClick={() => {
-            const amount = Number(currentDetail.deposit_amount ?? 0);
+            const rawAmount = (depositInput ?? String(currentDetail.deposit_amount ?? 0)).trim().replace(/\s/g, "");
+            const rawGuests = (depositGuestsInput ?? String(currentDetail.deposit_min_guests ?? 1)).trim();
+            const amount = Number(rawAmount.replace(/[.,]/g, ""));
+            const guests = Number(rawGuests);
+            if (!/^\d+$|^\d{1,3}([.,])\d{3}(?:\1\d{3})*$/.test(rawAmount) || !Number.isSafeInteger(amount) || amount > 2147483647) {
+              toast.error("Nhập số tiền đặt cọc hợp lệ, ví dụ 100000 hoặc 100.000.");
+              return;
+            }
+            if (!/^\d+$/.test(rawGuests) || !Number.isSafeInteger(guests) || guests < 1 || guests > 2147483647) {
+              toast.error("Số khách áp dụng phải là số nguyên từ 1 trở lên.");
+              return;
+            }
             if (currentDetail.requires_deposit && amount <= 0) {
               toast.error("Số tiền đặt cọc phải lớn hơn 0.");
               return;
@@ -822,13 +916,10 @@ export default function RestaurantSettings() {
             save.mutate({
               requires_deposit: Boolean(currentDetail.requires_deposit),
               deposit_amount: Math.round(amount),
-              deposit_min_guests: Math.max(
-                1,
-                Number(currentDetail.deposit_min_guests ?? 1),
-              ),
+              deposit_min_guests: guests,
             });
           }}
-          className="mt-5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+          className="mt-5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-normal text-white disabled:opacity-60"
         >
           {save.isPending ? "Đang lưu..." : "Lưu cấu hình đặt cọc"}
         </button>
@@ -853,7 +944,7 @@ export default function RestaurantSettings() {
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
-              className="absolute right-3 top-3 rounded-lg bg-black/70 px-3 py-2 text-sm font-bold text-white"
+              className="absolute right-3 top-3 rounded-lg bg-black/70 px-3 py-2 text-sm font-normal text-white"
             >
               Đóng
             </button>

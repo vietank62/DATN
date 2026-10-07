@@ -1,4 +1,5 @@
 export interface RestaurantCard {
+    menu_prices_visible?: boolean;
     id: number;
     name: string;
     city: string;
@@ -17,6 +18,7 @@ export interface RestaurantCard {
     suitable_for?: string[] | null;
     service_types?: string[] | null;
     capacity?: number;
+    booking_lead_minutes?: number;
     booking_opening_time?: string | null;
     booking_closing_time?: string | null;
     created_at: string;

@@ -32,7 +32,7 @@ export default function PartnerPolicy() {
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-red-600"
+        className="inline-flex items-center gap-2 text-sm font-normal text-gray-500 transition hover:text-red-600"
       >
         <ChevronLeft className="h-4 w-4" />
         Quay lại
@@ -41,7 +41,7 @@ export default function PartnerPolicy() {
       <article className="mt-6 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
         <header className="bg-linear-to-br from-red-500 to-amber-600 px-6 py-8 text-white sm:px-10">
           <ShieldCheck className="h-9 w-9" />
-          <h1 className="mt-4 text-3xl font-black">Chính sách đối tác TableNow</h1>
+          <h1 className="mt-4 text-3xl font-normal">Chính sách đối tác TableNow</h1>
           <p className="mt-2 text-sm leading-relaxed text-white/85">
             Quy định cơ bản áp dụng khi nhà hàng đăng ký và vận hành trên nền tảng.
           </p>
@@ -50,7 +50,7 @@ export default function PartnerPolicy() {
         <div className="space-y-6 px-6 py-8 sm:px-10">
           {policySections.map((section) => (
             <section key={section.title}>
-              <h2 className="text-base font-bold text-gray-900">{section.title}</h2>
+              <h2 className="text-base font-normal text-gray-900">{section.title}</h2>
               <p className="mt-2 text-sm leading-6 text-gray-600">{section.content}</p>
             </section>
           ))}

@@ -1,5 +1,74 @@
+/* Shared typography, including dialogs and notifications mounted outside #root.
+   Keep this unlayered so legacy Tailwind text/font utilities cannot diverge. */
+:root {
+  --app-font: 'Be Vietnam Pro', Arial, sans-serif;
+  --app-text-size: 14px;
+}
+
 body {
-  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  font-family: var(--app-font);
+  font-size: var(--app-text-size);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+body:not(.customer-typography) :where(*) {
+  font-family: var(--app-font) !important;
+  font-size: var(--app-text-size) !important;
+  font-weight: 400 !important;
+}
+
+body:not(.customer-typography) .cashier-bookings h1 {
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+
+body:not(.customer-typography) .cashier-bookings h2 {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+body:not(.customer-typography) h1 {
+  font-size: 24px !important;
+  line-height: 1.35;
+}
+
+body:not(.customer-typography) h2 {
+  font-size: 20px !important;
+  line-height: 1.4;
+}
+
+body:not(.customer-typography) h1.nearby-map-title {
+  font-size: 18px !important;
+  line-height: 1.5;
+}
+
+body:not(.customer-typography) h2.cashier-tables-title {
+  font-size: 14px !important;
+  line-height: 1.5;
+}
+
+body:not(.customer-typography) h3 {
+  font-size: 16px !important;
+  line-height: 1.5;
+}
+
+/* Settings sections share one title style; only the page title is larger. */
+body:not(.customer-typography) .restaurant-settings h2 {
+  font-family: var(--app-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.5;
+  color: #111827;
+}
+
+body:not(.customer-typography) :is(h1, h2, h3) :where(span, strong, b, a, em) {
+  font-size: inherit !important;
+}
+
+input, select, textarea, button {
+  line-height: 1.5;
 }
 
 button:not(:disabled),
@@ -52,4 +121,32 @@ select {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #d1d5db;
   /* Tailwind gray-300 */
+}
+
+/* Vietnamese typography for customer pages, including menus and dialogs. */
+body.customer-typography {
+  --font-sans: 'Be Vietnam Pro', Arial, sans-serif;
+  font-family: var(--app-font);
+  font-size: 14px;
+}
+body.customer-typography :where(*) {
+  font-family: var(--app-font) !important;
+}
+body.customer-typography h1 {
+  font-size: 22px;
+  line-height: 1.4;
+}
+body.customer-typography h2 {
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+body.customer-typography h3 {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+body.customer-typography h1.nearby-map-title {
+  font-size: 18px;
+  line-height: 1.5;
 }

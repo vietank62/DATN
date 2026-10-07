@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, useLayoutEffect } from "react";
+import { BrowserRouter as Router, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
@@ -11,6 +11,12 @@ import { useTranslation } from "react-i18next";
 import AdminLayout from "./layouts/AdminLayout";
 import MainLayout from "./layouts/MainLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
+import CashierMenu from "./pages/Manager/CashierMenu";
+import CashierBookings from "./pages/Manager/CashierBookings";
+import ManagementGate from "./components/ManagementGate";
+import PasswordSettings from "./pages/Manager/PasswordSettings";
+import CashierLayout from "./layouts/CashierLayout";
+import { AdminTableIncidents } from "./components/TableConflictPanel";
 import "./App.css";
 
 const BookingFees = lazy(() => import("./components/BookingFees"));
@@ -46,6 +52,11 @@ const WithdrawalManagement = lazy(() =>
   import("./pages/Admin/WithdrawalManagement"),
 );
 const ManagerDashboard = lazy(() => import("./pages/Manager/ManagerDashboard"));
+const ManagerPortal = lazy(() => import("./pages/Manager/ManagerPortal"));
+const CashierPOS = lazy(() => import("./pages/Manager/CashierPOS"));
+const TableManagement = lazy(() => import("./pages/Manager/TableManagement"));
+const ShiftHistory = lazy(() => import("./pages/Manager/ShiftHistory"));
+const DiscountManagement = lazy(() => import("./pages/Manager/DiscountManagement"));
 const BookingManagement = lazy(() =>
   import("./pages/Manager/BookingManagement"),
 );
@@ -78,10 +89,19 @@ const queryClient = new QueryClient({
   },
 });
 
+function TypographyScope() {
+  const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    document.body.classList.toggle("customer-typography", !/^\/(manager|admin)(\/|$)/.test(pathname));
+    return () => document.body.classList.remove("customer-typography");
+  }, [pathname]);
+  return null;
+}
+
 function PageLoading() {
   const { t } = useTranslation();
   return (
-    <div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-gray-500">
+    <div className="flex min-h-[40vh] items-center justify-center text-sm font-normal text-gray-500">
       {t("page.loading")}
     </div>
   );
@@ -98,6 +118,7 @@ function App() {
           richColors
         />
         <Router>
+          <TypographyScope />
           <ScrollToTop />
           <Suspense fallback={<PageLoading />}>
             <Routes>
@@ -160,13 +181,31 @@ function App() {
                     path="/admin/withdrawals"
                     element={<WithdrawalManagement />}
                   />
+                  <Route path="/admin/table-incidents" element={<AdminTableIncidents />} />
                 </Route>
               </Route>
 
               {/* === Manager === */}
               <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
-                <Route element={<ManagerLayout />}>
-                  <Route path="/manager" element={<ManagerDashboard />} />
+                <Route path="/manager" element={<ManagerPortal />} />
+                <Route element={<CashierLayout />}>
+                  <Route path="/manager/cashier" element={<CashierPOS />} />
+                  <Route path="/manager/cashier/menu" element={<CashierMenu />} />
+                  <Route path="/manager/cashier/bookings" element={<CashierBookings />} />
+                  <Route path="/manager/cashier/shift" element={<CashierPOS />} />
+                  <Route path="/manager/cashier/invoices" element={<CashierPOS />} />
+                  <Route path="/manager/cashier/payment-settings" element={<CashierPaymentSettings />} />
+                  <Route path="/manager/cashier/bill/:billId" element={<CashierPOS />} />
+                  <Route path="/manager/cashier/table/:tableId" element={<CashierPOS />} />
+                </Route>
+                <Route element={<ManagementGate><ManagerLayout /></ManagementGate>}>
+                  <Route path="/manager/password-settings" element={<PasswordSettings />} />
+                  <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+                  <Route path="/manager/tables" element={<TableManagement />} />
+                  <Route path="/manager/shifts" element={<ShiftHistory />} />
+                  <Route path="/manager/shifts/:shiftId" element={<ShiftHistory />} />
+                  <Route path="/manager/shifts/:shiftId/bill/:billId" element={<CashierPOS />} />
+                  <Route path="/manager/discounts" element={<DiscountManagement />} />
                   <Route
                     path="/manager/bookings"
                     element={<BookingManagement />}
@@ -198,3 +237,4 @@ function App() {
 }
 
 export default App;
+import CashierPaymentSettings from "./pages/Manager/CashierPaymentSettings";

@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from "react-router-dom";
+import AdminNotificationBell from "../components/AdminNotificationBell";
 import DashboardSidebar from "../components/DashboardSidebar/DashboardSidebar";
 import type { NavItem } from "../components/DashboardSidebar/DashboardSidebar";
 
@@ -16,6 +17,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "Rút tiền / Hoàn cọc", to: "/admin/withdrawals", icon: "wallet" },
   { label: "Phí dịch vụ", to: "/admin/booking-fees", icon: "receipt" },
   { label: "Thống kê", to: "/admin/stats", icon: "stats" },
+  { label: "Xung đột bàn", to: "/admin/table-incidents", icon: "shield" },
 ];
 
 const BREADCRUMB: Record<string, string> = {
@@ -61,9 +63,10 @@ export default function AdminLayout() {
                 d="M9 5l7 7-7 7"
               />
             </svg>
-            <span className="font-semibold text-gray-800">{crumb}</span>
+            <span className="font-normal text-gray-800">{crumb}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <AdminNotificationBell />
             <div className="h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-emerald-100 animate-pulse" />
             <span className="hidden sm:block text-xs text-gray-400">
               Hệ thống hoạt động

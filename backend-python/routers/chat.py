@@ -291,16 +291,19 @@ def get_messages(
     session: SessionDep,
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    latest: bool = Query(default=False),
 ):
     conversation = get_conversation_or_404(session, conversation_id)
     ensure_conversation_access(session, conversation, current_user)
+    statement = select(ChatMessage).where(ChatMessage.conversation_id == conversation_id)
+    statement = statement.order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc()) if latest else statement.order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
     messages = session.exec(
-        select(ChatMessage)
-        .where(ChatMessage.conversation_id == conversation_id)
-        .order_by(ChatMessage.created_at.asc())
+        statement
         .offset(offset)
         .limit(limit)
     ).all()
+    if latest:
+        messages.reverse()
     sender_ids = [message.sender_id for message in messages]
     senders = session.exec(select(User).where(User.userId.in_(sender_ids))).all() if sender_ids else []
     senders_by_id = {sender.userId: sender for sender in senders}

@@ -4,7 +4,9 @@ from pydantic import Field, validate_call
 from sqlmodel import Session, select
 from database import engine
 from models.restaurant import Restaurant
-from core.restaurant_search import apply_restaurant_filters, normalize_filters
+from models.menuItem import RestaurantMenuList
+from core.restaurant_search import apply_restaurant_filters, normalize_filters, public_restaurant_conditions
+from core.booking_capacity import remaining_seats
 
 
 def card_columns():
@@ -81,3 +83,60 @@ def find_public_restaurants(
         statement = statement.where(Restaurant.capacity >= party_size)
     with Session(engine) as session:
         return [dict(row) for row in session.execute(statement).mappings().all()]
+
+
+def get_public_restaurant_menu(restaurant_id: int, limit: int = 8) -> dict[str, Any]:
+    """Return a short public menu preview for the website chatbot and MCP."""
+    safe_limit = max(1, min(limit, 20))
+    with Session(engine) as session:
+        restaurant = session.exec(select(Restaurant).where(
+            Restaurant.id == restaurant_id, *public_restaurant_conditions()
+        )).first()
+        if not restaurant:
+            return {"found": False, "message": "Không tìm thấy nhà hàng đang hoạt động."}
+
+        dishes = session.exec(
+            select(RestaurantMenuList)
+            .where(RestaurantMenuList.restaurant_id == restaurant_id,
+                   RestaurantMenuList.is_available == True)
+            .order_by(RestaurantMenuList.id)
+            .limit(safe_limit)
+        ).all()
+        return {
+            "found": True,
+            "restaurant_id": restaurant.id,
+            "restaurant_name": restaurant.name,
+            "dishes": [
+                {"id": dish.id, "name": dish.name, "price": dish.price,
+                 "category": dish.category, "description": dish.description}
+                for dish in dishes
+            ],
+        }
+
+
+def find_available_public_restaurants(*, date: str, time: str, seats: int, **filters: Any) -> list[dict[str, Any]]:
+    """Find public restaurants whose unreserved seats cover a requested slot.
+
+    This is informational only. Booking creation rechecks under a database lock,
+    so a chat response never reserves a table by itself.
+    """
+    search_filters = dict(filters)
+    search_filters.pop("party_size", None)
+    candidates = find_public_restaurants(**search_filters, party_size=seats, limit=20)
+    available_restaurants: list[dict[str, Any]] = []
+    with Session(engine) as session:
+        for candidate in candidates:
+            restaurant = session.get(Restaurant, candidate["id"])
+            if not restaurant:
+                continue
+            try:
+                available, reserved = remaining_seats(session, restaurant, date, time)
+            except ValueError:
+                continue
+            if available >= seats:
+                available_restaurants.append({
+                    **candidate,
+                    "available_seats": available,
+                    "reserved_seats": reserved,
+                })
+    return available_restaurants[:8]

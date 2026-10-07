@@ -68,16 +68,25 @@ def report_customer(
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
     customer.report_strikes = 1 + session.exec(select(func.count(ViolationReport.id)).where(
         ViolationReport.target_user_id == customer.userId,
-        ViolationReport.target_type == "customer", ViolationReport.status != "dismissed",
+        ViolationReport.target_type == "customer", ViolationReport.status.notin_(["dismissed", "withdrawn"]),
         ViolationReport.created_at >= month_start())).one()
     if customer.report_strikes > 3:
         customer.is_permanently_banned = False
         customer.is_suspended = True
+    previous_booking_status = booking.status
+    previous_deposit_status = booking.depositStatus
     payment = session.exec(select(DepositPayment).where(DepositPayment.booking_id == booking.bookingId).with_for_update()).first()
     if payment and payment.status == "paid":
         booking.depositStatus = "forfeited"
         session.add(booking)
-    report = ViolationReport(booking_id=booking.bookingId, reporter_id=current_user.userId, target_user_id=customer.userId, target_type="customer", reason=data.reason, evidence_urls=data.evidence_urls or None)
+    report = ViolationReport(
+        booking_id=booking.bookingId, reporter_id=current_user.userId,
+        target_user_id=customer.userId, target_type="customer", reason=data.reason,
+        evidence_urls=data.evidence_urls or None,
+        booking_status_before_report=previous_booking_status,
+        booking_deposit_status_before_report=previous_deposit_status,
+        payment_status_before_report=payment.status if payment else None,
+    )
     session.add(customer)
     session.add(report)
     add_warning(session, customer.userId, "Cảnh cáo vi phạm đặt bàn", f"Bạn nhận 1 vi phạm vì không đến dùng bữa. Số lần vi phạm hiện tại: {customer.report_strikes}.")
@@ -106,7 +115,15 @@ def report_restaurant(
         raise HTTPException(status_code=404, detail="Không tìm thấy nhà hàng")
     restaurant.is_report_suspended = True
     restaurant.is_active = False
-    report = ViolationReport(booking_id=booking.bookingId, reporter_id=current_user.userId, target_restaurant_id=restaurant.id, target_type="restaurant", source="customer_report", reason=data.reason, evidence_urls=data.evidence_urls or None)
+    report = ViolationReport(
+        booking_id=booking.bookingId, reporter_id=current_user.userId,
+        target_restaurant_id=restaurant.id, target_type="restaurant", source="customer_report",
+        reason=data.reason, evidence_urls=data.evidence_urls or None,
+        booking_status_before_report=booking.status,
+        booking_deposit_status_before_report=booking.depositStatus,
+        restaurant_active_before_report=restaurant.is_active,
+        restaurant_suspended_before_report=restaurant.is_report_suspended,
+    )
     session.add(restaurant)
     session.add(report)
     add_warning(session, restaurant.manager_id, "Nhà hàng bị tạm ngưng", "Nhà hàng nhận report từ khách và đã tạm ngưng hiển thị. Hãy gửi giải trình cùng minh chứng.")
@@ -122,7 +139,7 @@ def manager_violation_summary(current_user: Annotated[User, Security(get_current
         raise HTTPException(404, "Tài khoản chưa liên kết nhà hàng")
     report_count, active_reports = session.exec(select(
         func.count(ViolationReport.id),
-        func.count(ViolationReport.id).filter(ViolationReport.status != "dismissed"),
+        func.count(ViolationReport.id).filter(ViolationReport.status.notin_(["dismissed", "withdrawn"])),
     ).where(ViolationReport.target_restaurant_id == restaurant.id,
             ViolationReport.target_type == "restaurant",
             ViolationReport.source == "customer_report")).one()
@@ -135,10 +152,12 @@ def manager_violation_summary(current_user: Annotated[User, Security(get_current
     warning_total = session.exec(select(func.count(Notification.id)).outerjoin(Booking, Booking.bookingId == Notification.bookingId).where(warning_filter)).one()
     warnings = session.exec(warning_query.order_by(Notification.id.desc()).offset(offset).limit(min(max(limit, 1), 50))).all()
     late_count = max(0, restaurant.late_response_strikes)
+    table_full_count = session.exec(select(func.count(ViolationReport.id)).where(ViolationReport.target_restaurant_id == restaurant.id, ViolationReport.source == "table_full", ViolationReport.status.notin_(["dismissed", "withdrawn"]))).one()
     return {
         "late_response_count": late_count,
         "customer_report_count": active_reports,
-        "total_active_count": late_count + active_reports,
+        "total_active_count": late_count + active_reports + table_full_count,
+        "table_full_count": table_full_count,
         "customer_report_history_count": report_count,
         "late_response_history_total": int(warning_total or 0),
         "late_response_history": [{"id": n.id, "booking_id": n.bookingId, "message": n.message,
@@ -164,10 +183,82 @@ def get_my_reports(current_user: Annotated[User, Security(get_current_user)], se
     return session.exec(statement.order_by(ViolationReport.created_at.desc())).all()
 
 
+@router.post("/{report_id}/withdraw", response_model=ViolationReport)
+def withdraw_report(
+    report_id: int,
+    current_user: Annotated[User, Security(get_current_user)],
+    session: SessionDep,
+):
+    """Withdraw an unreviewed report and restore the state captured at submission."""
+    report = session.exec(
+        select(ViolationReport).where(ViolationReport.id == report_id).with_for_update()
+    ).first()
+    if not report or report.reporter_id != current_user.userId:
+        raise HTTPException(status_code=404, detail="Không tìm thấy báo cáo của bạn")
+    if report.source != "customer_report":
+        raise HTTPException(status_code=409, detail="Không thể tự hủy vi phạm do hệ thống ghi nhận. Vui lòng gửi giải trình.")
+    if report.status != "open":
+        raise HTTPException(status_code=409, detail="Chỉ có thể hủy báo cáo chưa được giải trình hoặc xét duyệt")
+
+    booking = session.exec(
+        select(Booking).where(Booking.bookingId == report.booking_id).with_for_update()
+    ).first()
+    if booking:
+        if report.booking_status_before_report:
+            booking.status = report.booking_status_before_report
+        if report.booking_deposit_status_before_report:
+            booking.depositStatus = report.booking_deposit_status_before_report
+        session.add(booking)
+        if report.payment_status_before_report:
+            payment = session.exec(
+                select(DepositPayment).where(DepositPayment.booking_id == booking.bookingId).with_for_update()
+            ).first()
+            if payment:
+                payment.status = report.payment_status_before_report
+                session.add(payment)
+
+    if report.target_type == "customer" and report.target_user_id:
+        customer = session.exec(select(User).where(User.userId == report.target_user_id).with_for_update()).first()
+        if customer:
+            active_count = session.exec(select(func.count(ViolationReport.id)).where(
+                ViolationReport.target_user_id == customer.userId,
+                ViolationReport.target_type == "customer",
+                ViolationReport.status.notin_(["dismissed", "withdrawn"]),
+                ViolationReport.id != report.id,
+                ViolationReport.created_at >= month_start(),
+            )).one()
+            customer.report_strikes = int(active_count or 0)
+            customer.is_suspended = bool(customer.is_permanently_banned or customer.report_strikes > 3)
+            session.add(customer)
+
+    if report.target_type == "restaurant" and report.target_restaurant_id:
+        restaurant = session.exec(select(Restaurant).where(Restaurant.id == report.target_restaurant_id).with_for_update()).first()
+        if restaurant:
+            other_active = session.exec(select(ViolationReport.id).where(
+                ViolationReport.target_restaurant_id == restaurant.id,
+                ViolationReport.status.notin_(["dismissed", "withdrawn"]),
+                ViolationReport.id != report.id,
+            )).first()
+            if other_active is None:
+                if report.restaurant_suspended_before_report is not None:
+                    restaurant.is_report_suspended = report.restaurant_suspended_before_report
+                if report.restaurant_active_before_report is not None:
+                    restaurant.is_active = report.restaurant_active_before_report
+                session.add(restaurant)
+
+    report.status = "withdrawn"
+    report.admin_note = "Người gửi đã hủy báo cáo; trạng thái trước báo cáo đã được khôi phục."
+    report.reviewed_at = datetime.now(timezone.utc)
+    session.add(report)
+    session.commit()
+    session.refresh(report)
+    return report
+
+
 @router.post("/{report_id}/appeal", response_model=ViolationReport)
 def appeal_report(report_id: int, data: ViolationAppealCreate, current_user: Annotated[User, Depends(get_current_user_for_appeal)], session: SessionDep):
-    report = session.get(ViolationReport, report_id)
-    if not report or report.status not in {"open", "appeal_rejected"}:
+    report = session.exec(select(ViolationReport).where(ViolationReport.id == report_id).with_for_update()).first()
+    if not report or (report.status not in {"open", "appeal_rejected"} and not (report.source == "table_full" and report.status == "confirmed")):
         raise HTTPException(status_code=404, detail="Không tìm thấy báo cáo đang có hiệu lực")
     is_customer_target = report.target_type == "customer" and report.target_user_id == current_user.userId
     is_manager_target = report.target_type == "restaurant" and session.exec(select(Restaurant).where(Restaurant.id == report.target_restaurant_id, Restaurant.manager_id == current_user.userId)).first()
@@ -199,7 +290,7 @@ def review_report(report_id: int, data: ViolationReviewCreate, current_user: Ann
     if data.approved and report.target_type == "restaurant" and report.target_restaurant_id:
         restaurant = session.get(Restaurant, report.target_restaurant_id)
         if restaurant:
-            other_open = session.exec(select(ViolationReport).where(ViolationReport.target_restaurant_id == restaurant.id, ViolationReport.status != "dismissed", ViolationReport.id != report.id)).first()
+            other_open = session.exec(select(ViolationReport).where(ViolationReport.target_restaurant_id == restaurant.id, ViolationReport.status.notin_(["dismissed", "withdrawn"]), ViolationReport.id != report.id)).first()
             if not other_open:
                 restaurant.is_report_suspended = False; restaurant.is_active = restaurant.approval_status == "approved"; session.add(restaurant)
             if report.source == "late_response":

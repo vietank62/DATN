@@ -2,6 +2,7 @@
 
 /* Hot orange brand palette, shared by every existing Tailwind red-* utility. */
 @theme {
+  --font-sans: 'Be Vietnam Pro', Arial, sans-serif;
   --color-red-50: #fff7ed;
   --color-red-100: #ffedd5;
   --color-red-200: #fed7aa;
@@ -16,11 +17,11 @@
 }
 
 .promo-badge {
-  background-color: #d94a4f;
+  background-color: var(--color-red-600);
   color: #ffffff;
 }
 
 .promo-badge-soft {
-  background-color: #fff0f1;
-  color: #c63d43;
+  background-color: var(--color-red-50);
+  color: var(--color-red-700);
 }

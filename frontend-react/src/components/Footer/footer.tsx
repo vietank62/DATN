@@ -8,11 +8,11 @@ const policyLinks = [
 ] as const;
 
 export const Footer = () => (
-  <footer className="bg-slate-950 text-slate-300">
+  <footer className="bg-gray-950 text-gray-300">
     <div className="mx-auto grid max-w-7xl gap-10 px-6 py-12 md:grid-cols-2 lg:grid-cols-4">
       <section className="lg:col-span-2">
         <Link to="/" className="text-2xl font-black tracking-tight text-white">Table<span className="text-red-500">Now</span></Link>
-        <p className="mt-4 max-w-xl text-sm leading-6 text-slate-400">TableNow giúp bạn khám phá nhà hàng, xem thông tin rõ ràng và đặt bàn thuận tiện cho mọi dịp ăn uống.</p>
+        <p className="mt-4 max-w-xl text-sm leading-6 text-gray-400">TableNow giúp bạn khám phá nhà hàng, xem thông tin rõ ràng và đặt bàn thuận tiện cho mọi dịp ăn uống.</p>
         <Link to="/about" className="mt-5 inline-flex text-sm font-semibold text-red-400 hover:text-red-300">Tìm hiểu về TableNow →</Link>
       </section>
       <section>
@@ -24,6 +24,6 @@ export const Footer = () => (
         <nav className="mt-4 space-y-3 text-sm">{policyLinks.slice(1).map(([label, to]) => <Link key={to} to={to} className="block hover:text-white">{label}</Link>)}</nav>
       </section>
     </div>
-    <div className="border-t border-slate-800"><div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-5 text-xs text-slate-500 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} TableNow. All rights reserved.</span><span>Hỗ trợ: support@tablenow.vn</span></div></div>
+    <div className="border-t border-gray-800"><div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-5 text-xs text-gray-500 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} TableNow. All rights reserved.</span><span>Hỗ trợ: support@tablenow.vn</span></div></div>
   </footer>
 );

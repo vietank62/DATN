@@ -6,7 +6,7 @@ export function CustomerFacingRoute() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div className="min-h-screen bg-slate-50" />;
+    return <div className="min-h-screen bg-gray-50" />;
   }
 
   if (user?.role === "manager" || user?.role === "admin") {

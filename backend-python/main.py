@@ -40,6 +40,7 @@ from routers import (
     deposits,
     refunds,
     recommendations,
+    restaurant_tables,
 )
 
 # Upstash uses httpx internally. Keep successful cache traffic out of the
@@ -98,6 +99,8 @@ async def booking_completion_worker() -> None:
 
 def run_checkout_maintenance():
     with Session(engine) as session:
+        from core.table_reservations import maintain_table_reservations
+        maintain_table_reservations(session)
         maintain_checkout_sessions(session)
 
 
@@ -187,7 +190,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Mcp-Session-Id", "MCP-Protocol-Version"],
+    expose_headers=["Mcp-Session-Id", "MCP-Protocol-Version", "X-Error-Code"],
 )
 
 if MCP_AVAILABLE and mcp_asgi_app is not None:
@@ -243,6 +246,15 @@ app.include_router(assistant.router)
 app.include_router(deposits.router)
 app.include_router(refunds.router)
 app.include_router(recommendations.router)
+app.include_router(restaurant_tables.router)
+from routers import cashier
+app.include_router(cashier.router)
+from routers import discounts
+app.include_router(discounts.router)
+from routers import table_reservations
+app.include_router(table_reservations.router)
+from routers import management_access
+app.include_router(management_access.router)
 
 
 @app.get("/internal/maintenance", tags=["System"])

@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
 import { useLocation } from "../../hooks/useLocation";
 import type { FilterState } from "../../types/search";
 
@@ -25,28 +27,30 @@ const SUITABLE_FOR_OPTIONS = [
   "Thiên nhiên", "Hẹn hò", "Sinh nhật", "Bạn bè",
 ];
 
-const ENDOW_OPTIONS = ["Độc quyền"];
+const ENDOW_OPTIONS = ["Có ưu đãi"];
 
 const SERVICE_TYPE_OPTIONS = [
   "Phục vụ tại bàn", "Tự phục vụ",
   "Quầy line", "Băng chuyền", "Omakase",
 ];
 
-const SPACE_OPTIONS = [
-  "1-5 người", "6-10 người",
-  "11-20 người", "21-50 người", "Trên 50 người",
-];
+const RATING_OPTIONS = ["Từ 4.5 sao", "Từ 4 sao", "Từ 3 sao"];
+const PARTY_OPTIONS = ["2 khách", "4 khách", "6 khách", "10 khách"];
+const UTILITY_OPTIONS = ["Có chỗ đậu xe", "Phòng riêng", "Bàn ngoài trời", "Có Wifi"];
+const DEPOSIT_OPTIONS = ["Không yêu cầu cọc", "Có yêu cầu cọc"];
 
 type FilterKey = keyof FilterState;
 
 const FILTER_OPTIONS: Record<FilterKey, string[]> = {
-  district: [], 
+  district: [],
   price: PRICE_OPTIONS,
   category: CATEGORY_OPTIONS,
   suitableFor: SUITABLE_FOR_OPTIONS,
   endow: ENDOW_OPTIONS,
-  serviceType: SERVICE_TYPE_OPTIONS,
-  space: SPACE_OPTIONS,
+  serviceType: SERVICE_TYPE_OPTIONS,  rating: RATING_OPTIONS,
+  partySize: PARTY_OPTIONS,
+  utility: UTILITY_OPTIONS,
+  deposit: DEPOSIT_OPTIONS,
 };
 
 const LABEL_TO_KEY: Record<string, FilterKey> = {
@@ -55,8 +59,10 @@ const LABEL_TO_KEY: Record<string, FilterKey> = {
   "Đồ ăn chính": "category",
   "Phù hợp": "suitableFor",
   "Ưu đãi": "endow",
-  "Kiểu phục vụ": "serviceType",
-  "Sức chứa": "space",
+  "Kiểu phục vụ": "serviceType",  "Đánh giá": "rating",
+  "Nhóm khách": "partySize",
+  "Tiện ích": "utility",
+  "Đặt cọc": "deposit",
 };
 
 const convertToSlug = (str: string): string => {
@@ -65,9 +71,9 @@ const convertToSlug = (str: string): string => {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[đĐ]/g, "d")
-    .replace(/([^a-z0-9\s/-])/g, "") 
-    .replace(/[\s/]+/g, "-")      
-    .replace(/-+/g, "-")          
+    .replace(/([^a-z0-9\s/-])/g, "")
+    .replace(/[\s/]+/g, "-")
+    .replace(/-+/g, "-")
     .trim();
 };
 
@@ -141,11 +147,39 @@ export const FilterBar = () => {
     category: "",
     suitableFor: "",
     endow: "",
-    serviceType: "",
-    space: "",
+    serviceType: "",    rating: "",
+    partySize: "",
+    utility: "",
+    deposit: "",
   });
 
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollEdges, setScrollEdges] = useState({ left: false, right: false });
+  const [anchor, setAnchor] = useState({ left: 0, top: 0 });
+  const updateEdges = () => {
+    const el = scrollRef.current;
+    if (el) setScrollEdges({ left: el.scrollLeft > 1, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 });
+  };
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(el);
+    updateEdges();
+    const close = () => setActiveDropdown(null);
+    const onPageScroll = (event: Event) => {
+      if (event.target === document || event.target === scrollRef.current) close();
+    };
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", onPageScroll, true);
+    return () => { observer.disconnect(); window.removeEventListener("resize", close); window.removeEventListener("scroll", onPageScroll, true); };
+  }, []);
+  const scrollFilters = (direction: number) => {
+    setActiveDropdown(null);
+    const el = scrollRef.current;
+    el?.scrollBy({ left: direction * el.clientWidth * 0.75, behavior: "smooth" });
+  };
   const filters = Object.keys(LABEL_TO_KEY) as string[];
 
   const getSelectedValue = (key: FilterKey): string => {
@@ -201,7 +235,7 @@ export const FilterBar = () => {
     if (selected.price) {
       const priceIndex = PRICE_OPTIONS.indexOf(selected.price);
       if (priceIndex !== -1) {
-        params.append("price", (priceIndex + 1).toString()); 
+        params.append("price", (priceIndex + 1).toString());
       }
     }
 
@@ -217,16 +251,14 @@ export const FilterBar = () => {
       params.append("service_type", convertToSlug(selected.serviceType));
     }
 
-    if (selected.endow === "Độc quyền") {
+    if (selected.endow === "Có ưu đãi") {
       params.append("has_exclusive", "true");
     }
 
-    if (selected.space) {
-      const spaceIndex = SPACE_OPTIONS.indexOf(selected.space);
-      if (spaceIndex !== -1) {
-        params.append("space_level", (spaceIndex + 1).toString()); 
-      }
-    }
+    if (selected.rating) params.append("rating", ({ "Từ 4.5 sao": "4.5", "Từ 4 sao": "4", "Từ 3 sao": "3" } as Record<string, string>)[selected.rating]);
+    if (selected.partySize) params.append("party_size", selected.partySize.replace(/\D/g, ""));
+    if (selected.utility) params.append("utility", ({ "Có chỗ đậu xe": "5", "Phòng riêng": "7", "Bàn ngoài trời": "18", "Có Wifi": "15" } as Record<string, string>)[selected.utility]);
+    if (selected.deposit) params.append("requires_deposit", selected.deposit === "Có yêu cầu cọc" ? "true" : "false");
 
     navigate(`/search?${params.toString()}`);
   };
@@ -234,10 +266,11 @@ export const FilterBar = () => {
   return (
     <div className="w-full bg-white py-4 border-b border-gray-100 flex justify-center relative z-40 overflow-visible">
       <div
-        className="max-w-7xl w-full px-10 flex flex-col md:flex-row items-start md:items-center gap-4 relative overflow-visible"
+        className="max-w-7xl w-full px-3 sm:px-10 flex items-center gap-2 relative min-w-0"
         ref={dropdownContainerRef}
       >
-        <div className="flex flex-wrap flex-1 items-center gap-3 w-full justify-between">
+        <button type="button" aria-label="Bộ lọc trước" disabled={!scrollEdges.left} onClick={() => scrollFilters(-1)} className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-700 hover:bg-red-50 disabled:opacity-30"><ChevronLeft size={18} /></button>
+        <div ref={scrollRef} onScroll={updateEdges} className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {filters.map((filterLabel) => {
             const key = LABEL_TO_KEY[filterLabel];
             const active = isFilterActive(filterLabel);
@@ -245,9 +278,9 @@ export const FilterBar = () => {
             const displayText = getDisplayText(filterLabel);
 
             return (
-              <div key={filterLabel} className="relative">
+              <div key={filterLabel} className="relative shrink-0">
                 <div
-                  onClick={() => setActiveDropdown(isOpen ? null : key)}
+                  onClick={(e) => { const rect=e.currentTarget.getBoundingClientRect(); setAnchor({left:Math.max(8,Math.min(rect.left,window.innerWidth-248)),top:rect.bottom}); setActiveDropdown(isOpen ? null : key); }}
                   className={`flex items-center justify-between border rounded-lg px-4 py-2 w-fit cursor-pointer transition-all group whitespace-nowrap
                     ${active
                       ? "border-red-500 bg-red-50 shadow-sm"
@@ -271,21 +304,24 @@ export const FilterBar = () => {
                   </svg>
                 </div>
 
-                {isOpen && (
+                {isOpen && createPortal(
+                  <><div className="fixed inset-0 z-[100]" onClick={()=>setActiveDropdown(null)} /><div className="fixed z-[101]" style={{left:anchor.left,top:anchor.top}}>
                   <FilterDropdown
-                    title={key === "district" ? t("filter.districts", { city }) : t(`filter.value.${filterLabel}`)}
+                    title={key === "district" ? t("filter.districts", { city }) : t(`filter.value.${filterLabel}`, { defaultValue: filterLabel })}
                     options={getOptions(filterLabel)}
                     selected={getSelectedValue(key)}
                     defaultLabel={key === "district" ? "Khu vực" : ""}
                     onSelect={(val) => handleSelect(key, val)}
                     onReset={() => handleReset(key)}
                   />
+                  </div></>, document.body
                 )}
               </div>
             );
           })}
         </div>
-        <button 
+        <button type="button" aria-label="Bộ lọc tiếp theo" disabled={!scrollEdges.right} onClick={() => scrollFilters(1)} className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-700 hover:bg-red-50 disabled:opacity-30"><ChevronRight size={18} /></button>
+        <button
           onClick={handleMainFilterSubmit}
           className="flex items-center gap-2 border border-gray-200 rounded-lg px-5 py-2 hover:bg-gray-50 hover:border-red-500 transition-colors shrink-0 bg-white font-semibold text-gray-700 shadow-sm md:ml-4 z-10 cursor-pointer"
         >

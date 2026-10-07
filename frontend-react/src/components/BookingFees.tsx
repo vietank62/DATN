@@ -15,6 +15,13 @@ type Fee = {
   deducted_amount: number;
   due_at: string;
   proof_url?: string;
+  bookingDate?: string;
+  bookingTime?: string;
+  bookingStatus?: string;
+  guestCount?: number;
+  customerName?: string;
+  customerPhone?: string;
+  depositAmount?: number;
 };
 
 type FeeSummary = {
@@ -33,14 +40,14 @@ const dueDate = (value: string) => new Date(value).toLocaleDateString("vi-VN", {
 
 function StatCard({ label, value, tone }: { label: string; value: string | number; tone: "violet" | "amber" | "emerald" | "blue" }) {
   const tones = {
-    violet: "bg-violet-50 text-violet-700 ring-violet-100",
+    violet: "bg-red-50 text-red-700 ring-red-100",
     amber: "bg-amber-50 text-amber-700 ring-amber-100",
     emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    blue: "bg-blue-50 text-blue-700 ring-blue-100",
+    blue: "bg-red-50 text-red-700 ring-red-100",
   };
   return <div className={`rounded-2xl p-4 ring-1 ${tones[tone]}`}>
-    <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
-    <p className="mt-2 text-xl font-bold tracking-tight">{value}</p>
+    <p className="text-xs font-normal uppercase tracking-wide opacity-70">{label}</p>
+    <p className="mt-2 text-xl font-normal tracking-tight">{value}</p>
   </div>;
 }
 
@@ -93,15 +100,15 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-violet-600">TÀI CHÍNH NỀN TẢNG</p>
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">Phí dịch vụ đặt bàn</h1>
+          <p className="text-sm font-normal text-red-600">TÀI CHÍNH NỀN TẢNG</p>
+          <h1 className="mt-1 text-2xl font-normal text-gray-900">Phí dịch vụ đặt bàn</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">Phí được tính theo từng đơn hoàn thành. Đến hạn đầu tháng kế tiếp, hệ thống khấu trừ từ số dư cọc khả dụng; phần chưa thanh toán tiếp tục được theo dõi.</p>
         </div>
-        <span className="w-fit rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">{items.length} khoản phí</span>
+        <span className="w-fit rounded-full bg-red-50 px-3 py-1.5 text-xs font-normal text-red-700">{items.length} khoản phí</span>
       </div>
 
       <div className="mt-6">
-        <div className="flex items-center justify-between gap-4"><h2 className="text-sm font-bold text-gray-800">Tình hình đặt bàn {overview ? `tháng ${overview.month}` : ""}</h2><span className="text-xs text-gray-500">Cập nhật theo dữ liệu hiện tại</span></div>
+        <div className="flex items-center justify-between gap-4"><h2 className="text-sm font-normal text-gray-800">Tình hình đặt bàn {overview ? `tháng ${overview.month}` : ""}</h2><span className="text-xs text-gray-500">Cập nhật theo dữ liệu hiện tại</span></div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <StatCard label="Đơn hoàn thành trong tháng" value={overview?.completedBookingsThisMonth ?? "—"} tone="emerald" />
           <StatCard label="Đơn chờ xác nhận" value={overview?.pendingBookings ?? "—"} tone="amber" />
@@ -109,7 +116,7 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
         </div>
       </div>
       <div className="mt-6 border-t border-gray-100 pt-6">
-        <h2 className="text-sm font-bold text-gray-800">Chi tiết dòng tiền phí dịch vụ</h2>
+        <h2 className="text-sm font-normal text-gray-800">Chi tiết dòng tiền phí dịch vụ</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Tổng phí phát sinh" value={money(overview?.feesTotal ?? total)} tone="violet" />
           <StatCard label="Còn cần thu" value={money(overview?.feesOutstanding ?? outstanding)} tone="amber" />
@@ -122,7 +129,7 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
 
     <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
       <div className="flex flex-col gap-1 border-b border-gray-100 px-6 py-4">
-        <h2 className="font-semibold text-gray-900">Danh sách khoản phí</h2>
+        <h2 className="font-normal text-gray-900">Danh sách khoản phí</h2>
         <p className="text-sm text-gray-500">Theo dõi hạn thanh toán và số tiền đã được khấu trừ của từng đơn.</p>
       </div>
 
@@ -133,13 +140,13 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
               <table className="min-w-[880px] w-full text-left text-sm">
                 <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-semibold">Đơn / Nhà hàng</th>
-                    <th className="px-6 py-3 font-semibold">Hạn thanh toán</th>
-                    <th className="px-6 py-3 text-right font-semibold">Phí</th>
-                    <th className="px-6 py-3 text-right font-semibold">Đã khấu trừ</th>
-                    <th className="px-6 py-3 text-right font-semibold">Còn cần thu</th>
-                    <th className="px-6 py-3 text-right font-semibold">Chi tiết</th>
-                    {admin && <th className="px-6 py-3 text-right font-semibold">Xác nhận</th>}
+                    <th className="px-6 py-3 font-normal">Đơn / Nhà hàng</th>
+                    <th className="px-6 py-3 font-normal">Hạn thanh toán</th>
+                    <th className="px-6 py-3 text-right font-normal">Phí</th>
+                    <th className="px-6 py-3 text-right font-normal">Đã khấu trừ</th>
+                    <th className="px-6 py-3 text-right font-normal">Còn cần thu</th>
+                    <th className="px-6 py-3 text-right font-normal">Chi tiết</th>
+                    {admin && <th className="px-6 py-3 text-right font-normal">Xác nhận</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -149,19 +156,21 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
                     const isUploading = uploadingId === fee.id;
                     return <tr key={fee.id} className="transition-colors hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-gray-800">Đơn #{fee.booking_id}</p>
+                        <p className="font-normal text-gray-800">Đơn #{fee.booking_id}</p>
                         <p className="mt-0.5 text-xs text-gray-500">{fee.restaurantName}</p>
+                        <p className="mt-1 text-xs text-gray-600">{fee.customerName || "Khách đặt bàn"} · {fee.customerPhone || "—"}</p>
+                        {fee.bookingDate && <p className="mt-0.5 text-xs text-gray-500">Dùng bữa: {fee.bookingDate} · {fee.bookingTime?.slice(0, 5)} · {fee.guestCount ?? 0} khách</p>}
                       </td>
                       <td className="px-6 py-4 text-gray-600">{dueDate(fee.due_at)}</td>
-                      <td className="px-6 py-4 text-right font-medium text-gray-800">{money(fee.amount)}</td>
-                      <td className="px-6 py-4 text-right text-blue-700">{money(fee.deducted_amount)}</td>
+                      <td className="px-6 py-4 text-right font-normal text-gray-800">{money(fee.amount)}</td>
+                      <td className="px-6 py-4 text-right text-red-700">{money(fee.deducted_amount)}</td>
                       <td className="px-6 py-4 text-right">
-                        <span className={isSettled ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{isSettled ? "Đã đủ" : money(remaining)}</span>
+                        <span className={isSettled ? "font-normal text-emerald-700" : "font-normal text-amber-700"}>{isSettled ? "Đã đủ" : money(remaining)}</span>
                       </td>
-                      <td className="px-6 py-4 text-right"><button type="button" onClick={() => setSelectedFee(fee)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">Xem chi tiết</button></td>
+                      <td className="px-6 py-4 text-right"><button type="button" onClick={() => setSelectedFee(fee)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-normal text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700">Xem chi tiết</button></td>
                       {admin && <td className="px-6 py-4 text-right">
-                        {isSettled ? <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Đã xác nhận</span>
-                          : <label className="inline-flex cursor-pointer items-center rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100">
+                        {isSettled ? <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-normal text-emerald-700">Đã xác nhận</span>
+                          : <label className="inline-flex cursor-pointer items-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-normal text-red-700 transition hover:bg-red-100">
                             <input className="sr-only" type="file" accept="image/*" disabled={isUploading || paid.isPending} onChange={(event) => void uploadProof(fee, event.target.files?.[0])} />
                             {isUploading ? "Đang tải ảnh…" : "Tải minh chứng"}
                           </label>}
@@ -173,6 +182,6 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
             </div>}
     </section>
 
-    {selectedFee && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section role="dialog" aria-modal="true" aria-labelledby="fee-detail-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-violet-600">CHI TIẾT KHOẢN PHÍ</p><h2 id="fee-detail-title" className="mt-1 text-xl font-bold text-gray-900">Đơn #{selectedFee.booking_id}</h2><p className="mt-1 text-sm text-gray-500">{selectedFee.restaurantName}</p></div><button type="button" onClick={() => setSelectedFee(null)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="Đóng">✕</button></div><div className="mt-5 grid gap-3 rounded-xl bg-violet-50 p-4 text-sm sm:grid-cols-3"><div><p className="text-violet-600">Phí dịch vụ</p><p className="mt-1 font-bold text-violet-950">{money(selectedFee.amount)}</p></div><div><p className="text-violet-600">Đã khấu trừ cọc</p><p className="mt-1 font-bold text-violet-950">{money(selectedFee.deducted_amount)}</p></div><div><p className="text-violet-600">Còn cần thu</p><p className="mt-1 font-bold text-violet-950">{money(Math.max(0, selectedFee.amount - selectedFee.settled_amount))}</p></div></div>{bookingDetail.isLoading ? <p className="py-8 text-center text-sm text-gray-500">Đang tải chi tiết đơn đặt bàn…</p> : bookingDetail.isError ? <div className="py-8 text-center"><button type="button" onClick={() => void bookingDetail.refetch()} className="text-sm font-semibold text-violet-700 underline">Không tải được chi tiết đơn. Thử lại</button></div> : bookingDetail.data && <div className="mt-5 space-y-5"><section className="grid gap-4 rounded-xl border border-gray-100 p-4 text-sm sm:grid-cols-2"><div><p className="text-gray-500">Thời gian dùng bữa</p><p className="mt-1 font-semibold text-gray-900">{bookingDetail.data.date} · {bookingDetail.data.time.slice(0, 5)}</p></div><div><p className="text-gray-500">Số khách / chỗ ngồi</p><p className="mt-1 font-semibold text-gray-900">{bookingDetail.data.guestCount} người / {bookingDetail.data.requestSeats} chỗ</p></div><div><p className="text-gray-500">Khách đặt bàn</p><p className="mt-1 font-semibold text-gray-900">{bookingDetail.data.contactName}</p><p className="text-xs text-gray-600">{bookingDetail.data.contactPhone} · {bookingDetail.data.contactEmail}</p></div><div><p className="text-gray-500">Tiền đặt cọc</p><p className="mt-1 font-semibold text-gray-900">{money(bookingDetail.data.depositAmount)}</p></div>{bookingDetail.data.note && <div className="sm:col-span-2"><p className="text-gray-500">Ghi chú</p><p className="mt-1 text-gray-800">{bookingDetail.data.note}</p></div>}</section>{bookingDetail.data.booking_items.length > 0 && <section className="rounded-xl border border-gray-100 p-4"><h3 className="text-sm font-bold text-gray-900">Món đã chọn</h3><ul className="mt-3 space-y-2 text-sm text-gray-700">{bookingDetail.data.booking_items.map((item) => <li key={item.bookingItemId} className="flex justify-between gap-4"><span>{item.name} × {item.quantity}</span><span className="font-medium">{money(item.price * item.quantity)}</span></li>)}</ul></section>}</div>}<div className="mt-6 flex justify-end"><button type="button" onClick={() => setSelectedFee(null)} className="rounded-xl border px-4 py-2.5 text-sm font-semibold text-gray-700">Đóng</button></div></section></div>}
+    {selectedFee && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section role="dialog" aria-modal="true" aria-labelledby="fee-detail-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-normal uppercase tracking-wide text-red-600">CHI TIẾT KHOẢN PHÍ</p><h2 id="fee-detail-title" className="mt-1 text-xl font-normal text-gray-900">Đơn #{selectedFee.booking_id}</h2><p className="mt-1 text-sm text-gray-500">{selectedFee.restaurantName}</p></div><button type="button" onClick={() => setSelectedFee(null)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="Đóng">✕</button></div><div className="mt-5 grid gap-3 rounded-xl bg-red-50 p-4 text-sm sm:grid-cols-3"><div><p className="text-red-600">Phí dịch vụ</p><p className="mt-1 font-normal text-red-950">{money(selectedFee.amount)}</p></div><div><p className="text-red-600">Đã khấu trừ cọc</p><p className="mt-1 font-normal text-red-950">{money(selectedFee.deducted_amount)}</p></div><div><p className="text-red-600">Còn cần thu</p><p className="mt-1 font-normal text-red-950">{money(Math.max(0, selectedFee.amount - selectedFee.settled_amount))}</p></div></div>{bookingDetail.isLoading ? <p className="py-8 text-center text-sm text-gray-500">Đang tải chi tiết đơn đặt bàn…</p> : bookingDetail.isError ? <div className="py-8 text-center"><button type="button" onClick={() => void bookingDetail.refetch()} className="text-sm font-normal text-red-700 underline">Không tải được chi tiết đơn. Thử lại</button></div> : bookingDetail.data && <div className="mt-5 space-y-5"><section className="grid gap-4 rounded-xl border border-gray-100 p-4 text-sm sm:grid-cols-2"><div><p className="text-gray-500">Thời gian dùng bữa</p><p className="mt-1 font-normal text-gray-900">{bookingDetail.data.date} · {bookingDetail.data.time.slice(0, 5)}</p></div><div><p className="text-gray-500">Số khách / chỗ ngồi</p><p className="mt-1 font-normal text-gray-900">{bookingDetail.data.guestCount} người / {bookingDetail.data.requestSeats} chỗ</p></div><div><p className="text-gray-500">Khách đặt bàn</p><p className="mt-1 font-normal text-gray-900">{bookingDetail.data.contactName}</p><p className="text-xs text-gray-600">{bookingDetail.data.contactPhone} · {bookingDetail.data.contactEmail}</p></div><div><p className="text-gray-500">Tiền đặt cọc</p><p className="mt-1 font-normal text-gray-900">{money(bookingDetail.data.depositAmount)}</p></div>{bookingDetail.data.note && <div className="sm:col-span-2"><p className="text-gray-500">Ghi chú</p><p className="mt-1 text-gray-800">{bookingDetail.data.note}</p></div>}</section>{bookingDetail.data.booking_items.length > 0 && <section className="rounded-xl border border-gray-100 p-4"><h3 className="text-sm font-normal text-gray-900">Món đã chọn</h3><ul className="mt-3 space-y-2 text-sm text-gray-700">{bookingDetail.data.booking_items.map((item) => <li key={item.bookingItemId} className="flex justify-between gap-4"><span>{item.name} × {item.quantity}</span><span className="font-normal">{money(item.price * item.quantity)}</span></li>)}</ul></section>}</div>}<div className="mt-6 flex justify-end"><button type="button" onClick={() => setSelectedFee(null)} className="rounded-xl border px-4 py-2.5 text-sm font-normal text-gray-700">Đóng</button></div></section></div>}
   </div>;
 }

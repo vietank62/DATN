@@ -1,6 +1,7 @@
+import DiscountOffers from "../../components/DiscountOffers";
 import { DepositCheckoutPanel } from "../../components/DepositCheckoutPanel";
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -17,6 +18,7 @@ import {
   Heart,
   Mic,
   MapPin,
+  Phone,
   Puzzle,
   Receipt,
   Snowflake,
@@ -51,6 +53,7 @@ type RestaurantReview = {
   restaurantId: number;
   rating: number;
   comment?: string | null;
+  image_urls?: string[] | null;
   createdAt?: string | null;
   userName?: string | null;
   userAvatar?: string | null;
@@ -108,6 +111,7 @@ const UTILITIES_MAP: Record<number, { label: string; Icon: LucideIcon }> = {
 export const RestaurantDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
 
@@ -123,10 +127,12 @@ export const RestaurantDetail = () => {
   const [bookingTime, setBookingTime] = useState("18:30");
   const quickBookingTimes = ["11:30", "12:30", "18:00", "19:00", "20:00"];
   const isBookingTimeAvailable = (time: string) => {
-    const selected = new Date(`${bookingDate}T${time}:00`);
+    const selected = new Date(`${bookingDate}T${time}:00+07:00`);
     const earliest = new Date();
-    earliest.setHours(earliest.getHours() + 2);
-    return selected >= earliest;
+    earliest.setMinutes(earliest.getMinutes() + (restaurantBase?.booking_lead_minutes ?? 120));
+    const opening = restaurantBase?.booking_opening_time?.slice(0, 5);
+    const closing = restaurantBase?.booking_closing_time?.slice(0, 5);
+    return selected >= earliest && (!opening || time >= opening) && (!closing || time <= closing);
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -193,6 +199,11 @@ export const RestaurantDetail = () => {
     staleTime: 1000 * 60 * 5,
   });
   const restaurantBase = restaurantOverview?.restaurant;
+  useEffect(() => {
+    if (hash !== "#reviews" || !restaurantBase) return;
+    const timer = window.setTimeout(() => document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    return () => window.clearTimeout(timer);
+  }, [hash, restaurantBase]);
   const restaurantDetail = restaurantOverview?.detail;
   const { data: restaurantMenuItems } = useQuery<RestaurantMenuItem[]>({
     queryKey: ["restaurant-menu-items", id],
@@ -393,7 +404,7 @@ export const RestaurantDetail = () => {
   });
   if (isOverviewLoading) {
     return (
-      <div className="w-full min-h-screen bg-slate-100 flex items-center justify-center">
+      <div className="w-full min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm font-semibold text-gray-500 animate-pulse">
@@ -406,7 +417,7 @@ export const RestaurantDetail = () => {
 
   if (overviewError || !restaurantBase || !restaurantDetail) {
     return (
-      <div className="w-full min-h-screen bg-slate-100 flex flex-col items-center justify-center gap-4">
+      <div className="w-full min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-4">
         <p className="text-gray-500 font-bold">
           Không tìm thấy dữ liệu hoặc liên kết nhà hàng này đã hết hạn.
         </p>
@@ -426,6 +437,14 @@ export const RestaurantDetail = () => {
       : ["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800"];
 
   const sideImages = albumImages.slice(1, 5);
+  const suggestedBookingTimes = quickBookingTimes.filter(isBookingTimeAvailable);
+  const extraTimes = Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, "0")}:${index % 2 ? "30" : "00"}`);
+  if (restaurantBase.booking_opening_time) extraTimes.push(restaurantBase.booking_opening_time.slice(0, 5));
+  for (const time of extraTimes.sort()) {
+    if (suggestedBookingTimes.length >= 5) break;
+    if (!suggestedBookingTimes.includes(time) && isBookingTimeAvailable(time)) suggestedBookingTimes.push(time);
+  }
+  suggestedBookingTimes.sort();
   const hasSideImages = sideImages.length > 0;
   const categoryLabels = (restaurantBase.category ?? []).map(getCategoryLabel);
   const openingHours = Array.isArray(restaurantDetail.opening_time)
@@ -534,7 +553,7 @@ export const RestaurantDetail = () => {
     const guestCount = adults + children;
 
     if (!isBookingTimeAvailable(bookingTime)) {
-      toast.error("Khung giờ đặt bàn phải cách thời điểm hiện tại ít nhất 2 tiếng.");
+      toast.error(`Vui lòng chọn giờ trong khung giờ nhận khách và đặt trước ít nhất ${restaurantBase.booking_lead_minutes ?? 120} phút.`);
       return false;
     }
 
@@ -590,7 +609,7 @@ export const RestaurantDetail = () => {
       return;
     }
     if (!isBookingTimeAvailable(bookingTime)) {
-      toast.error("Khung giờ đặt bàn phải cách thời điểm hiện tại ít nhất 2 tiếng.");
+      toast.error(`Vui lòng chọn giờ trong khung giờ nhận khách và đặt trước ít nhất ${restaurantBase.booking_lead_minutes ?? 120} phút.`);
       return;
     }
     setBookingStep(2);
@@ -622,7 +641,7 @@ export const RestaurantDetail = () => {
   };
 
   return (
-    <div className="w-full bg-slate-100 min-h-screen flex justify-center py-4 px-6">
+    <div className="w-full bg-gray-100 min-h-screen flex justify-center py-4 px-6">
       <div className="max-w-7xl w-full flex flex-col gap-5">
         <section className="overflow-hidden rounded-3xl border border-gray-200/80 bg-white p-2 shadow-sm sm:p-3 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
           <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-5">
@@ -803,7 +822,7 @@ export const RestaurantDetail = () => {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-slate-50 border border-gray-100 px-4 py-2 rounded-xl shadow-2xs">
+              <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 px-4 py-2 rounded-xl shadow-2xs">
                 <div className="border-r border-gray-200 pr-3 text-center text-amber-500 text-sm font-bold">
                   <div className="flex items-center justify-center gap-1">
                     <Star className="h-4 w-4 fill-current" />
@@ -824,12 +843,12 @@ export const RestaurantDetail = () => {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-gray-100 bg-slate-50/70 p-4 sm:grid-cols-2">
+<div className="grid grid-cols-1 gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 sm:grid-cols-2">
               <div className="flex items-start gap-3">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-500">Địa chỉ</p>
-                  <p className="mt-0.5 text-sm font-semibold leading-5 text-gray-800">
+                  <p className="text-sm font-normal leading-5 text-gray-500">Địa chỉ</p>
+                  <p className="mt-0.5 text-sm font-normal leading-5 text-gray-800">
                     {restaurantBase.address}, {restaurantBase.district},{" "}
                     {restaurantBase.city}
                   </p>
@@ -838,22 +857,30 @@ export const RestaurantDetail = () => {
               <div className="flex items-start gap-3">
                 <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-500">
+                  <p className="text-sm font-normal leading-5 text-gray-500">
                     Giờ nhận khách
                   </p>
-                  <p className="mt-0.5 text-sm font-semibold leading-5 text-gray-800">
+                  <p className="mt-0.5 text-sm font-normal leading-5 text-gray-800">
                     {bookingHours}
                   </p>
                 </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div><p className="text-sm font-normal leading-5 text-gray-500">Hotline nhà hàng</p><p className="mt-0.5 min-h-5 text-sm font-normal leading-5 text-gray-800">{restaurantDetail.phone_number?.trim()&&<a href={`tel:${restaurantDetail.phone_number.replace(/[^+0-9]/g,"")}`} className="hover:text-red-600">{restaurantDetail.phone_number}</a>}</p></div>
+              </div>
+              <div className="flex items-start gap-3">
+                <img src="/zalo.svg" alt="" aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+                <div><p className="text-sm font-normal leading-5 text-gray-500">Zalo nhà hàng</p><p className="mt-0.5 min-h-5 text-sm font-normal leading-5 text-gray-800">{restaurantDetail.zalo_number?.trim()&&<a href={`https://zalo.me/${restaurantDetail.zalo_number.replace(/[^0-9]/g,"")}`} target="_blank" rel="noopener noreferrer" className="hover:text-red-600">{restaurantDetail.zalo_number}</a>}</p></div>
               </div>
               {restaurantDetail.price_range && (
                 <div className="flex items-start gap-3">
                   <Tag className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                   <div>
-                    <p className="text-xs font-semibold text-gray-500">
+                    <p className="text-sm font-normal leading-5 text-gray-500">
                       Khoảng giá
                     </p>
-                    <p className="mt-0.5 text-sm font-semibold text-gray-800">
+                    <p className="mt-0.5 text-sm font-normal text-gray-800">
                       {restaurantDetail.price_range}
                     </p>
                   </div>
@@ -863,10 +890,10 @@ export const RestaurantDetail = () => {
                 <div className="flex items-start gap-3">
                   <UsersRound className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                   <div>
-                    <p className="text-xs font-semibold text-gray-500">
+                    <p className="text-sm font-normal leading-5 text-gray-500">
                       Chi tiêu trung bình
                     </p>
-                    <p className="mt-0.5 text-sm font-semibold text-gray-800">
+                    <p className="mt-0.5 text-sm font-normal text-gray-800">
                       Từ {restaurantBase.price_avg.toLocaleString("vi-VN")} đ /
                       khách
                     </p>
@@ -891,7 +918,7 @@ export const RestaurantDetail = () => {
                     key={item}
                     className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600"
                   >
-                    Phù hợp: {getSuitableForLabel(item)}
+                    {getSuitableForLabel(item)}
                   </span>
                 ))}
                 {(restaurantBase.service_types ?? []).map((item) => (
@@ -929,7 +956,7 @@ export const RestaurantDetail = () => {
                   {Object.entries(groupedMenuItems).map(([category, items]) => (
                     <div
                       key={category}
-                      className="rounded-2xl border border-gray-100 bg-slate-50/80 p-4 mb-3"
+                      className="rounded-2xl border border-gray-100 bg-gray-50/80 p-4 mb-3"
                     >
                       <h5 className="text-sm font-bold text-gray-900 mb-3">
                         {getCategoryLabel(category)}
@@ -949,12 +976,12 @@ export const RestaurantDetail = () => {
                               <h6 className="text-sm font-semibold text-gray-900">
                                 {item.name}
                               </h6>
-                              <p className="text-xs font-bold text-red-600 mt-1">
+                              {restaurantBase.menu_prices_visible !== false && (<p className="text-xs font-bold text-red-600 mt-1">
                                 {Number(item.price || 0).toLocaleString(
                                   "vi-VN",
                                 )}{" "}
                                 đ
-                              </p>
+                              </p>)}
                             </div>
                           </div>
                         ))}
@@ -994,7 +1021,7 @@ export const RestaurantDetail = () => {
                     );
                   })}
                   {!restaurantDetail.utilities?.length && (
-                    <p className="col-span-full rounded-2xl border border-dashed border-gray-200 bg-slate-50 p-6 text-center text-sm text-gray-500">
+                    <p className="col-span-full rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
                       Nhà hàng chưa cập nhật tiện ích.
                     </p>
                   )}
@@ -1038,7 +1065,7 @@ export const RestaurantDetail = () => {
                     min="1"
                     value={adultsInput}
                     onChange={(e) => updateAdults(e.target.value)}
-                    className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none"
+                    className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none"
                   />
                   <select
                     aria-hidden="true"
@@ -1063,7 +1090,7 @@ export const RestaurantDetail = () => {
                     min="0"
                     value={childrenInput}
                     onChange={(e) => updateChildren(e.target.value)}
-                    className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none"
+                    className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none"
                   />
                   <select
                     aria-hidden="true"
@@ -1090,7 +1117,7 @@ export const RestaurantDetail = () => {
                     type="date"
                     value={bookingDate}
                     onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none"
+                    className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1101,7 +1128,7 @@ export const RestaurantDetail = () => {
                     type="time"
                     value={bookingTime}
                     onChange={(e) => setBookingTime(e.target.value)}
-                    className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none"
+                    className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none"
                   />
                 </div>
               </div>
@@ -1114,7 +1141,7 @@ export const RestaurantDetail = () => {
                   <Clock3 className="w-3.5 h-3.5 text-red-500" />
                 </div>
                 <div className="grid grid-cols-5 gap-1.5">
-                  {quickBookingTimes.filter(isBookingTimeAvailable).map((time) => (
+                  {suggestedBookingTimes.map((time) => (
                     <button
                       key={time}
                       type="button"
@@ -1125,6 +1152,7 @@ export const RestaurantDetail = () => {
                     </button>
                   ))}
                 </div>
+                {!suggestedBookingTimes.length && <p className="text-xs leading-5 text-gray-500">Không còn khung giờ phù hợp trong ngày đã chọn. Vui lòng chọn ngày khác.</p>}
               </div>
 
               <button
@@ -1144,7 +1172,8 @@ export const RestaurantDetail = () => {
           </div>
         </div>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+        <DiscountOffers restaurantId={Number(id)} />
+        <section id="reviews" className="scroll-mt-24 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -1233,6 +1262,15 @@ export const RestaurantDetail = () => {
                           {review.comment}
                         </p>
                       )}
+                      {!!review.image_urls?.length && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {review.image_urls.map((url, imageIndex) => (
+                            <a key={`${url}-${imageIndex}`} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-gray-100">
+                              {/\.(mp4|webm|mov)(\?|$)/i.test(url) ? <video src={url} controls preload="metadata" className="h-20 w-32 object-cover" /> : <img src={url} alt={`Ảnh đánh giá ${imageIndex + 1}`} className="h-20 w-20 object-cover transition hover:scale-105" loading="lazy" />}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </article>
@@ -1293,7 +1331,7 @@ export const RestaurantDetail = () => {
                         min="1"
                         value={adultsInput}
                         onChange={(e) => updateAdults(e.target.value)}
-                        className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                       <select
                         aria-hidden="true"
@@ -1318,7 +1356,7 @@ export const RestaurantDetail = () => {
                         min="0"
                         value={childrenInput}
                         onChange={(e) => updateChildren(e.target.value)}
-                        className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                       <select
                         aria-hidden="true"
@@ -1346,7 +1384,7 @@ export const RestaurantDetail = () => {
                         min={new Date().toISOString().slice(0, 10)}
                         value={bookingDate}
                         onChange={(e) => setBookingDate(e.target.value)}
-                        className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -1358,7 +1396,7 @@ export const RestaurantDetail = () => {
                         type="time"
                         value={bookingTime}
                         onChange={(e) => setBookingTime(e.target.value)}
-                        className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1367,7 +1405,7 @@ export const RestaurantDetail = () => {
                       Khung giờ gợi ý
                     </p>
                     <div className="grid grid-cols-5 gap-1.5">
-                  {quickBookingTimes.filter(isBookingTimeAvailable).map((time) => (
+                  {suggestedBookingTimes.map((time) => (
                         <button
                           key={time}
                           type="button"
@@ -1379,6 +1417,7 @@ export const RestaurantDetail = () => {
                       ))}
                     </div>
                   </div>
+                  {!suggestedBookingTimes.length && <p className="text-xs leading-5 text-gray-500">Không còn khung giờ phù hợp trong ngày đã chọn. Vui lòng chọn ngày khác.</p>}
                   <button
                     type="button"
                     onClick={handleStepOneNext}
@@ -1399,19 +1438,6 @@ export const RestaurantDetail = () => {
                       Nhà hàng sẽ dùng thông tin này để liên hệ xác nhận.
                     </p>
                   </div>
-                  {restaurantDetail.phone_number && (
-                    <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-                      <span className="font-semibold">
-                        Cần hỗ trợ đặt bàn?{" "}
-                      </span>
-                      <a
-                        href={`tel:${restaurantDetail.phone_number}`}
-                        className="cursor-pointer font-bold underline underline-offset-2"
-                      >
-                        Liên hệ nhà hàng: {restaurantDetail.phone_number}
-                      </a>
-                    </div>
-                  )}
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-gray-500 font-semibold">
                       Họ tên người nhận bàn *
@@ -1420,7 +1446,7 @@ export const RestaurantDetail = () => {
                       required
                       value={contactName}
                       onChange={(e) => setContactName(e.target.value)}
-                      className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1433,7 +1459,7 @@ export const RestaurantDetail = () => {
                         type="email"
                         value={contactEmail}
                         onChange={(e) => setContactEmail(e.target.value)}
-                        className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -1444,7 +1470,7 @@ export const RestaurantDetail = () => {
                         required
                         value={contactPhone}
                         onChange={(e) => setContactPhone(e.target.value)}
-                        className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1488,7 +1514,7 @@ export const RestaurantDetail = () => {
                         value={requestSeatsInput}
                         onChange={(e) => updateRequestSeats(e.target.value)}
                         onBlur={normalizeRequestSeats}
-                        className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
                       />
                       <select
                         aria-hidden="true"
@@ -1516,7 +1542,7 @@ export const RestaurantDetail = () => {
                         Tạm tính: {selectedMenuTotal.toLocaleString("vi-VN")} đ
                       </span>
                     </div>
-                    <div className="max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-slate-50 p-3 space-y-2">
+                    <div className="max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
                       {(restaurantMenuItems ?? []).length === 0 ? (
                         <p className="text-xs text-gray-400 italic">
                           Nhà hàng chưa cấu hình món ăn chọn trước.
@@ -1533,12 +1559,12 @@ export const RestaurantDetail = () => {
                                 <p className="text-xs font-bold text-gray-950 truncate">
                                   {item.name}
                                 </p>
-                                <p className="text-[10px] text-gray-400 truncate">
+                                {restaurantBase.menu_prices_visible !== false && (<p className="text-[10px] text-gray-400 truncate">
                                   {Number(item.price || 0).toLocaleString(
                                     "vi-VN",
                                   )}{" "}
                                   đ
-                                </p>
+                                </p>)}
                               </div>
                               <div className="shrink-0 flex items-center gap-1.5">
                                 {quantity > 0 ? (
@@ -1571,7 +1597,7 @@ export const RestaurantDetail = () => {
                                     onClick={() =>
                                       updateSelectedItemQuantity(item.id, 1)
                                     }
-                                    className="px-2.5 py-1 rounded bg-gray-900 text-white text-[10px] font-semibold"
+                                    className="px-2.5 py-1 rounded bg-red-600 text-white text-[10px] font-normal"
                                   >
                                     Thêm
                                   </button>
@@ -1592,7 +1618,7 @@ export const RestaurantDetail = () => {
                       onChange={(e) => setNote(e.target.value)}
                       rows={2}
                       placeholder="Ví dụ: Tổ chức sinh nhật, ngồi ở tầng 2..."
-                      className="w-full border border-gray-200 bg-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
+                      className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
                     />
                   </div>
 

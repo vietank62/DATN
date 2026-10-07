@@ -8,6 +8,8 @@ class ReviewCreate(BaseModel):
     restaurantId: int
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
+    imageUrls: list[str] = Field(default_factory=list, max_length=6)
+    mediaUrls: list[str] = Field(default_factory=list, max_length=6)
 
 
 class ReviewOut(BaseModel):
@@ -17,6 +19,7 @@ class ReviewOut(BaseModel):
     restaurantId: int
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
+    image_urls: Optional[list[str]] = None
     createdAt: Optional[str] = None
     userName: Optional[str] = None
     userAvatar: Optional[str] = None

@@ -67,12 +67,14 @@ interface DashboardSidebarProps {
   brandLabel: string;
   /** 'admin' → violet active style | 'manager' → amber active style */
   variant: "admin" | "manager";
+  /** Optional shortcut displayed immediately above the logout button. */
+  footerLink?: NavItem;
 }
 
 // Active link classes per variant
 const ACTIVE_CLASSES = {
-  admin: "bg-red-50 text-red-700 font-semibold",
-  manager: "bg-red-50 text-red-700 font-semibold",
+  admin: "bg-red-50 text-red-700 font-normal",
+  manager: "bg-red-50 text-red-700 font-normal",
 };
 const ACTIVE_ICON = {
   admin: "text-red-600",
@@ -91,6 +93,7 @@ export default function DashboardSidebar({
   navItems,
   brandLabel,
   variant,
+  footerLink,
 }: DashboardSidebarProps) {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -122,7 +125,7 @@ export default function DashboardSidebar({
         {!collapsed && (
           <div>
             <p
-              className={`text-sm font-bold ${BRAND_COLOR[variant]} leading-tight`}
+              className={`text-sm font-normal ${BRAND_COLOR[variant]} leading-tight`}
             >
               TableNow
             </p>
@@ -133,16 +136,11 @@ export default function DashboardSidebar({
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
-        {!collapsed && (
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-3 pt-2 pb-1">
-            Điều hướng
-          </p>
-        )}
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to.split("/").length === 2}
+            end={item.to.split("/").length === 2 || item.to === "/manager/cashier"}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150
               ${
@@ -184,9 +182,29 @@ export default function DashboardSidebar({
           />
           {!collapsed && <span>Thu gọn</span>}
         </button>
+        {footerLink && (
+          <NavLink
+            to={footerLink.to}
+            end
+            className={({ isActive }) =>
+              `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-normal transition-all ${
+                isActive
+                  ? ACTIVE_CLASSES[variant]
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+              } ${collapsed ? "justify-center" : ""}`
+            }
+            title={collapsed ? footerLink.label : undefined}
+          >
+            <Icon
+              path={ICONS[footerLink.icon] ?? ICONS.dashboard}
+              className="h-5 w-5 flex-shrink-0"
+            />
+            {!collapsed && <span className="truncate">{footerLink.label}</span>}
+          </NavLink>
+        )}
         <button
           onClick={handleLogout}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-orange-500 hover:bg-orange-50 hover:text-orange-600 transition-all ${collapsed ? "justify-center" : ""}`}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal text-orange-500 hover:bg-orange-50 hover:text-orange-600 transition-all ${collapsed ? "justify-center" : ""}`}
           title={collapsed ? "Đăng xuất" : undefined}
         >
           <Icon path={ICONS.logout} className="w-5 h-5 flex-shrink-0" />
