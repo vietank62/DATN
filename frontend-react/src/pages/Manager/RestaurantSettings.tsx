@@ -58,6 +58,8 @@ type Restaurant = {
   booking_confirmation_minutes?: number;
   booking_opening_time?: string;
   booking_closing_time?: string;
+  booking_duration_minutes?: number;
+  approval_status: "pending" | "approved" | "rejected";
 };
 
 type RestaurantDetailContent = {
@@ -174,7 +176,6 @@ export default function RestaurantSettings() {
     try {
       const url = await uploadImage(file);
       setForm((x) => ({ ...x, [key]: url }));
-      toast.success("Đã tải ảnh lên Cloudinary.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Tải ảnh thất bại.");
     }
@@ -210,6 +211,20 @@ export default function RestaurantSettings() {
       </div>
     );
   }
+  if (restaurantQ.data.approval_status !== "approved") {
+    return (
+      <div className="max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-6">
+        <h1 className="text-lg font-bold text-gray-900">Chờ duyệt hồ sơ nhà hàng</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          Bạn có thể bổ sung mô tả, hình ảnh giới thiệu và thông tin vận hành sau khi TableNow duyệt hồ sơ quan trọng ban đầu.
+        </p>
+        <a href="/manager/approval-status" className="mt-4 inline-flex rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white">
+          Xem trạng thái xét duyệt
+        </a>
+      </div>
+    );
+  }
+
   const currentForm = { ...restaurantQ.data, ...form } as Partial<Restaurant>;
   const currentGallery = gallery ?? galleryQ.data?.image_urls ?? [];
   const currentDetail = { ...galleryQ.data, ...detailForm };
@@ -273,6 +288,7 @@ export default function RestaurantSettings() {
       booking_confirmation_minutes: confirmation,
       booking_opening_time: openingTime || null,
       booking_closing_time: closingTime || null,
+      booking_duration_minutes: Number(currentForm.booking_duration_minutes ?? 120),
     });
   };
 

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 import main
+from fastapi import BackgroundTasks
 from core.booking_policy import APP_TIME_ZONE
 from routers.booking_cancellation import cancellation_decision, CancellationDecision
 
@@ -18,7 +19,7 @@ class DepositDecisionTests(unittest.TestCase):
         def finish(s, b, reason, actor):
             b.status = "cancelled"
         with patch("routers.booking_cancellation.lock_booking", return_value=booking), patch("routers.booking_cancellation._ensure_restaurant_access"), patch("routers.booking_cancellation.get_booking_meal_time", return_value=datetime.now(APP_TIME_ZONE)+timedelta(minutes=5)), patch("routers.booking_cancellation.finish_cancel", side_effect=finish), patch("routers.booking_cancellation._serialize_booking", return_value={}):
-            cancellation_decision(7, CancellationDecision(approved=True, keep_deposit=keep, reason="Khách hủy phút chót"), session, SimpleNamespace(userId=3))
+            cancellation_decision(7, CancellationDecision(approved=True, keep_deposit=keep, reason="Khách hủy phút chót"), session, SimpleNamespace(userId=3), BackgroundTasks())
         return booking, payment
 
     def test_keep_deposit_marks_booking_forfeited_but_payment_remains_paid(self):

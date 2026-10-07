@@ -15,6 +15,7 @@ from models.user import User
 from models.violationReport import ViolationReport
 from routers.booking import APP_TIME_ZONE, get_booking_meal_time
 from routers.deps import get_current_user, get_current_user_for_appeal
+from core.admin_notifications import notify_admins
 from schemas.violationReport import (
     ViolationAppealCreate,
     ViolationReportCreate,
@@ -267,7 +268,15 @@ def appeal_report(report_id: int, data: ViolationAppealCreate, current_user: Ann
     report.appeal_reason = data.reason
     report.appeal_evidence_urls = data.evidence_urls or None
     report.status = "appeal_pending"
-    session.add(report); session.commit(); session.refresh(report)
+    session.add(report)
+    notify_admins(
+        session,
+        title="Có giải trình vi phạm cần xét duyệt",
+        message=f"Hồ sơ vi phạm #{report.id} đã được gửi giải trình. Vui lòng xem trong mục Báo cáo vi phạm.",
+        notification_type="violation_appeal_pending",
+        booking_id=report.booking_id,
+    )
+    session.commit(); session.refresh(report)
     return report
 
 
@@ -296,5 +305,7 @@ def review_report(report_id: int, data: ViolationReviewCreate, current_user: Ann
             if report.source == "late_response":
                 restaurant.late_response_strikes = 0
                 session.add(restaurant)
-    session.add(report); session.commit(); session.refresh(report)
+    session.add(report)
+
+    session.commit(); session.refresh(report)
     return report

@@ -298,7 +298,6 @@ export default function MenuManagement() {
                       try {
                         const imageUrl = await uploadImage(file);
                         setForm((current) => ({ ...current, image_url: imageUrl }));
-                        toast.success("Đã tải ảnh món ăn lên Cloudinary.");
                       } catch (error) {
                         toast.error(error instanceof Error ? error.message : "Tải ảnh thất bại.");
                       }

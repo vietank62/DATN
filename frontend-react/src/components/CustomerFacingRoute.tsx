@@ -6,7 +6,11 @@ export function CustomerFacingRoute() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div className="min-h-screen bg-gray-50" />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50" role="status" aria-label="Đang tải phiên đăng nhập">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-red-500" />
+      </div>
+    );
   }
 
   if (user?.role === "manager" || user?.role === "admin") {

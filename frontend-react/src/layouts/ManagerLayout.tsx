@@ -10,6 +10,7 @@ import TableConflictPanel from "../components/TableConflictPanel";
 import { useAuth } from "../hooks/useAuth";
 import { useCustomerNotifications } from "../hooks/useCustomerNotifications";
 import { toast } from "sonner";
+import { managerNotificationDestination } from "../utils/notificationDestination";
 
 const MANAGER_NAV: NavItem[] = [
   { label: "Thống kê", to: "/manager/dashboard", icon: "stats" },
@@ -105,21 +106,8 @@ export default function ManagerLayout() {
         .then(() => notificationsQuery.refetch()).catch(() => toast.error("Không thể đánh dấu thông báo đã đọc."));
     }
     setIsNotificationOpen(false);
-    if (notification.type === "chat_message") {
-      navigate(`/manager/chat?conversation=${notification.conversationId ?? ""}`);
-    } else if (notification.type.startsWith("withdrawal_") || notification.type === "booking_fee") {
-      navigate("/manager/finance");
-    } else if (notification.type.startsWith("approval_")) {
-      navigate("/manager/approval-status");
-    } else if (notification.type === "violation_warning" || notification.type === "late_response_warning") {
-      navigate("/manager/violation-reports");
-    } else {
-      navigate(notification.bookingId
-        ? `/manager/bookings?booking=${notification.bookingId}`
-        : "/manager/bookings?status=all");
-    }
+    navigate(managerNotificationDestination(notification));
   };
-
   const markAllNotificationsRead = async () => {
     if (unreadCount === 0) {
       return;

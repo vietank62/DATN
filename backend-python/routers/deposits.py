@@ -15,6 +15,8 @@ from models.depositPayment import DepositPayment
 from models.withdrawalRequest import WithdrawalRequest
 from routers.deps import get_current_user
 from core.deposit_checkout import checkout_status, create_checkout, process_gateway_ipn
+from routers.booking_fees import process_fee_payment_ipn
+from core.admin_notifications import notify_admins
 from models.depositCheckout import DepositCheckout
 
 
@@ -123,6 +125,11 @@ def gateway_ipn(
     payload: dict, session: SessionDep, background_tasks: BackgroundTasks,
     x_secret_key: Annotated[str | None, Header()] = None,
 ):
+    """Receive the single SePay IPN URL used by both deposits and service fees."""
+    order = payload.get("order")
+    invoice = order.get("order_invoice_number") if isinstance(order, dict) else ""
+    if isinstance(invoice, str) and invoice.startswith("TNFEE"):
+        return process_fee_payment_ipn(payload, session, x_secret_key)
     return process_gateway_ipn(session, payload, x_secret_key, background_tasks)
 
 
@@ -197,6 +204,12 @@ def create_withdrawal(
         requested_at=datetime.now(timezone.utc).isoformat(),
     )
     session.add(withdrawal)
+    notify_admins(
+        session,
+        title="Có yêu cầu rút tiền mới",
+        message=f"{restaurant.name} yêu cầu rút {withdrawal.amount:,}đ. Vui lòng kiểm tra thông tin nhận tiền.",
+        notification_type="withdrawal_requested",
+    )
     session.commit()
     session.refresh(withdrawal)
     return withdrawal

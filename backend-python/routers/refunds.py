@@ -9,6 +9,7 @@ from models import Booking, Notification, User, Restaurant
 from models.depositRefund import DepositRefund
 from models.depositPayment import DepositPayment
 from routers.deps import get_current_user
+from core.admin_notifications import notify_admins
 
 router = APIRouter(prefix="/v1/deposits", tags=["Deposit refunds"])
 
@@ -75,10 +76,13 @@ def submit_recipient(booking_id: int, data: RefundRecipient, session: SessionDep
         title="Đã tiếp nhận thông tin hoàn cọc",
         message=f"Thông tin nhận tiền cho đơn #{booking_id} đã được gửi thành công. Khoản hoàn {refund.amount:,}đ đang chờ xử lý; chúng tôi sẽ thông báo khi đã chuyển tiền.",
         type="refund_submitted",createdAt=refund.submitted_at))
-    for admin in session.exec(select(User).where(User.role == "admin")).all():
-        session.add(Notification(userId=admin.userId,bookingId=booking_id,title="Có yêu cầu hoàn cọc cần xử lý",
-            message=f"Khách đã gửi tài khoản nhận {refund.amount:,}đ cho đơn #{booking_id}. Xem trong mục Tiền đặt cọc.",
-            type="refund_ready",createdAt=refund.submitted_at))
+    notify_admins(
+        session,
+        title="Có yêu cầu hoàn cọc cần xử lý",
+        message=f"Khách đã gửi tài khoản nhận {refund.amount:,}đ cho đơn #{booking_id}. Vui lòng kiểm tra và hoàn tiền.",
+        notification_type="refund_ready",
+        booking_id=booking_id,
+    )
     session.commit()
     session.refresh(refund)
     return refund

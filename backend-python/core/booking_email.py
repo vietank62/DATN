@@ -61,6 +61,7 @@ def queue_booking_email(session, booking, event):
 def deliver_booking_emails(session, booking_id=None, ignore_retry_schedule=False):
     host, sender = os.getenv("SMTP_HOST"), os.getenv("SMTP_FROM")
     if not host or not sender:
+        logger.warning("Booking emails are not configured: SMTP_HOST and SMTP_FROM are required.")
         return 0
     now = datetime.now(timezone.utc)
     query = select(BookingEmail).where(BookingEmail.sent_at == None, BookingEmail.event != "awaiting_payment")
@@ -70,12 +71,14 @@ def deliver_booking_emails(session, booking_id=None, ignore_retry_schedule=False
         query = query.where(or_(BookingEmail.next_attempt_at == None, BookingEmail.next_attempt_at <= now.isoformat()))
     rows = session.exec(query.order_by(BookingEmail.id).limit(3).with_for_update(skip_locked=True)).all()
     sent = 0
+    sender_name = os.getenv("SMTP_FROM_NAME", "TableNow").strip() or "TableNow"
     for row in rows:
         row.attempts += 1
         try:
             message = EmailMessage()
-            message["From"], message["To"], message["Subject"] = formataddr((os.getenv("SMTP_FROM_NAME", "TableNow"), sender)), row.recipient, row.subject
-            message["Message-ID"] = f"<tablenow-booking-{row.id}@{sender.rsplit('@',1)[-1]}>"
+            message["From"] = formataddr((sender_name, sender))
+            message["To"], message["Subject"] = row.recipient, row.subject
+            message["Message-ID"] = f"<tablenow-booking-{row.id}@{sender.rsplit('@', 1)[-1]}>"
             message.set_content(row.body)
             use_ssl = os.getenv("SMTP_SSL", "false").lower() == "true"
             client = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
@@ -88,6 +91,7 @@ def deliver_booking_emails(session, booking_id=None, ignore_retry_schedule=False
             row.sent_at = now.isoformat()
             sent += 1
         except (OSError, smtplib.SMTPException):
+            logger.exception("Unable to send booking email %s to %s; it will be retried.", row.id, row.recipient)
             row.next_attempt_at = (now + timedelta(minutes=min(1440, 2 ** min(row.attempts, 10)))).isoformat()
         session.add(row)
     session.commit()

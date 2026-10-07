@@ -9,6 +9,7 @@ import { api } from "../../services/api";
 import { toast } from "sonner";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
+import { customerNotificationDestination } from "../../utils/notificationDestination";
 
 type ChatConversation = {
   unread_count: number;
@@ -120,21 +121,9 @@ export const Auth = () => {
         void notificationsQuery.refetch();
       } catch { toast.error("Chưa thể đánh dấu thông báo đã đọc."); }
     }
-
     setIsNotificationOpen(false);
-
-    if (notification.type === "chat_message") {
-      navigate(`/chat?conversation=${notification.conversationId ?? ""}`);
-      return;
-    }
-
-    if (notification.bookingId) {
-      navigate(`/account/bookings/${notification.bookingId}${notification.type === "refund_required" ? "/refund" : ""}`);
-      return;
-    }
-    navigate("/account/bookings");
+    navigate(customerNotificationDestination(notification));
   };
-
   const markAllNotificationsRead = async () => {
     if (unreadNotificationCount === 0) {
       return;
@@ -186,8 +175,18 @@ export const Auth = () => {
     }
   };
 
+  const isValidEmail = (email: string) => /^\s*[^\s@]+@[^\s@]+\.[^\s@]+\s*$/u.test(email);
+  const isValidVietnamesePhone = (phone: string) => /^(?:0(?:3|5|7|8|9)\d{8}|(?:\+84|84)(?:3|5|7|8|9)\d{8})$/u.test(phone.replace(/[.\s-]/gu, ""));
   const onRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidEmail(registerData.email)) {
+      toast.error("Email không đúng định dạng.");
+      return;
+    }
+    if (!isValidVietnamesePhone(registerData.phone)) {
+      toast.error("Số điện thoại không đúng định dạng.");
+      return;
+    }
     if (registerData.password !== confirmPassword) {
       toast.error("Mật khẩu nhập lại không khớp!");
       return;
@@ -200,6 +199,8 @@ export const Auth = () => {
     try {
       await api.post("/v1/auth/register", {
         ...registerData,
+        email: registerData.email.trim(),
+        phone: registerData.phone.trim(),
       });
 
       const loginParams = new URLSearchParams();
@@ -372,7 +373,7 @@ export const Auth = () => {
                         {user?.role === "customer" && (
                           <a
                             href="/account/violation-reports"
-                            className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-red-600 transition-colors hover:bg-red-50"
+                            className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-red-50 hover:text-red-600"
                           >
                              Vi phạm và giải trình
                           </a>
@@ -460,7 +461,10 @@ export const Auth = () => {
                 />
                 <input
                   type="tel"
-                  placeholder="Phone"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="Số điện thoại"
+                  title="Dùng số điện thoại Việt Nam."
                   className="border border-gray-300 p-2 focus:outline-none focus:border-red-500 col-span-2"
                   value={registerData.phone}
                   onChange={e => setRegisterData(prev => ({ ...prev, phone: e.target.value }))}

@@ -13,6 +13,7 @@ from models.restaurant import Restaurant
 from models.resDetail import RestaurantDetail
 from models.user import User
 from routers.deps import get_current_user
+from core.admin_notifications import notify_admins
 from schemas.partner import (
     PartnerGeocodeRequest,
     PartnerApplicationCreate,
@@ -176,7 +177,10 @@ def submit_application(data: PartnerApplicationCreate, current_user: Annotated[U
         raise HTTPException(400, "You must accept TableNow partner policy")
     if not data.business_license_urls and not data.business_license_url:
         raise HTTPException(400, "At least one business license image is required")
-    if session.exec(select(Restaurant).where(Restaurant.manager_id == current_user.userId)).first():
+    existing_restaurant = session.exec(
+        select(Restaurant).where(Restaurant.manager_id == current_user.userId)
+    ).first()
+    if existing_restaurant and existing_restaurant.approval_status != "rejected":
         raise HTTPException(409, "This manager already has a restaurant application")
     payload = data.model_dump(
         exclude={
@@ -186,32 +190,50 @@ def submit_application(data: PartnerApplicationCreate, current_user: Annotated[U
             "legal_documents_urls",
         },
     )
-    payload["slug"] = create_available_slug(session, data.name)
+    payload["slug"] = existing_restaurant.slug if existing_restaurant else create_available_slug(session, data.name)
     if data.business_license_urls:
         payload["business_license_urls"] = data.business_license_urls
         payload["business_license_url"] = data.business_license_urls[0]
     if data.legal_documents_urls:
         payload["legal_documents_urls"] = data.legal_documents_urls
         payload["legal_documents_url"] = data.legal_documents_urls[0]
-    restaurant = Restaurant(
-        **payload,
-        manager_id=current_user.userId,
-        is_active=False,
-        approval_status="pending",
-        pending_approval_fields=[NEW_APPLICATION_FIELD],
-        policy_accepted_at=datetime.now(timezone.utc),
-    )
-    session.add(restaurant)
-    notify_admins_of_application(session, restaurant, is_new=True)
-    session.commit(); session.refresh(restaurant)
-    if data.image_urls:
-        detail = RestaurantDetail(
-            restaurant_id=restaurant.id,
-            image_urls=data.image_urls,
+    if existing_restaurant:
+        for key, value in payload.items():
+            setattr(existing_restaurant, key, value)
+        existing_restaurant.manager_id = current_user.userId
+        existing_restaurant.is_active = False
+        existing_restaurant.approval_status = "pending"
+        existing_restaurant.pending_approval_fields = [NEW_APPLICATION_FIELD]
+        existing_restaurant.policy_accepted_at = datetime.now(timezone.utc)
+        restaurant = existing_restaurant
+    else:
+        restaurant = Restaurant(
+            **payload,
+            manager_id=current_user.userId,
+            is_active=False,
+            approval_status="pending",
+            pending_approval_fields=[NEW_APPLICATION_FIELD],
+            policy_accepted_at=datetime.now(timezone.utc),
         )
-        session.add(detail); session.commit()
-    return restaurant
 
+    session.add(restaurant)
+    notify_admins(
+        session,
+        title="Có hồ sơ nhà hàng cần xét duyệt",
+        message=f"{restaurant.name} đã gửi hồ sơ đăng ký hoặc đăng ký lại. Vui lòng xem trong mục Duyệt đối tác.",
+        notification_type="partner_application_pending",
+    )
+    session.commit()
+    session.refresh(restaurant)
+
+    if data.image_urls:
+        detail = session.exec(
+            select(RestaurantDetail).where(RestaurantDetail.restaurant_id == restaurant.id)
+        ).first() or RestaurantDetail(restaurant_id=restaurant.id)
+        detail.image_urls = data.image_urls
+        session.add(detail)
+        session.commit()
+    return restaurant
 
 @router.get("/application/me", response_model=Restaurant | None)
 def my_application(current_user: Annotated[User, Security(get_current_user, scopes=["manager"])], session: SessionDep):
@@ -300,10 +322,17 @@ def update_operational(
 
         restaurant.approval_status = "pending"
         restaurant.is_active = False
-        notify_admins_of_application(session, restaurant)
 
     session.add(restaurant)
     session.add(detail)
+    if changed_approval_fields:
+        changed_labels = [APPROVAL_FIELD_LABELS.get(field, field) for field in sorted(changed_approval_fields)]
+        notify_admins(
+            session,
+            title="Có thay đổi nhà hàng cần xét duyệt",
+            message=f"{restaurant.name} yêu cầu xét duyệt: {', '.join(changed_labels)}.",
+            notification_type="partner_update_pending",
+        )
     session.commit()
     background_tasks.add_task(clear_restaurant_caches)
     session.refresh(restaurant)

@@ -1,6 +1,6 @@
 // Explicit UI translations; filter values sent to the API remain unchanged.
 export const additionalVi = {
-  "home.hotDeals": "Ưu đãi nhà hàng",
+  "home.hotDeals": "Nhà hàng có ưu đãi",
   "home.hotDealsSubtitle": "Khám phá những nhà hàng đang có ưu đãi hấp dẫn",
   "home.topRated": "Nhà hàng được đánh giá cao",
   "home.topRatedSubtitle": "Khám phá những nhà hàng được thực khách đánh giá cao",
@@ -68,11 +68,11 @@ export const additionalVi = {
   "filter.value.Quầy line": "Quầy line",
   "filter.value.Băng chuyền": "Băng chuyền",
   "filter.value.Omakase": "Omakase",
-  "filter.value.1-5 người": "1-5 người",
-  "filter.value.6-10 người": "6-10 người",
-  "filter.value.11-20 người": "11-20 người",
-  "filter.value.21-50 người": "21-50 người",
-  "filter.value.Trên 50 người": "Trên 50 người"
+  "filter.value.Từ 1 người": "Từ 1 người",
+  "filter.value.Từ 6 người": "Từ 6 người",
+  "filter.value.Từ 11 người": "Từ 11 người",
+  "filter.value.Từ 21 người": "Từ 21 người",
+  "filter.value.Từ 51 người": "Từ 51 người"
 };
 export const additionalEn = {
   "home.hotDeals": "Restaurant deals",
@@ -143,9 +143,9 @@ export const additionalEn = {
   "filter.value.Quầy line": "Buffet stations",
   "filter.value.Băng chuyền": "Conveyor belt",
   "filter.value.Omakase": "Omakase",
-  "filter.value.1-5 người": "1–5 guests",
-  "filter.value.6-10 người": "6–10 guests",
-  "filter.value.11-20 người": "11–20 guests",
-  "filter.value.21-50 người": "21–50 guests",
-  "filter.value.Trên 50 người": "More than 50 guests"
+  "filter.value.Từ 1 người": "From 1 guest",
+  "filter.value.Từ 6 người": "From 6 guests",
+  "filter.value.Từ 11 người": "From 11 guests",
+  "filter.value.Từ 21 người": "From 21 guests",
+  "filter.value.Từ 51 người": "From 51 guests"
 };

@@ -152,43 +152,43 @@ class WorkflowTests(unittest.TestCase):
         self.session.refresh(row); self.assertEqual(row.status,"expired")
     def test_pending_customer_cancellation_refunds(self):
         row=self.booking(deposit=True)
-        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer)
+        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer, BackgroundTasks())
         self.assertEqual(row.status,"cancelled"); self.assertEqual(row.depositStatus,"refund_pending")
     def test_confirmed_request_rejection_keeps_booking(self):
         row=self.booking("confirmed",hours=.5,deposit=True)
-        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer)
+        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer, BackgroundTasks())
         self.assertEqual(row.status,"confirmed")
-        cancellation_decision(row.bookingId,CancellationDecision(approved=False,reason="Đã chuẩn bị"),self.session,self.manager)
+        cancellation_decision(row.bookingId,CancellationDecision(approved=False,reason="Đã chuẩn bị"),self.session,self.manager, BackgroundTasks())
         self.assertEqual(row.status,"confirmed"); self.assertEqual(row.depositStatus,"paid")
     def test_confirmed_request_acceptance_refunds(self):
         row=self.booking("confirmed",hours=.5,deposit=True)
-        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer)
-        cancellation_decision(row.bookingId,CancellationDecision(approved=True,reason="Đồng ý huỷ"),self.session,self.manager)
+        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer, BackgroundTasks())
+        cancellation_decision(row.bookingId,CancellationDecision(approved=True,reason="Đồng ý huỷ"),self.session,self.manager, BackgroundTasks())
         self.assertEqual(row.status,"cancelled"); self.assertEqual(row.depositStatus,"refund_pending")
     def test_near_meal_confirmed_customer_requests_restaurant_decision(self):
         row=self.booking("confirmed",hours=.5)
-        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer)
+        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer, BackgroundTasks())
         self.assertEqual(row.status, "confirmed")
         self.assertEqual(row.cancellationStatus, "requested")
     def test_near_meal_unconfirmed_customer_can_cancel(self):
         row=self.booking("pending",hours=.5)
-        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer)
+        customer_cancel(row.bookingId,CancellationInput(reason="Thay đổi lịch"),self.session,self.customer, BackgroundTasks())
         self.assertEqual(row.status, "cancelled")
     def test_restaurant_must_provide_evidence(self):
         row=self.booking("confirmed")
-        with self.assertRaises(HTTPException): restaurant_cancel(row.bookingId,CancellationInput(reason="Nhà hàng có sự cố"),self.session,self.manager)
-        restaurant_cancel(row.bookingId,CancellationInput(reason="Nhà hàng có sự cố",contacted_customer=True,evidence_url="https://example.com/proof.jpg"),self.session,self.manager)
+        with self.assertRaises(HTTPException): restaurant_cancel(row.bookingId,CancellationInput(reason="Nhà hàng có sự cố"),self.session,self.manager, BackgroundTasks())
+        restaurant_cancel(row.bookingId,CancellationInput(reason="Nhà hàng có sự cố",contacted_customer=True,evidence_url="https://example.com/proof.jpg"),self.session,self.manager, BackgroundTasks())
         self.assertEqual(row.status,"cancelled")
     def test_restaurant_cannot_cancel_confirmed_booking_after_meal_time(self):
         row=self.booking("confirmed", hours=-0.1)
         with self.assertRaises(HTTPException):
-            restaurant_cancel(row.bookingId, CancellationInput(reason="Nhà hàng có sự cố", contacted_customer=True, evidence_url="https://example.com/proof.jpg"), self.session, self.manager)
+            restaurant_cancel(row.bookingId, CancellationInput(reason="Nhà hàng có sự cố", contacted_customer=True, evidence_url="https://example.com/proof.jpg"), self.session, self.manager, BackgroundTasks())
         self.session.refresh(row)
         self.assertEqual(row.status, "confirmed")
 
     def test_completed_booking_cannot_be_cancelled(self):
         row=self.booking("completed")
-        with self.assertRaises(HTTPException): restaurant_cancel(row.bookingId,CancellationInput(reason="Không hợp lệ"),self.session,self.manager)
+        with self.assertRaises(HTTPException): restaurant_cancel(row.bookingId,CancellationInput(reason="Không hợp lệ"),self.session,self.manager, BackgroundTasks())
     def test_restaurant_report_expires_after_seven_days(self):
         row = self.booking("completed", hours=-8 * 24)
         with self.assertRaises(HTTPException):

@@ -1,7 +1,7 @@
 """Cancellation decisions and refunds share one locked booking transaction."""
 from datetime import datetime, timezone
 from typing import Annotated, Literal
-from fastapi import APIRouter, HTTPException, Security
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Security
 from pydantic import BaseModel, Field, ConfigDict, HttpUrl
 from sqlmodel import select
 from database import SessionDep
@@ -10,6 +10,7 @@ from models.depositPayment import DepositPayment
 from models.depositRefund import DepositRefund
 from core.deposit_checkout import lock_booking, expire_checkout_rows
 from core.booking_policy import confirmation_lead
+from core.booking_email import deliver_booking_emails_background, queue_booking_email
 from routers.deps import get_current_user
 from routers.booking import _serialize_booking, _ensure_restaurant_access, get_booking_meal_time, APP_TIME_ZONE
 
@@ -59,6 +60,7 @@ def finish_cancel(session, booking, reason, actor, evidence=None, failed=False):
         booking.depositStatus = "cancelled"
     expire_checkout_rows(session, booking, datetime.now(timezone.utc))
     session.add(booking)
+    queue_booking_email(session, booking, booking.status)
     notify(session, booking, booking.userId, f"Đơn đã được huỷ. Lý do: {reason}")
 
 def get_owned_booking(session, booking_id, user):
@@ -69,7 +71,8 @@ def get_owned_booking(session, booking_id, user):
 
 @router.put("/{booking_id}/customer-cancel")
 def customer_cancel(booking_id: int, data: CancellationInput, session: SessionDep,
-    current_user: Annotated[User, Security(get_current_user, scopes=["customer"])]):
+    current_user: Annotated[User, Security(get_current_user, scopes=["customer"])],
+    background_tasks: BackgroundTasks):
     booking = get_owned_booking(session, booking_id, current_user)
     if booking.status not in {"pending", "awaiting_payment", "confirmed"}:
         raise HTTPException(409, "Đơn không còn có thể huỷ")
@@ -93,11 +96,13 @@ def customer_cancel(booking_id: int, data: CancellationInput, session: SessionDe
     if restaurant and restaurant.manager_id:
         notify(session, booking, restaurant.manager_id, f"Khách hàng yêu cầu huỷ đơn #{booking.bookingId}: {data.reason}", "cancellation_request")
     session.commit()
+    background_tasks.add_task(deliver_booking_emails_background, booking.bookingId)
     return _serialize_booking(session, booking)
 
 @router.put("/{booking_id}/cancellation-decision")
 def cancellation_decision(booking_id: int, data: CancellationDecision, session: SessionDep,
-    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    background_tasks: BackgroundTasks):
     booking = lock_booking(session, booking_id)
     if not booking:
         raise HTTPException(404, "Không tìm thấy đơn")
@@ -124,11 +129,14 @@ def cancellation_decision(booking_id: int, data: CancellationDecision, session: 
         session.add(booking)
         notify(session, booking, booking.userId, f"Nhà hàng từ chối yêu cầu huỷ; đơn vẫn đã xác nhận, cọc được giữ lại. Lý do: {data.reason}")
     session.commit()
+    if data.approved:
+        background_tasks.add_task(deliver_booking_emails_background, booking.bookingId)
     return _serialize_booking(session, booking)
 
 @router.put("/{booking_id}/cancel")
 def restaurant_cancel(booking_id: int, data: CancellationInput, session: SessionDep,
-    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
+    current_user: Annotated[User, Security(get_current_user, scopes=["manager"])],
+    background_tasks: BackgroundTasks):
     booking = lock_booking(session, booking_id)
     if not booking:
         raise HTTPException(404, "Không tìm thấy đơn")
@@ -145,4 +153,5 @@ def restaurant_cancel(booking_id: int, data: CancellationInput, session: Session
     finish_cancel(session, booking, data.reason, data.source, data.evidence_url,
         failed=booking.status == "pending" and data.source == "restaurant")
     session.commit()
+    background_tasks.add_task(deliver_booking_emails_background, booking.bookingId)
     return _serialize_booking(session, booking)

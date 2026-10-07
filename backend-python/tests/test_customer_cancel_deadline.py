@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 import main
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from core.booking_capacity import APP_TIME_ZONE
 from routers.booking_cancellation import customer_cancel, CancellationInput
 
@@ -18,7 +18,7 @@ class CancellationDeadlineTests(unittest.TestCase):
         session.get.return_value = restaurant
         with patch("routers.booking_cancellation.get_owned_booking", return_value=booking), patch("routers.booking_cancellation.get_booking_meal_time", return_value=meal), patch("routers.booking_cancellation.datetime") as clock, patch("routers.booking_cancellation._serialize_booking", return_value={}), patch("routers.booking_cancellation.refund_deposit"), patch("routers.booking_cancellation.expire_checkout_rows"):
             clock.now.return_value = now
-            customer_cancel(7, CancellationInput(reason="Thay đổi kế hoạch"), session, SimpleNamespace(userId=2))
+            customer_cancel(7, CancellationInput(reason="Thay đổi kế hoạch"), session, SimpleNamespace(userId=2), BackgroundTasks())
         return booking, session
 
     def test_before_configured_cutoff_can_request_cancel(self):

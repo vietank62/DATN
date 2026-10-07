@@ -16,8 +16,8 @@ class PartnerApplicationCreate(BaseModel):
     latitude: Optional[float] = Field(default=None, ge=-90, le=90)
     longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     website_url: Optional[str] = Field(default=None, max_length=500)
-    category: Optional[list[str]] = None
-    image_url: Optional[str] = None
+    category: list[str] = Field(min_length=1)
+    image_url: str = Field(min_length=1, max_length=500)
     image_urls: Optional[list[str]] = None
     business_license_url: Optional[str] = None
     business_license_urls: Optional[list[str]] = None
@@ -56,6 +56,7 @@ class PartnerOperationalUpdate(BaseModel):
     opening_time: Optional[list[str]] = None
     booking_opening_time: Optional[str] = None
     booking_closing_time: Optional[str] = None
+    booking_duration_minutes: Optional[int] = Field(default=None, ge=30, le=480)
     parking_info: Optional[str] = None
     utilities: Optional[list[int]] = None
     regulations: Optional[str] = None
