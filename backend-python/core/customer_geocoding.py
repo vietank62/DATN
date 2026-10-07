@@ -1,4 +1,4 @@
-"""Authenticated, cached address search with per-account request limits."""
+"""Public, cached address search with per-client request limits."""
 import time
 from functools import lru_cache
 from threading import Lock
@@ -12,7 +12,7 @@ _requests = {}
 def _cached(address, bucket):
     return geocode_address(address, "", "")
 
-def find_customer_address(user_id, address):
+def find_customer_address(client_key, address):
     address = " ".join(address.split())
     if len(address) < 5:
         raise HTTPException(422, "Vui lòng nhập địa chỉ ít nhất 5 ký tự.")
@@ -21,8 +21,8 @@ def find_customer_address(user_id, address):
         for key in list(_requests):
             if now - _requests[key][0] >= 60:
                 del _requests[key]
-        start, count = _requests.get(user_id, (now, 0))
+        start, count = _requests.get(client_key, (now, 0))
         if count >= 6:
             raise HTTPException(429, "Bạn tìm địa chỉ quá nhanh. Vui lòng thử lại sau một phút.")
-        _requests[user_id] = (start, count + 1)
+        _requests[client_key] = (start, count + 1)
     return _cached(address.casefold(), int(time.time() // 600))

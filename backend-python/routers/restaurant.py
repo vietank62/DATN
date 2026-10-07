@@ -4,7 +4,7 @@ import os
 import time
 from datetime import datetime, timezone
 from typing import Annotated, List, Optional, Literal
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, Security
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response, Security
 from fastapi.encoders import jsonable_encoder
 from starlette.concurrency import run_in_threadpool
 from models import Restaurant, User, Favorite, SearchKeyword
@@ -357,9 +357,11 @@ async def get_nearby_restaurants(
 
 
 @router.get("/address-location")
-def customer_address_location(current_user: Annotated[User, Security(get_current_user, scopes=["customer"])], address: str = Query(..., min_length=5, max_length=500)):
+def customer_address_location(request: Request, address: str = Query(..., min_length=5, max_length=500)):
     from core.customer_geocoding import find_customer_address
-    return {"results": find_customer_address(current_user.userId, address)}
+    # Use the resolved client address, not a caller-supplied forwarding header.
+    client_key = f"ip:{request.client.host if request.client else 'unknown'}"
+    return {"results": find_customer_address(client_key, address)}
 
 
 @router.get("/{id}/overview", response_model=dict)
