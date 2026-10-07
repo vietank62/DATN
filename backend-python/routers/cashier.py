@@ -193,6 +193,7 @@ class Line(BaseModel):
     quantity: int = Field(ge=1, le=10000)
 
 class Order(BaseModel):
+    depositCredit: float = Field(default=0, ge=0, allow_inf_nan=False)
     bookingId: int | None = Field(default=None, ge=1)
     preordersImported: bool = False
     openedAt: str | None = None
@@ -272,7 +273,8 @@ class Workspace(BaseModel):
 def get_workspace(session: SessionDep, user: Annotated[User, Security(get_current_user, scopes=["manager"])]):
     restaurant = managed_restaurant(session, user, lock=False)
     row = session.execute(text("SELECT version, data FROM cashier_workspaces WHERE restaurant_id=:id"), {"id": restaurant.id}).first()
-    return {"version": row.version, "data": row.data} if row else {"version": 0, "data": {"orders": {}, "shifts": []}}
+    from core.cashier_deposits import apply_deposit_credits
+    return {"version": row.version, "data": apply_deposit_credits(session, restaurant.id, row.data)} if row else {"version": 0, "data": {"orders": {}, "shifts": []}}
 
 class TableOrderUpdate(BaseModel):
     version: int = Field(ge=0)
@@ -288,6 +290,13 @@ def save_table_order(table_id: int, payload: TableOrderUpdate, session: SessionD
     if order is not None:
         order.vat = 8 if restaurant.vat_enabled else 0
     data = order.model_dump(exclude_none=True) if order is not None else None
+    if data is not None:
+        data["depositCredit"] = 0
+        if data.get("bookingId"):
+            from core.cashier_deposits import apply_deposit_credits
+            current = session.execute(text("SELECT data FROM cashier_workspaces WHERE restaurant_id=:rid"), {"rid": restaurant.id}).first()
+            snapshot = {"orders": {str(table_id): data}, "shifts": current.data.get("shifts", []) if current else []}
+            apply_deposit_credits(session, restaurant.id, snapshot)
     if data is not None and data.get("lines"):
         holds = due_reservations(session, restaurant.id)
         if any(hold["table_id"] == table_id for hold in holds):
@@ -350,7 +359,9 @@ def save_workspace(payload: Workspace, background_tasks: BackgroundTasks, sessio
                 if item.method != previous_methods.get((kind, item.id)) and item.method not in restaurant.cashier_payment_methods:
                     raise HTTPException(422, "Phương thức thanh toán đã bị tắt. Hãy chọn phương thức đang hoạt động.")
     from core.cashier_booking_completion import complete_paid_bookings
+    from core.cashier_deposits import apply_deposit_credits
     from core.booking_email import deliver_booking_emails_background
+    apply_deposit_credits(session, restaurant.id, data, row.data if row else {})
     completed = complete_paid_bookings(session, restaurant.id, row.data if row else {}, data)
     values = {"id": restaurant.id, "version": version + 1, "data": json.dumps(data, ensure_ascii=False)}
     session.execute(text("INSERT INTO cashier_workspaces (restaurant_id, version, data) VALUES (:id, :version, CAST(:data AS jsonb)) ON CONFLICT (restaurant_id) DO UPDATE SET version=EXCLUDED.version, data=EXCLUDED.data"), values)

@@ -1,3 +1,4 @@
+import { cashierTotals } from "../../utils/cashierTotals";
 import { printRestaurantReceipt } from "../../utils/printRestaurantReceipt";
 import { shiftReceiptHtml } from "../../utils/shiftReceipt";
 import { toast } from "sonner";
@@ -5,11 +6,11 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../services/api";
-type Bill={guests?:number;id:string;table:string;time:string;method:string;discount:number;vat:number;lines:{id?:number|string;name:string;price:number;quantity:number;category:string}[]};
+type Bill={depositCredit?:number;guests?:number;id:string;table:string;time:string;method:string;discount:number;vat:number;lines:{id?:number|string;name:string;price:number;quantity:number;category:string}[]};
 type Shift={openedBy?:string;closedBy?:string;id:string;opened:string;closed?:string;opening:number;counted?:number;bills:Bill[];flows:{amount:number;type:string;method:string}[]};
 const money=(n:number)=>n.toLocaleString("vi-VN")+"đ";
 const when=(s?:string)=>s?new Date(s).toLocaleString("vi-VN"):"—";
-const total=(b:Bill)=>{const net=Math.max(0,b.lines.reduce((n,l)=>n+l.price*l.quantity,0)-b.discount);return net+Math.round(net*b.vat/100);};
+const total=(b:Bill)=>cashierTotals(b).gross;
 const methods=["Tiền mặt","Chuyển khoản","ATM","Apple Pay","Visa"];
 export default function ShiftHistory(){
  const [page,setPage]=useState(0);
@@ -21,11 +22,11 @@ export default function ShiftHistory(){
  const shift=shifts.find(s=>s.id===shiftId);
  const report=(s:Shift)=>{
    const sales=s.bills.reduce((n,b)=>n+total(b),0),income=s.flows.filter(f=>f.type==="Thu").reduce((n,f)=>n+f.amount,0),expense=s.flows.filter(f=>f.type==="Chi").reduce((n,f)=>n+f.amount,0);
-   const byMethod=(m:string)=>s.bills.filter(b=>b.method===m).reduce((n,b)=>n+total(b),0)+s.flows.filter(f=>f.method===m).reduce((n,f)=>n+(f.type==="Thu"?f.amount:-f.amount),0);
+   const byMethod=(m:string)=>s.bills.filter(b=>b.method===m).reduce((n,b)=>n+cashierTotals(b).total,0)+s.flows.filter(f=>f.method===m).reduce((n,f)=>n+(f.type==="Thu"?f.amount:-f.amount),0);
    const cash=s.opening+byMethod("Tiền mặt");
    const vat=s.bills.reduce((n,b)=>{const net=Math.max(0,b.lines.reduce((a,l)=>a+l.price*l.quantity,0)-b.discount);return n+Math.round(net*b.vat/100);},0);
    const categories:Record<string,number>={};s.bills.forEach(b=>b.lines.forEach(l=>{categories[l.category||"Khác"]=(categories[l.category||"Khác"]||0)+l.quantity;}));
-   return [["Giờ mở ca",when(s.opened)],["Giờ đóng ca",when(s.closed)],["Tiền đầu ca",money(s.opening)],["Số bill",String(s.bills.length)],["Doanh thu bán hàng",money(sales)],["Tiền thu",money(income)],["Tiền chi",money(expense)],["Doanh thu ca",money(sales+income-expense)],...[...new Set([...methods,...s.bills.map(b=>b.method),...s.flows.map(f=>f.method)])].map(m=>[m,money(byMethod(m))]),["Tổng VAT",money(vat)],["Tiền mặt trong két",money(cash)],["Tiền kiểm đếm",money(s.counted??0)],["Chênh lệch",money((s.counted??0)-cash)],...Object.entries(categories).map(([c,n])=>[c,String(n)+" món"])];
+   return [["Giờ mở ca",when(s.opened)],["Giờ đóng ca",when(s.closed)],["Tiền đầu ca",money(s.opening)],["Số bill",String(s.bills.length)],["Doanh thu bán hàng",money(sales)],["Cọc đã khấu trừ",money(s.bills.reduce((n,b)=>n+cashierTotals(b).deposit,0))],["Tiền thu",money(income)],["Tiền chi",money(expense)],["Doanh thu ca",money(sales+income-expense)],...[...new Set([...methods,...s.bills.map(b=>b.method),...s.flows.map(f=>f.method)])].map(m=>[m,money(byMethod(m))]),["Tổng VAT",money(vat)],["Tiền mặt trong két",money(cash)],["Tiền kiểm đếm",money(s.counted??0)],["Chênh lệch",money((s.counted??0)-cash)],...Object.entries(categories).map(([c,n])=>[c,String(n)+" món"])];
  };
  function print(s:Shift){
    const win=window.open("","_blank","width=420,height=720");

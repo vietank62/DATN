@@ -1,5 +1,5 @@
 /** Partition quantities and allocate the original discount without duplicating it. */
-export function splitCashierOrder<T extends {id:number;quantity:number;price:number}, O extends {lines:T[];discount:number}>(order:O, quantities:Record<number,number>):{selected:O;remaining:O} {
+export function splitCashierOrder<T extends {id:number;quantity:number;price:number}, O extends {lines:T[];discount:number;depositCredit?:number;vat?:number}>(order:O, quantities:Record<number,number>):{selected:O;remaining:O} {
   const selected:T[]=[];
   const remaining:T[]=[];
   for(const line of order.lines){
@@ -13,5 +13,7 @@ export function splitCashierOrder<T extends {id:number;quantity:number;price:num
   const selectedSubtotal=selected.reduce((sum,l)=>sum+l.quantity*l.price,0);
   const discount=Math.min(subtotal,Math.max(0,order.discount));
   const selectedDiscount=remaining.length?(subtotal?Math.round(discount*selectedSubtotal/subtotal):0):discount;
-  return {selected:{...order,lines:selected,discount:selectedDiscount},remaining:{...order,lines:remaining,discount:discount-selectedDiscount}};
+  const net=Math.max(0,selectedSubtotal-selectedDiscount);
+  const credit=Math.min(order.depositCredit??0,net+Math.round(net*(order.vat??0)/100));
+  return {selected:{...order,lines:selected,discount:selectedDiscount,depositCredit:credit},remaining:{...order,lines:remaining,discount:discount-selectedDiscount,depositCredit:Math.max(0,(order.depositCredit??0)-credit)}};
 }

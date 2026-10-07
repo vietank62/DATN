@@ -1,4 +1,5 @@
 type ReceiptBill = {
+  depositCredit?: number;
   invoiceRequest?: { buyerType: "company" | "individual"; customerName: string; companyName: string; taxCode: string; address: string; email: string; phone: string };
   id: string; table: string; time: string; openedAt?: string; cashier?: string;
   guests: number; note: string; discount: number; vat: number; method: string;
@@ -14,6 +15,7 @@ export function paymentReceiptHtml(restaurant: Restaurant, bill: ReceiptBill, te
   const discount = Math.min(subtotal, bill.discount);
   const tax = Math.round((subtotal - discount) * bill.vat / 100);
   const total = subtotal - discount + tax;
+  const deposit = Math.min(total, Math.max(0, bill.depositCredit ?? 0));
   const row = (label: string, value: number, prominent = false) => `<div class="sum${prominent ? " total" : ""}"><span>${escape(label)}</span><span>${money(value)}</span></div>`;
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${temporary ? "Phiếu tạm tính" : "Hóa đơn thanh toán"}</title><style>
     *{box-sizing:border-box}body{width:72mm;margin:4mm auto;font:400 12px Arial,sans-serif;line-height:1.4;color:#000;background:#fff}header{text-align:center}p{margin:3px 0}.name{font-size:16px}h1{font-size:19px;font-weight:400;margin:14px 0 3px}.number{margin-bottom:12px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;overflow-wrap:anywhere}
@@ -26,6 +28,7 @@ export function paymentReceiptHtml(restaurant: Restaurant, bill: ReceiptBill, te
     <table><thead><tr><th>STT</th><th>Tên món</th><th>SL</th><th>Đơn giá</th><th>VAT</th><th>Thành tiền</th></tr></thead><tbody>${bill.lines.map((line, index) => `<tr><td class="center">${index + 1}</td><td class="name-cell">${escape(line.name)}</td><td class="center">${line.quantity}</td><td>${money(line.price)}</td><td class="center">${bill.vat}%</td><td>${money(line.price * line.quantity)}</td></tr>`).join("")}</tbody></table>
     ${bill.invoiceRequest ? `<section class="note"><p>Thông tin yêu cầu xuất hóa đơn</p><p>Khách hàng: ${escape(bill.invoiceRequest.buyerType === "company" ? bill.invoiceRequest.companyName : bill.invoiceRequest.customerName)}</p>${bill.invoiceRequest.taxCode ? `<p>Mã số thuế: ${escape(bill.invoiceRequest.taxCode)}</p>` : ""}${bill.invoiceRequest.address ? `<p>Địa chỉ: ${escape(bill.invoiceRequest.address)}</p>` : ""}${bill.invoiceRequest.email ? `<p>Email: ${escape(bill.invoiceRequest.email)}</p>` : ""}<p>Trạng thái: Chờ xử lý · Chưa phát hành hóa đơn điện tử</p></section>` : ""}
     ${row("Thành tiền", subtotal)}${row("Giảm giá", -discount)}${row(bill.vat ? `Tiền thuế (VAT ${bill.vat}%)` : "Không tính VAT", tax)}${row("Tổng tiền", total, true)}
-    ${temporary ? "" : row(`Thanh toán (${bill.method})`, total)}${bill.note ? `<p class="note">Ghi chú: ${escape(bill.note)}</p>` : ""}
+    ${deposit ? row("Đã thanh toán đặt cọc", -deposit) : ""}${row("Còn phải thanh toán", total - deposit, true)}
+    ${temporary ? "" : row(`Thanh toán (${bill.method})`, total - deposit)}${bill.note ? `<p class="note">Ghi chú: ${escape(bill.note)}</p>` : ""}
     <footer><p>Cảm ơn Quý khách</p><p>Powered by TableNow</p>${temporary ? "<p class=\"notice\">Phiếu tạm tính · Chưa xác nhận thanh toán</p>" : "<p class=\"notice\">Phiếu thanh toán nội bộ · Không thay thế hóa đơn điện tử</p>"}</footer></body></html>`;
 }
