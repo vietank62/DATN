@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../services/api";
@@ -72,7 +72,7 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
   const queryClient = useQueryClient();
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [selectedFee, setSelectedFee] = useState<Fee | null>(null);
-  const [handledPaymentId, setHandledPaymentId] = useState<number | null>(null);
+  const handledPaymentId = useRef<number | null>(null);
   const feePaymentId = Number(new URLSearchParams(window.location.search).get("feePayment")) || null;
   const fees = useQuery<Fee[]>({
     queryKey: ["booking-fees"],
@@ -88,23 +88,23 @@ export default function BookingFees({ admin = false }: { admin?: boolean }) {
   });
   useEffect(() => {
     const status = feePaymentStatus.data?.status;
-    if (!feePaymentId || !status || handledPaymentId === feePaymentId) return;
+    if (!feePaymentId || !status || handledPaymentId.current === feePaymentId) return;
     if (status === "completed") {
-      setHandledPaymentId(feePaymentId);
+      handledPaymentId.current = feePaymentId;
       toast.success("Thanh toán phí dịch vụ thành công.");
       void queryClient.invalidateQueries({ queryKey: ["booking-fees"] });
       void queryClient.invalidateQueries({ queryKey: ["booking-fees-summary"] });
       window.history.replaceState({}, "", window.location.pathname);
     } else if (status === "expired" || status === "cancelled") {
-      setHandledPaymentId(feePaymentId);
+      handledPaymentId.current = feePaymentId;
       toast.error("Phiên thanh toán phí dịch vụ đã hết hạn hoặc bị hủy.");
       window.history.replaceState({}, "", window.location.pathname);
     } else if (status === "review") {
-      setHandledPaymentId(feePaymentId);
+      handledPaymentId.current = feePaymentId;
       toast.message("Giao dịch đang được quản trị viên kiểm tra.");
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [feePaymentId, feePaymentStatus.data?.status, handledPaymentId, queryClient]);
+  }, [feePaymentId, feePaymentStatus.data?.status, queryClient]);
 
   const summary = useQuery<FeeSummary>({
     queryKey: ["booking-fees-summary"],

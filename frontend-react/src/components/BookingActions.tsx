@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
@@ -7,17 +7,17 @@ import { uploadImage, uploadReviewMedia } from "../services/upload";
 import type { BookingDetail } from "../types/booking";
 
 function ReviewMediaPreview({ file, disabled, onRemove }: { file: File; disabled: boolean; onRemove: () => void }) {
-  const [url, setUrl] = useState("");
+  const preview = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
   useEffect(() => {
     const previewUrl = URL.createObjectURL(file);
-    setUrl(previewUrl);
+    if (preview.current) preview.current.src = previewUrl;
     return () => URL.revokeObjectURL(previewUrl);
   }, [file]);
   return <figure className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white">
     <div className="aspect-square overflow-hidden bg-gray-50">
-      {url && (file.type.startsWith("video/")
-        ? <video src={url} controls playsInline preload="metadata" aria-label={`Xem trước ${file.name}`} className="h-full w-full object-contain" />
-        : <img src={url} alt={`Xem trước ${file.name}`} className="h-full w-full object-cover" />)}
+      {file.type.startsWith("video/")
+        ? <video ref={element => { preview.current = element; }} controls playsInline preload="metadata" aria-label={`Xem trước ${file.name}`} className="h-full w-full object-contain" />
+        : <img ref={element => { preview.current = element; }} alt={`Xem trước ${file.name}`} className="h-full w-full object-cover" />}
     </div>
     <figcaption className="flex items-center gap-2 p-2 text-xs text-gray-600">
       <span title={file.name} className="min-w-0 flex-1 truncate">{file.name}</span>

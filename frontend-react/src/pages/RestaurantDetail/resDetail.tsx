@@ -152,11 +152,15 @@ export const RestaurantDetail = () => {
   const isValidContactPhone = /^(?:0(?:3|5|7|8|9)\d{8}|(?:\+84|84)(?:3|5|7|8|9)\d{8})$/u.test(normalizedContactPhone);
 
   const totalGuests = adults + children;
+  const [previousTotalGuests, setPreviousTotalGuests] = useState(totalGuests);
+  if (previousTotalGuests !== totalGuests) {
+    setPreviousTotalGuests(totalGuests);
+    if (totalGuests > 0) setRequestSeatsInput(String(totalGuests));
+  }
   const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
   useEffect(() => {
     window.localStorage.setItem("booking-total-guests", String(totalGuests));
-    setRequestSeatsInput((current) => totalGuests > 0 ? String(totalGuests) : current);
   }, [totalGuests]);
 
   const updateAdults = (value: string) => {

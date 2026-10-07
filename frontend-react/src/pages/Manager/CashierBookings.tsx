@@ -17,7 +17,7 @@ export default function CashierBookings() {
   const [selected, setSelected] = useState<Booking | null>(null);
   const [tableId, setTableId] = useState("");
   const [arriving, setArriving] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const navigate = useNavigate();
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   const isDue = (booking: Booking) => new Date(`${booking.date}T${booking.time.slice(0, 5)}:00+07:00`).getTime() <= now;

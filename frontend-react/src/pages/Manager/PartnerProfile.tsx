@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import AddressGeocoding from "../../components/AddressGeocoding";
-import ImageOrderControls, { moveImage } from "../../components/ImageOrderControls";
+import ImageOrderControls from "../../components/ImageOrderControls";
+import { moveImage } from "../../utils/moveImage";
 import { Link } from "react-router-dom";
 import { citiesList } from "../../data/Location";
 import { useLocation } from "../../hooks/useLocation";
@@ -76,10 +77,10 @@ export default function PartnerProfile() {
     queryFn: () => api.get("/v1/partners/application/me").then((response) => response.data),
   });
 
-  useEffect(() => {
-    const application = applicationQ.data;
-    if (application?.approval_status !== "rejected") return;
-
+  const application = applicationQ.data;
+  const [initializedApplicationId, setInitializedApplicationId] = useState<number | null>(null);
+  if (application?.approval_status === "rejected" && initializedApplicationId !== application.id) {
+    setInitializedApplicationId(application.id);
     setForm({
       ...initialForm,
       name: application.name,
@@ -91,9 +92,15 @@ export default function PartnerProfile() {
       business_license_urls: application.business_license_urls ?? [],
       tax_code: application.tax_code ?? "",
     });
-    setCity(application.city);
-    setDistrict(application.district);
-  }, [applicationQ.data, setCity, setDistrict]);
+  }
+  const rejectedCity = application?.approval_status === "rejected" ? application.city : null;
+  const rejectedDistrict = application?.approval_status === "rejected" ? application.district : null;
+  useEffect(() => {
+    if (rejectedCity && rejectedDistrict) {
+      setCity(rejectedCity);
+      setDistrict(rejectedDistrict);
+    }
+  }, [rejectedCity, rejectedDistrict, setCity, setDistrict]);
 
   const getErrorMessage = (error: unknown) => {
     if (typeof error === "object" && error !== null && "response" in error) {

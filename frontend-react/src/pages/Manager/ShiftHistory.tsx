@@ -2,7 +2,7 @@ import { cashierTotals } from "../../utils/cashierTotals";
 import { printRestaurantReceipt } from "../../utils/printRestaurantReceipt";
 import { shiftReceiptHtml } from "../../utils/shiftReceipt";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../services/api";
@@ -16,7 +16,8 @@ export default function ShiftHistory(){
  const [page,setPage]=useState(0);
  const {shiftId}=useParams<{shiftId:string}>();
  const [billPage,setBillPage]=useState(0);
- useEffect(()=>setBillPage(0),[shiftId]);
+ const [previousShiftId,setPreviousShiftId]=useState(shiftId);
+ if(previousShiftId!==shiftId){setPreviousShiftId(shiftId);setBillPage(0);}
  const q=useQuery<{data:{shifts:Shift[]}}>({queryKey:["manager-shift-history"],queryFn:()=>api.get("/v1/cashier/workspace").then(r=>r.data)});
  const shifts=(q.data?.data.shifts??[]).filter(s=>s.closed).sort((a,b)=>b.opened.localeCompare(a.opened));
  const shift=shifts.find(s=>s.id===shiftId);

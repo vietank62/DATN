@@ -26,7 +26,10 @@ export default function ManagementGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     const token = sessionStorage.getItem("management-token");
-    if (!token) { setChecking(false); return; }
+    if (!token) {
+      queueMicrotask(() => { if (active) setChecking(false); });
+      return () => { active = false; };
+    }
     api.get<{ valid: boolean; expires_at: number }>("/v1/management-access/session")
       .then(({ data }) => {
         if (active && sessionStorage.getItem("management-token") === token && data.valid && data.expires_at * 1000 > Date.now()) {

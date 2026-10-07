@@ -1,4 +1,6 @@
-import { RestaurantDiscountBadge, type Discount } from "../../components/DiscountOffers";
+import { RestaurantDiscountBadge } from "../../components/DiscountOffers";
+import type { Discount } from "../../utils/discount";
+import { useNow } from "../../hooks/useNow";
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Splide, SplideSlide } from "@splidejs/react-splide";
@@ -33,6 +35,7 @@ const getCardImageUrl = (url?: string | null): string => {
 };
 
 export const Home = () => {
+    const now = useNow();
     const navigate = useNavigate();
     const { city } = useLocation();
     const { t } = useTranslation();
@@ -73,7 +76,7 @@ export const Home = () => {
     });
 
     const currentOfferRestaurantIds = new Set((publicOffers.data ?? [])
-        .filter(d => d.is_public && d.is_active && new Date(d.expires_at).getTime() > Date.now())
+        .filter(d => d.is_public && d.is_active && new Date(d.expires_at).getTime() > now)
         .map(d => d.restaurant_id));
     const hotDealsData = hotDealsCandidates?.filter(restaurant => currentOfferRestaurantIds.has(restaurant.id));
 

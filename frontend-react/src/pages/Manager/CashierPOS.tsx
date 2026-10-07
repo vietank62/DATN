@@ -1,5 +1,6 @@
 import { cashierTotals } from "../../utils/cashierTotals";
-import { useTableReservations } from "../../components/TableConflictPanel";
+import { cashierPaymentMethod } from "../../utils/cashierPaymentMethod";
+import { useTableReservations } from "../../hooks/useTableReservations";
 import { printRestaurantReceipt } from "../../utils/printRestaurantReceipt";
 import { shiftReceiptHtml } from "../../utils/shiftReceipt";
 import { Banknote, Landmark, CreditCard, Wallet, Printer, Check } from "lucide-react";
@@ -11,12 +12,12 @@ import { useAuth } from "../../hooks/useAuth";
 import { kitchenChanges } from "../../utils/kitchenChanges";
 import { splitCashierOrder } from "../../utils/splitCashierOrder";
 import RestaurantTableGraphic from "../../components/RestaurantTableGraphic";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../../services/api";
-import { type Discount, discountValue } from "../../components/DiscountOffers";
+import { type Discount, discountValue } from "../../utils/discount";
 
 type Item = { id: number; name: string; price: number; category: string; image_url?: string; is_available: boolean };
 type Line = Item & { quantity: number };
@@ -65,12 +66,12 @@ export default function CashierPOS() {
   const tables=useQuery<Table[]>({queryKey:["restaurant-tables"],queryFn:()=>api.get("/v1/restaurant-tables/me").then(r=>r.data)});
   const workspace=useQuery<{version:number;data:State}>({queryKey:["cashier-workspace",profile.data?.id],enabled:!!profile.data?.id,refetchInterval:10_000,queryFn:()=>api.get("/v1/cashier/workspace").then(r=>r.data)});
   const discounts=useQuery<Discount[]>({queryKey:["manager-discounts"],queryFn:()=>api.get("/v1/discounts/me").then(r=>r.data)});
-  const [state,setState]=useState<State>({orders:{},shifts:[]});
+  const [state,setState]=useState<State>(()=>workspace.data?.data??{orders:{},shifts:[]});
   const savingRef=useRef(false);
-  const [version,setVersion]=useState(0), [busy,setBusy]=useState(false);
+  const [version,setVersion]=useState(()=>workspace.data?.version??0), [busy,setBusy]=useState(false);
   const [category,setCategory]=useState("Tất cả"), [search,setSearch]=useState("");
   const [modal,setModal]=useState<"open"|"close"|"payment"|"flow"|"move"|"split"|"delete"|null>(null), [opening,setOpening]=useState(0);
-  const [method,setMethod]=useState(methods[0]), [flowType,setFlowType]=useState<"Thu"|"Chi">("Thu"), [amount,setAmount]=useState(0), [reason,setReason]=useState("");
+  const [methodChoice,setMethodChoice]=useState<{context:string;value:string}|null>(null), [flowType,setFlowType]=useState<"Thu"|"Chi">("Thu"), [amount,setAmount]=useState(0), [reason,setReason]=useState("");
   const [deletingId,setDeletingId]=useState<number|null>(null);
   const [destination,setDestination]=useState<number|null>(null);
   const [splitQuantities,setSplitQuantities]=useState<Record<number,number>>({});
@@ -78,9 +79,17 @@ export default function CashierPOS() {
   const [invoiceOpen,setInvoiceOpen]=useState(false);
   const [billPageIndex,setBillPageIndex]=useState(0);
   const [editing,setEditing]=useState<string|null>(null), [draft,setDraft]=useState<Order>(emptyOrder()), [billFilter,setBillFilter]=useState("");
-  useEffect(()=>setBillPageIndex(0),[billFilter,pathname]);
-  useEffect(()=>{setEditing(null);setModal(null);setInvoiceOpen(false);setInvoiceBillId(null);},[params.billId,params.tableId,pathname]);
-  useEffect(()=>{ if(workspace.data){ setState(workspace.data.data);setVersion(workspace.data.version); } },[workspace.data]);
+  const pageContext=JSON.stringify([billFilter,pathname]);
+  const [previousPageContext,setPreviousPageContext]=useState(pageContext);
+  if(previousPageContext!==pageContext){setPreviousPageContext(pageContext);setBillPageIndex(0);}
+  const routeContext=JSON.stringify([params.billId,params.tableId,pathname]);
+  const [previousRouteContext,setPreviousRouteContext]=useState(routeContext);
+  if(previousRouteContext!==routeContext){setPreviousRouteContext(routeContext);setEditing(null);setModal(null);setInvoiceOpen(false);setInvoiceBillId(null);}
+  const [observedWorkspace,setObservedWorkspace]=useState(workspace.data);
+  if(workspace.data&&workspace.data!==observedWorkspace&&!busy){
+    setObservedWorkspace(workspace.data);
+    if(workspace.data.version>=version){setState(workspace.data.data);setVersion(workspace.data.version);}
+  }
   const shift=state.shifts.find(s=>!s.closed);
   const active=shift;
   const hasOpenOrders=Object.values(state.orders).some(o=>o.lines.length>0||(o.kitchenLines?.length??0)>0);
@@ -100,16 +109,11 @@ export default function CashierPOS() {
   const totals=sums(order);
   const originalBill=editing?shift?.bills.find(b=>b.id===editing):undefined;
   const selectableMethods=editing&&originalBill&&!enabledMethods.includes(originalBill.method)?[...enabledMethods,originalBill.method]:enabledMethods;
-  useEffect(()=>{
-    if(paymentSettings.data&&["payment","split","flow"].includes(modal??"")){
-      setMethod(editing&&modal!=="flow"&&originalBill?originalBill.method:paymentSettings.data.default_method);
-    }
-  },[modal,editing,paymentSettings.data?.default_method]);
-  useEffect(()=>{
-    if(!paymentSettings.data)return;
-    const allowed=modal==="flow"?enabledMethods:selectableMethods;
-    if(!allowed.includes(method))setMethod(paymentSettings.data.default_method);
-  },[paymentSettings.data,editing,originalBill?.method,modal,method]);
+  const methodContext=JSON.stringify([modal,editing,originalBill?.method]);
+  const allowedMethods=modal==="flow"?enabledMethods:selectableMethods;
+  const defaultMethod=editing&&modal!=="flow"&&originalBill?originalBill.method:paymentSettings.data?.default_method??methods[0];
+  const method=cashierPaymentMethod(methodChoice,methodContext,allowedMethods,defaultMethod);
+  const setMethod=(value:string)=>setMethodChoice({context:methodContext,value});
   const sentLines=order.kitchenLines??originalBill?.lines??[];
   const kitchenRows=kitchenChanges(order.lines,sentLines);
   const kitchenPending=kitchenRows.length>0;

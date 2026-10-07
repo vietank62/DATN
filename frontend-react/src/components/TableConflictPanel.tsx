@@ -3,11 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../services/api";
 import { toast } from "sonner";
 
-export type TableReservation={booking_id:number;table_id:number;table_name:string;customer:string;seats:number;meal_at:string;conflict:boolean;attendance?:string|null};
-type Incident={id:number;booking_id:number;table_id:number;table_name:string|null;restaurant_name:string;customer:string;date:string;time:string;state:string;solution?:string;admin_note?:string;reviewed_at?:string;seats:number};
-export function useTableReservations(){
- return useQuery<{reservations:TableReservation[];incidents:Incident[]}>({queryKey:["table-reservations"],queryFn:()=>api.get("/v1/table-reservations/me").then(r=>r.data),refetchInterval:10_000,refetchOnWindowFocus:true});
-}
+import { type Incident, useTableReservations } from "../hooks/useTableReservations";
 function IncidentCard({issue,admin=false}:{issue:Incident;admin?:boolean}){
  const qc=useQueryClient();const [solution,setSolution]=useState(issue.solution??""),[note,setNote]=useState("");
  const mutation=useMutation({mutationFn:()=>admin?api.post(`/v1/table-reservations/admin/${issue.id}/review`,{note}):api.post(`/v1/table-reservations/${issue.id}/solution`,{solution}),onSuccess:()=>{toast.success(admin?"Đã gửi phản hồi cho nhà hàng":"Đã gửi phương án tới admin");void qc.invalidateQueries({queryKey:["table-reservations"]});void qc.invalidateQueries({queryKey:["admin-table-incidents"]});},onError:(e:unknown)=>{const error=e as {response?:{data?:{detail?:string}}};toast.error(error.response?.data?.detail??"Không gửi được phương án.");}});

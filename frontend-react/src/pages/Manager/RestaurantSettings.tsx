@@ -1,7 +1,8 @@
 import { useState } from "react";
 import AddressGeocoding from "../../components/AddressGeocoding";
 import { SERVICE_TYPE_OPTIONS, SUITABLE_FOR_OPTIONS } from "../../utils/category";
-import ImageOrderControls, { moveImage } from "../../components/ImageOrderControls";
+import ImageOrderControls from "../../components/ImageOrderControls";
+import { moveImage } from "../../utils/moveImage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../services/api";
 import axios from "axios";

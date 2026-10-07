@@ -1,4 +1,4 @@
-import { type Discount, discountValue } from "../../components/DiscountOffers";
+import { type Discount, discountValue } from "../../utils/discount";
 import { BookingActions } from "../../components/BookingActions";
 import { useSearchParams } from "react-router-dom";
 import { BOOKING_STATUS_LABEL as STATUS_LABEL } from "../../utils/status";
@@ -55,7 +55,6 @@ export default function BookingManagement() {
   const [voucherBooking,setVoucherBooking]=useState<BookingDetail|null>(null);
   const [voucherId,setVoucherId]=useState<number|null>(null);
   const vouchers=useQuery<Discount[]>({queryKey:["manager-discounts"],enabled:!!voucherBooking,queryFn:()=>api.get("/v1/discounts/me").then(r=>r.data)});
-  const availableVouchers=(vouchers.data??[]).filter(v=>v.is_active&&new Date(v.expires_at).getTime()>Date.now());
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('active');
   const [keyword, setKeyword] = useState("");
@@ -64,9 +63,12 @@ export default function BookingManagement() {
   const [form,setForm]=useState({contactName:"",contactEmail:"",contactPhone:"",date:"",time:"",guestCount:1,note:""});
   const effectiveFilter=searchParams.get("status")==="all"?"all":statusFilter;
   const profile=useQuery<{id:number;is_active:boolean;is_report_suspended:boolean;approval_status:string}>({queryKey:["partner-application"],queryFn:()=>api.get("/v1/partners/application/me").then(r=>r.data)});
-  useEffect(()=>setPage(0),[keyword,effectiveFilter]);
+  const filterKey=JSON.stringify([keyword,effectiveFilter]);
+  const [previousFilter,setPreviousFilter]=useState(filterKey);
+  if(previousFilter!==filterKey){setPreviousFilter(filterKey);setPage(0);}
   const [reportBookingId, setReportBookingId] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const availableVouchers=(vouchers.data??[]).filter(v=>v.is_active&&new Date(v.expires_at).getTime()>now);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);

@@ -2,9 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Copy, TicketPercent } from "lucide-react";
 import { api } from "../services/api";
 import { toast } from "sonner";
-export type Discount={id:number;restaurant_id:number;restaurant_name?:string;code:string;title:string;kind:"percent"|"amount";value:number;minimum:number;expires_at:string;is_active:boolean;is_public:boolean};
-export const discountValue=(d:Discount)=>d.kind==="percent"?`${d.value}%`:`${d.value.toLocaleString("vi-VN")}đ`;
-export const discountText=(d:Discount)=>`${d.title}\nMã: ${d.code} · Giảm ${discountValue(d)}\nÁp dụng tại ${d.restaurant_name??"nhà hàng"} cho hóa đơn từ ${d.minimum.toLocaleString("vi-VN")}đ\nHạn dùng: ${new Date(d.expires_at).toLocaleString("vi-VN")}\nVui lòng cung cấp mã khi thanh toán tại nhà hàng.`;
+import { type Discount, discountValue } from "../utils/discount";
 export function RestaurantDiscountBadge({restaurantId}:{restaurantId:number}){
  const q=useQuery<Discount[]>({queryKey:["public-discounts"],queryFn:()=>api.get("/v1/discounts/public").then(r=>r.data)});
  const offers=q.data?.filter(d=>d.restaurant_id===restaurantId&&d.is_public&&d.is_active&&new Date(d.expires_at)>new Date())??[];

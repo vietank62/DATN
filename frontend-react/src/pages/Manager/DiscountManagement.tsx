@@ -3,7 +3,7 @@ import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../../services/api";
-import { type Discount,discountValue } from "../../components/DiscountOffers";
+import { type Discount,discountValue } from "../../utils/discount";
 export default function DiscountManagement(){
  const qc=useQueryClient();const [form,setForm]=useState({code:"",title:"",kind:"percent",value:10,minimum:0,expires_at:"",is_public:true,is_active:true});
  const q=useQuery<Discount[]>({queryKey:["manager-discounts"],queryFn:()=>api.get("/v1/discounts/me").then(r=>r.data)});

@@ -5,7 +5,7 @@ import { MessageCircle, Send } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { useAuth } from "../../hooks/useAuth";
-import { type Discount, discountText } from "../../components/DiscountOffers";
+import { type Discount, discountText } from "../../utils/discount";
 
 type RelatedBooking = {
   bookingId: number;
@@ -80,7 +80,7 @@ export default function ChatPage() {
   });
   const lastMessage = messagesQuery.data?.at(-1);
   useEffect(() => {
-    if (!activeConversation || !messagesQuery.data || !messageViewport.current) return;
+    if (!activeConversation?.id || !messagesQuery.data || !messageViewport.current) return;
     const changedConversation = viewedConversation.current !== activeConversationId;
     if (changedConversation || nearLatest.current || lastMessage?.sender_id === user?.userId) {
       messageViewport.current.scrollTop = messageViewport.current.scrollHeight;
